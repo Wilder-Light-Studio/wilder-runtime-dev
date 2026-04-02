@@ -4,6 +4,11 @@
 
 # Wilder Cosmos Runtime
 
+### “For those who kept their conscience even when it cost them everything.”
+
+
+
+
 Wilder Cosmos Runtime is a Nim-based runtime for deterministic world-state
 execution, boundary validation, structured messaging, and layered
 reconciliation.
