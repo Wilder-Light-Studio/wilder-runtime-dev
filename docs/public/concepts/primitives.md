@@ -1,36 +1,51 @@
-# Concept, Thing, Occurrence, Perception
+# Thing/World, Occurrence, Wave, Perception, RECORD
 
-What this is. This page defines the four ontology primitives and how they relate.
+What this is. This page defines the runtime primitives and how they relate.
 
-## Concept
+## Primitive Set
 
-Concept is an immutable template. Its minimal universal contract is:
+The runtime has exactly five primitives:
 
-- identity
-- WHY
-
-Additional sections and a manifest may be present when a world needs them.
-
-Common sections include:
-
-- Identity
-- Location
+- Thing/World
+- Occurrence
+- Wave
 - Perception
-- Emission
-- Tempo
-- Status
-- Interrogative Manifest
+- RECORD
 
-## Thing
+Concept is a pattern used inside a Thing/World. It is not a primitive.
 
-Thing is the runtime instantiation of a Concept. Its only universal requirement is identity.
+## Thing/World/Scope
 
-Concept association, status, metadata, and manifest-backed surfaces are world-defined additions.
+Thing, World, and Scope are the same primitive viewed through different lenses:
+
+- Thing: identity lens.
+- World: interior lens.
+- Scope: visibility lens from inside the boundary.
+
+Minimal existence contract:
+
+- WHO (identity)
+- WHY (purpose)
+
+These are the only required fields for a Thing/World to exist.
+
+Optional world-defined interrogative lenses over the Concept manifest:
+
+- WHAT (capabilities and structure)
+- WHERE (location and containment)
+- WHEN (tempo)
+- HOW (mechanics)
+
+Optional relational contract:
+
+- NEEDS
+- WANTS
+- PROVIDES
 
 ## Occurrence
 
-Occurrence is an immutable projection event and the only allowed mechanism of world change.
-In communication flows, these projections are carried as Waves on the runtime bus.
+Occurrence is immutable interior truth and the only mechanism of change.
+Waves are externalized Occurrences in the medium.
 
 Core fields include:
 
@@ -38,19 +53,30 @@ Core fields include:
 - source
 - epoch
 - payload
-- projection radius
 
-## Perception
+## Wave
+
+Wave is the communication physics of the runtime:
+
+- ambient
+- undirected
+- non-coercive
+
+Waves-over-wires and channels are optional designer-level patterns and do not change Wave physics.
+
+## Perception and RECORD
 
 Perception is a local awareness event produced by matching filters. It is passive and bounded.
 
+RECORD is the atomic temporal unit of internal change. RECORDs are internalized Occurrences.
+
 ## Relationship Sketch
 
-- Concept defines identity and purpose first, then optional structure.
-- Thing is a live instance of that shape.
-- Occurrence carries change signals.
-- Wave is the communication form of those signals between Things.
-- Perception records local awareness of relevant signals.
+- Thing/World/Scope is one primitive with different lenses.
+- Occurrence is the only change mechanism.
+- Wave is the only communication physics.
+- Perception is local awareness.
+- RECORD is local internalized change.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

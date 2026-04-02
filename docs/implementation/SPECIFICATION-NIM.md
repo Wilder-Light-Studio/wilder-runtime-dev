@@ -13,7 +13,7 @@ The runtime must implement the following principles mechanically:
 - **Perception determines understanding**: Things only understand Waves through local filters.
 - **Waves over wires**: wires are optional designer-level containment patterns over Wave propagation.
 - **Channels are optional tuning**: channel tags on Waves and channel filters on Perceptions do not change physics.
-- **Occurrence and RECORD duality**: Waves are externalized Occurrences; RECORDS are internalized Occurrences.
+- **Occurrence is the only mechanism of change**: Waves are externalized Occurrences; RECORDS are internalized Occurrences.
 - **Bridges are membranes**: Bridges are Thing/World templates that become boundary translators when instantiated.
 - **No new primitives**: only Thing/World, Occurrence, Wave, Perception, and RECORD are primitive.
 - **Voluntary reversible entry/exit**: no irreversible bindings; participation is opt-in and reversible.
@@ -183,6 +183,28 @@ Thing and World are one primitive seen in different aspects:
 - Scope: region visible from inside a Thing boundary
 
 Changing scope is changing worlds; changing worlds is changing things.
+
+Minimal existence contract for a Thing/World:
+
+- WHO (identity)
+- WHY (purpose)
+
+These are the only required fields for a Thing/World to exist.
+
+Optional world-defined interrogative lenses over the Concept manifest:
+
+- WHAT (capabilities and structure)
+- WHERE (location and containment)
+- WHEN (tempo)
+- HOW (mechanics)
+
+The relational contract is optional but recommended for richer semantics:
+
+- NEEDS
+- WANTS
+- PROVIDES
+
+All interrogatives are descriptive lenses over one Thing/World interiority; they are not separate entities.
 
 ### 4.2 Occurrence
 Occurrence is immutable internal truth inside a Thing/World:
@@ -366,30 +388,36 @@ Rules:
 
 # 6. Interrogative Manifest Specification
 
-Every Concept must declare:
+Every Thing/World Concept must declare the minimal existence contract:
 
 - WHO
-- WHAT
 - WHY
+
+Optional world-defined interrogative lenses over the Concept manifest:
+
+- WHAT
 - WHERE
 - WHEN
 - HOW
-- REQUIRES
+
+Optional relational contract (recommended):
+
+- NEEDS
 - WANTS
 - PROVIDES
-- WITH
 
 ### 6.1 Validation
-- all fields required
-- string fields non‑empty
-- sequence fields present (may be empty)
+- WHO and WHY are required and must be non-empty.
+- WHAT, WHERE, WHEN, HOW, NEEDS, WANTS, and PROVIDES are optional.
+- If optional fields are present, they must satisfy schema and type constraints.
+- Missing optional fields must not fail validation.
 
 ### 6.2 Specialist Capability Declaration
 Specialists must declare:
 
 - `PROVIDES` — capabilities
-- `REQUIRES` — prerequisites
-- `HOW` — mechanism of specialization
+- `NEEDS` — prerequisites
+- `HOW` — optional mechanism details for specialization
 
 ---
 
@@ -475,7 +503,7 @@ type
 A specialist is selected when:
 
 - its Concept's `PROVIDES` matches `targetCapability`
-- its `REQUIRES` are satisfied
+- its `NEEDS` are satisfied
 - it is active in the world graph
 
 ### 9.4 Lifecycle Integration
@@ -785,7 +813,7 @@ Additional payload types are additive and must not renumber existing fields.
 
 ### 22.4 Communication Physics Boundary
 - Envelope schemas are encoding patterns over Waves and must not redefine communication physics.
-- No envelope field may imply routing, addressing, destination ownership, or directed delivery.
+- No envelope field may imply target ownership or directional delivery semantics.
 - Wires and channels remain optional designer-level constraints compiled to Perception masks,
   validation rules, and topology hints.
 

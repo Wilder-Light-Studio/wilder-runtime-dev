@@ -78,7 +78,7 @@ vocabulary.
 - Perception governs understanding: Things only understand Waves through local filters.
 - Waves over wires: wires are optional designer-level containment over Waves, not new primitives.
 - Channels are tuning: optional tags on Waves and optional filters on Perceptions.
-- Occurrence and RECORD coupling: Waves externalize Occurrences; RECORDS internalize Occurrences.
+- Occurrence is the only mechanism of change: Waves externalize Occurrences; RECORDS internalize Occurrences.
 - Bridges are membranes: Bridges are Thing/World templates that translate boundary effects when instantiated.
 - No new primitives: only Thing/World, Occurrence, Wave, Perception, and RECORD are primitive.
 - Growth model: adopt a Small -> Step -> Repeat -> Federate -> Integrate approach.
@@ -88,7 +88,7 @@ vocabulary.
 1. Ambient Wave perception
   - Use case: an Occurrence in one Thing externalizes as a Wave.
   - Allowed: nearby Things perceive it only if local filters match.
-  - Not allowed: directed delivery, forced processing, or direct state mutation across boundaries.
+  - Not allowed: coercive uptake, forced processing, or cross-boundary state mutation.
 
 2. Voluntary reversible entry/exit
    - Use case: a module joins a federation for diagnostics, then detaches after analysis.
@@ -98,7 +98,7 @@ vocabulary.
 3. Waves over wires and channels
   - Use case: designers apply a wire and channel tags for a scoped communication domain.
   - Allowed: optional containment and tuning compiled to Perception masks and validation rules.
-  - Not allowed: introducing addressing, routing, or directional physics.
+  - Not allowed: introducing target-ownership semantics or directional physics.
 
 4. Growth model (Small -> Step -> Repeat -> Federate -> Integrate)
    - Use case: ship one module with deterministic tests, add one capability, repeat,
@@ -394,13 +394,27 @@ Path reset: /
   - interior aspect -> World
   - visible region from inside boundary -> Scope
 - Changing scope is changing worlds; changing worlds is changing things.
+- A Thing/World has a minimal existence contract:
+  - **WHO**: identity.
+  - **WHY**: purpose.
+  - These are the only required fields for a Thing/World to exist.
+- All other interrogatives are optional and world-defined grouping lenses over the
+  Concept manifest, not separate entities:
+  - **WHAT**: capabilities and structure.
+  - **WHERE**: location and containment.
+  - **WHEN**: tempo.
+  - **HOW**: mechanics.
+- Relational declaration is optional but recommended for richer semantics:
+  - **NEEDS**
+  - **WANTS**
+  - **PROVIDES**
 - Occurrences are immutable internal truths inside a Thing/World.
 - Waves are externalized Occurrences in the medium and are the only communication physics.
 - Perceptions are local awareness events produced when local filters match ambient Waves.
 - RECORD is the atomic temporal unit of internal change and is the internalized Occurrence.
 - Concepts, Schemas, and RECORD types are patterns inside Worlds, not primitives.
 - Wires, Channels, Bridges, Systems, and Constellations are patterns, not primitives.
-- No hidden behavior. No implicit coercion. No routing, addressing, or directed delivery.
+- No hidden behavior. No implicit coercion. No directional delivery semantics.
 
 ---
 
@@ -483,34 +497,35 @@ flowchart TD
 
 ## Interrogative Manifest Requirements
 
-- A Concept pattern is valid with:
-  - **WHO** via a unique identity.
-  - **WHY** via purpose or description.
+- Thing = World = Scope is invariant: interrogatives describe one Thing/World
+  interiority and do not define separate entities.
 
-- A Thing/World is valid with:
-  - **WHO** via a unique identity.
+- Minimal existence contract for every Thing/World:
+  - **WHO** identity.
+  - **WHY** purpose.
+  - These are the only required interrogative fields.
 
-- A Concept pattern may declare an optional interrogative manifest containing:
-  - **WHO** identity and naming.
-  - **WHAT** purpose and type.
-  - **WHY** intent and justification.
-  - **WHERE** spatial or logical location.
-  - **WHEN** temporal behavior and cadence.
-  - **HOW** mechanisms and capabilities.
-  - **REQUIRES** dependencies and prerequisites.
+- Optional world-defined interrogative lenses over the Concept manifest:
+  - **WHAT** capabilities and structure.
+  - **WHERE** location and containment.
+  - **WHEN** tempo.
+  - **HOW** mechanics.
+
+- Optional relational contract (recommended for richer semantics):
+  - **NEEDS** dependencies and prerequisites.
   - **WANTS** optional desires or preferences.
   - **PROVIDES** outputs, emissions, or services.
-  - **WITH** materials, resources, or tools used.
 
 - Interrogatives must be:
   - Declarative.
   - Human-readable.
   - Persisted.
   - Introspectable via the Console.
-  - Validated when a manifest is present.
+  - Validated when present.
 
-- Missing interrogatives must produce a structured error when a manifest is present.
-- Specialist manifests must have non-empty `PROVIDES` and `REQUIRES`.
+- Missing **WHO** or **WHY** must produce a structured error.
+- Missing optional interrogatives must not produce an error.
+- Specialist manifests should declare non-empty `PROVIDES` and `NEEDS`.
 - Cosmos-native modules must define their contract in code, with manifest views derived from code.
 - External-process wrappers may use handwritten manifests as the authoritative contract source.
 
@@ -573,7 +588,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 - A specialist is a Thing whose Concept declares a narrow, deep capability. There is
   no separate "specialist" primitive � specialization is a property of the Concept.
 - Specialists must declare their capabilities in their Interrogative Manifest
-  (specifically: `PROVIDES`, `REQUIRES`, and `HOW`).
+  (specifically: `PROVIDES`, `NEEDS`, and optional `HOW`).
 - Delegation must not create coercive or hidden relationships. All delegation
   relationships must be visible, introspectable, and reversible.
 - Delegation must be represented through Occurrences. No direct calls, no shared
@@ -664,8 +679,8 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 - Serialization formats are implementation patterns for encoding Wave payloads,
   not communication primitives.
 - Protobuf and JSON are permitted as Wave payload schema/encoding patterns.
-- Any envelope schema must represent ambient Waves and must not imply routing,
-  addressing, destination ownership, or directed transport.
+- Any envelope schema must represent ambient Waves and must not imply
+  target ownership or directional transport semantics.
 - Envelopes must support forward compatibility:
   - Fields must not be renumbered.
   - Removed fields must be reserved.

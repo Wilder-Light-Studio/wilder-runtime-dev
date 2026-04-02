@@ -3,11 +3,12 @@
 What this is. This page is a compact glossary for terms used in runtime and concept documentation.
 
 - Concept: Immutable template whose universal minimum is identity plus WHY.
-- Thing: Runtime instance whose universal minimum is identity.
-- Occurrence: Immutable event that carries world-change intent.
-- Wave: Runtime communication unit propagated across the bus. Things emit Waves and other Things decide whether to perceive and process them.
+- Thing/World/Scope: One primitive viewed through identity, interior, and visibility lenses.
+- Occurrence: Immutable interior truth and the only mechanism of change.
+- Wave: Externalized Occurrence in the medium; ambient, undirected, and non-coercive communication physics.
 - Perception: Local awareness event produced by matching conditions.
-- Interrogative Manifest: Optional declarative contract. When present, all interrogatives must be non-empty. For Cosmos-native modules it is generated from code; for external processes it may be handwritten.
+- RECORD: Atomic temporal unit of internal change; internalized Occurrence.
+- Interrogative Manifest: Optional declarative contract surface. WHO and WHY are required. WHAT, WHERE, WHEN, HOW, NEEDS, WANTS, and PROVIDES are optional world-defined lenses.
 - Status: Structured state fields attached to a Thing.
 - Status Schema: Versioned declaration of status fields and invariants.
 - Invariant: Rule that must remain true at validation points.

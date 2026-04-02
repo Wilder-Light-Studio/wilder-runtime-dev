@@ -2,24 +2,24 @@
 
 What this is. This page explains when an Interrogative Manifest is needed and how it validates.
 
-## Minimal Concept Requirements
+## Minimal Thing/World Contract
 
-A Concept requires only:
+Thing equals World equals Scope. The minimal existence contract is:
 
-- WHO expressed as identity through a unique Concept id
-- WHY expressed as purpose or description
+- WHO expressed as identity
+- WHY expressed as purpose
 
-A Thing requires only identity.
+These are the only required fields for a Thing/World to exist.
 
-Everything else is world-defined and optional until a manifest is attached.
+All other interrogatives are optional, world-defined lenses over the Concept manifest.
 
 ## Interrogative Manifest Behavior
 
 The Interrogative Manifest is optional.
 
-If no manifest is present, a Concept is valid as long as identity and WHY exist.
+If no manifest is present, a Thing/World is valid as long as WHO and WHY exist.
 
-If a manifest is present, it must fully declare:
+If a manifest is present, it may declare:
 
 - WHO
 - WHAT
@@ -27,18 +27,17 @@ If a manifest is present, it must fully declare:
 - WHERE
 - WHEN
 - HOW
-- REQUIRES
+- NEEDS
 - WANTS
 - PROVIDES
-- WITH
 
 ## Validation Rules
 
-- No manifest means the Concept stays on the minimal WHO + WHY contract.
-- A present manifest must be complete.
-- String fields must be non-empty.
-- Sequence fields must be non-empty and cannot contain empty values.
-- Specialist manifests must have non-empty PROVIDES and REQUIRES.
+- No manifest means the Thing/World stays on the minimal WHO + WHY contract.
+- WHO and WHY are required and must be non-empty.
+- WHAT, WHERE, WHEN, HOW, NEEDS, WANTS, and PROVIDES are optional.
+- If optional fields are present, they must satisfy schema and type constraints.
+- Specialist manifests should declare non-empty PROVIDES and NEEDS.
 
 ## Why This Exists
 
