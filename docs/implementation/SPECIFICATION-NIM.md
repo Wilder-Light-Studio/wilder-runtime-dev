@@ -384,6 +384,47 @@ Rules:
 - Console may detach and reattach without terminating coordinator-managed runtime.
 - Watch startup is only valid in attached console mode (direct or implied).
 
+### 5B.6 CLI Interface Contract
+
+The coordinator must implement a deterministic CLI interface over launch options.
+
+Required option model:
+
+```nim
+type
+  CoordinatorConsoleMode = enum
+    ccmAuto, ccmAttach, ccmDetach
+
+  CoordinatorLaunchOptions = object
+    configPath: string
+    modeOverride: Option[string]      ## development|debug|production
+    consoleMode: CoordinatorConsoleMode
+    watchTarget: Option[string]
+    daemonize: bool
+```
+
+Argument parsing rules:
+
+- Parse left-to-right with explicit value ownership per flag.
+- Unknown flags fail parsing immediately.
+- Missing values for value-carrying flags fail parsing immediately.
+- Mode aliases normalize as: `dev -> development`, `debug -> debug`,
+  `prod -> production`.
+
+Validation rules:
+
+- `configPath` is required and non-empty.
+- `watchTarget` is valid only in attached console modes.
+- If `watchTarget` is set while `consoleMode == ccmDetach`, validation fails.
+
+### 5B.7 Coordinator Output Contract
+
+- Invalid argument/validation input returns non-zero and prints usage output.
+- Startup failure returns non-zero and includes structured fields aligned to
+  `StartupError` semantics (`haltedAt`, `reason`, `recoveryGuidance`).
+- Successful startup returns `0` and reports the active startup branch
+  (`detach`, `auto`, or `attach`).
+
 ---
 
 # 6. Interrogative Manifest Specification

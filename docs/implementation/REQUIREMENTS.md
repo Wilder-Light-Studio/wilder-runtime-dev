@@ -383,6 +383,26 @@ Path reset: /
 - Startup diagnostics must follow existing host observability and safe-logging
   constraints.
 
+### Runtime Entrypoint CLI Interface Requirements
+
+- The coordinator CLI interface must parse and validate launch arguments deterministically.
+- The coordinator CLI interface must expose a clear usage contract for:
+  - `--config <path>`
+  - `--mode <dev|debug|prod>`
+  - `--console <auto|attach|detach>`
+  - `--watch <path>`
+  - `--daemonize`
+- Mode aliases must normalize as:
+  - `dev` -> `development`
+  - `debug` -> `debug`
+  - `prod` -> `production`
+- Unknown arguments, missing values, and invalid flag combinations must fail fast
+  with non-zero exit and usage output.
+- `--watch` must only be valid in attached console startup modes (explicit `attach`
+  or implied `auto` behavior).
+- The coordinator CLI interface must remain a thin orchestration surface and must not
+  bypass lifecycle gate enforcement.
+
 ---
 
 ## Ontology Requirements

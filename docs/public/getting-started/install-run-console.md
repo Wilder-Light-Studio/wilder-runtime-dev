@@ -35,9 +35,18 @@ nim c -r src/console_main.nim -- --config config/runtime.json --attach local-dev
 
 Coordinator entrypoint supports startup plus optional console launch:
 
+- `--config <path>` (required)
+- `--mode <dev|debug|prod>`
+- `--console <auto|attach|detach>`
+- `--watch <path>` (attached console mode only)
+- `--daemonize`
+
 ```powershell
 nim c -r src/cosmos_main.nim -- --config config/runtime.json --console auto
 ```
+
+If launch arguments are invalid, the coordinator exits non-zero and prints usage.
+If startup halts, operator output includes halt step, reason, and recovery guidance.
 
 ## What To Look For
 

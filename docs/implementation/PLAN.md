@@ -29,6 +29,7 @@ The following priority sequence governs near-term implementation. Items marked
 | **P2** | **Ch 10** — Startup Sequence | Prefilter activation gate, reconciliation enforcement before ingress, startup tests | Ch 2C, Ch 3 |
 | **P2A** | **Host Hardening Extension** | FileBridge durability, lifecycle guidance, config overrides, host observability, console CLI entrypoint, hardening test gate | Ch 2, Ch 3, Ch 10, Ch 11 |
 | **P3A** | **Ch 20** — Runtime Start Coordinator | `cosmos.exe`/`cosmos` startup coordinator, flag/switch parser, optional attached console launch, coordinator tests | Ch 10, Ch 11, Host Hardening |
+| **P3B** | **Ch 20B** — Runtime Entrypoint CLI Interface | Coordinator launch options model, parse/validate matrix, watch-mode constraints, structured failure output contract, operator usage coverage | Ch 20, Ch 10, Host Hardening |
 | **P3** | **Ch 99** — Test Harness & CI Gating | Harness completion, core tests required for merges, CI workflow | All P0–P2 tests passing |
 | **P4** | **Ch 14** — Security & Performance | Microbenchmarks for prefilter hot path, perception filtering, startup time; iterate on results | Ch 10 (full startup) |
 
@@ -60,6 +61,7 @@ All items below must be satisfied before broad implementation (Ch 4+) begins.
 - [ ] Prefilter activation enforced before ingress is enabled.
 - [ ] Reconciliation enforced before module execution.
 - [ ] Startup halts with structured error on prefilter or reconciliation failure.
+- [ ] Coordinator runtime entrypoint CLI enforces launch contract and structured failures.
 
 ### Tests & CI (Ch 99)
 - [ ] Unit, perf, and integration tests for prefilter, serialization, persistence, and startup pass.
@@ -766,6 +768,8 @@ Ch 10 Lifecycle (prefilter gate + reconciliation gate)  ◄── P2
      │
 Ch 20 Runtime Start Coordinator  ◄── P3A
       │
+Ch 20B Runtime Entrypoint CLI Interface  ◄── P3B
+      │
 Ch 99 Test Harness & CI Gating  ◄── P3
      │
 Ch 14 Security & Performance (microbenchmarks)  ◄── P4
@@ -807,7 +811,7 @@ before work on Ch 4+ begins.
 | §3 Console Subsystem | Ch 11 |
 | §4 Ontology | Ch 4 |
 | §5 Runtime Lifecycle | Ch 10 |
-| §5B Runtime Start Coordinator | Ch 20 |
+| §5B Runtime Start Coordinator | Ch 20, Ch 20B |
 | §6 Interrogative Manifest | Ch 5 |
 | §7 Status Model | Ch 6 |
 | §8 Memory Model | Ch 6 |
@@ -929,6 +933,38 @@ supports flags and switches, and optionally launches an attached console.
 - `--watch` behavior is only allowed through attached mode (explicit or implied).
 - Startup errors provide `haltedAt`, `reason`, and `recoveryGuidance`.
 - Coordinator behavior does not regress current console entrypoint semantics.
+
+---
+
+## Phase 3 Extension — Chapter 20B Runtime Entrypoint CLI Interface
+
+**SPEC:** §5B Runtime Start Coordinator (CLI interface contract)
+**Goal:** Add explicit runtime entrypoint CLI goals and tasks so launch parsing,
+validation, and failure semantics are testable and operator-safe.
+**Status:** ⏳ **PLANNED** — phase added for execution; implementation and tests pending.
+
+### Goals
+1. Lock coordinator launch options and parsing behavior.
+2. Enforce deterministic validation and invalid-combination handling.
+3. Preserve lifecycle gate integrity from CLI entrypoint through startup.
+4. Provide explicit structured failure output contract for operators and CI.
+
+### Tasks
+20B.1. Define `CoordinatorLaunchOptions` model for config path, mode override,
+      console mode, watch target, and daemonize switch.
+20B.2. Define deterministic parse + normalize + validate flow for all launch flags.
+20B.3. Enforce required `--config` and watch/console mode constraints.
+20B.4. Map startup failures to structured output fields aligned with `StartupError`
+      (`haltedAt`, `reason`, `recoveryGuidance`).
+20B.5. Add coordinator CLI tests for parse failures, validation failures,
+      mode branching, watch constraints, and success-path exit behavior.
+20B.6. Update operator-facing usage examples in public docs.
+
+### Acceptance
+- Missing/invalid launch args return non-zero with usage output.
+- Successful startup returns zero and preserves deterministic lifecycle ordering.
+- Startup failures include structured halt reason and recovery guidance semantics.
+- CLI entrypoint does not bypass reconciliation or prefilter gate enforcement.
 
 
 ---
