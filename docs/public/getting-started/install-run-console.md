@@ -1,0 +1,56 @@
+# Install, Run, And Explore Console
+
+What this is. This page gives practical commands to build, test, and inspect the runtime locally.
+
+## Prerequisites
+
+- Nim 1.6 or newer
+- Nimble
+- PowerShell on Windows for helper scripts
+
+## Core Commands
+
+```powershell
+nimble build
+nimble compliance
+nimble testCompile
+nimble test
+nimble verify
+```
+
+## Console Entry
+
+The console entrypoint supports:
+
+- `--config <path>` (required)
+- `--mode <dev|debug|prod>`
+- `--attach <identity>`
+- `--watch <path>`
+
+Example:
+
+```powershell
+nim c -r src/console_main.nim -- --config config/runtime.json --attach local-dev
+```
+
+Coordinator entrypoint supports startup plus optional console launch:
+
+```powershell
+nim c -r src/cosmos_main.nim -- --config config/runtime.json --console auto
+```
+
+## What To Look For
+
+- lifecycle completion lines
+- startup halt reason and recovery guidance if startup fails
+- deterministic module load ordering
+
+## Uncertainty Note
+
+Exact config export and invocation wrappers can vary by local setup. Use repository scripts and the current `README.md` command list as primary guidance.
+
+---
+*&copy; 2026 Wilder. All rights reserved.*\
+*Contact: teamwilder@wildercode.org*\
+*Licensed under the Wilder Foundation License 1.0.*\
+*See LICENSE for details.*

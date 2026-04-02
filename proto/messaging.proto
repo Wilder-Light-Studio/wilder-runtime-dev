@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package wilder.runtime;
+
+message Ping {
+  string message_id = 1;
+}
+
+message ConfigUpdate {
+  string new_mode = 1;
+  string new_log_level = 2;
+}
+
+message MessageEnvelope {
+  string id = 1;
+  string type = 2;
+  int32 version = 3;
+  int64 timestamp = 4;
+
+  oneof payload {
+    Ping ping = 10;
+    ConfigUpdate config_update = 11;
+  }
+}

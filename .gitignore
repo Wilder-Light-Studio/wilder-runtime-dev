@@ -1,0 +1,16 @@
+# ---> Configuration files
+.github
+.vscode
+
+# ---> Nim
+nimcache/
+nimblecache/
+htmldocs/
+
+# ---> artifacts 
+*.exe
+*.dll
+archive/
+nimble.develop
+nimble.paths
+nimbledeps

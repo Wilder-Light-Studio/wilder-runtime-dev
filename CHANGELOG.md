@@ -1,0 +1,69 @@
+# Changelog
+
+This file tracks public-facing project milestones for Wilder Cosmos Runtime.
+
+Current development line: `0.9.3`
+
+Current preview tag: `v0.9.3-wip`
+
+## v0.9.3 - In Progress
+
+This development line reflects the current package version and the active work in
+the repository.
+
+Highlights so far:
+
+- Runtime API foundations are in place, including typed runtime state, module
+	context, status schema, and reconciliation result structures.
+- Validation boundaries are implemented with fail-fast helper procedures for
+	public runtime entry points.
+- Runtime configuration loading is implemented with typed parsing and startup
+	validation.
+- Messaging and serialization foundations are implemented, including envelope
+	validation and transport selection support.
+- Validation prefilter groundwork is implemented for structural runtime gating.
+- Lifecycle scaffolding is implemented for ordered startup, reconciliation, and
+	ingress activation steps.
+- File-backed persistence hardening is implemented with deterministic txlog
+	files, snapshot persistence, atomic restore behavior, and corruption guards.
+- Startup and lifecycle hardening now include structured halt guidance and
+	host-event emission for startup, reconcile, migrate, prefilter, and shutdown.
+- Runtime configuration now supports file < environment < CLI precedence for
+	mode, log level, and port with shared validation rules.
+- Console hardening now includes the thin CLI entrypoint contract
+	for --config, --mode, --attach, and --watch launch behavior.
+- Concept and Thing validation now follow the minimal ontology contract:
+	Concepts require identity plus WHY, Things require identity, and manifests
+	validate only when present.
+- Cosmos-native modules now keep code-defined contracts as the single source of
+	truth, while external-process wrappers accept handwritten manifests as their
+	authoritative contract surface.
+- Chapter 5, requirements, and public module/concept documentation were aligned
+	with the optional-manifest and external-wrapper model.
+
+## v0.3.0 - 2026-03-31
+
+- Completed the Chapter 2 delivery line across validation, serialization,
+	configuration, messaging, and prefilter foundations.
+- Hardened envelope and validation behavior with SHA256 checksum validation,
+	deterministic checks, and sanitized failure signaling.
+- Expanded the verification surface with Chapter 2 tests, edge cases, and user
+	acceptance coverage under `tests/`.
+- Refreshed implementation documentation for Chapter 2 under
+	`docs/implementation/Chapter2/`.
+- Updated Nimble tasks so `nimble test` compile-checks and runs the active test
+	suites.
+
+## v0.1.2 - 2026-03-29
+
+- Added Chapter 1 walkthrough and module structure documentation.
+- Expanded the source taxonomy with core, tempo, thing, and runtime modules.
+- Added or updated runtime APIs, console behavior, persistence, serialization,
+	and test helpers.
+- Added supporting READMEs and test updates for the Chapter 1 foundation pass.
+
+---
+*&copy; 2026 Wilder. All rights reserved.*\
+*Contact: teamwilder@wildercode.org*\
+*Licensed under the Wilder Foundation License 1.0.*\
+*See LICENSE for details.*
