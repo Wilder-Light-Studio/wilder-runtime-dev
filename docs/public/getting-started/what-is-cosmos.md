@@ -5,6 +5,7 @@ What this is. This page gives a plain-language definition of the Cosmos model us
 Wilder Cosmos Runtime is a deterministic world-state runtime implemented in Nim. It combines:
 
 - a world model (Concept, Thing, Occurrence, Perception)
+- wave-based communication (Waves, not precepts)
 - strict boundary validation
 - structured messaging and serialization
 - persistence with reconciliation at startup

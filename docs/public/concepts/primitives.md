@@ -30,6 +30,7 @@ Concept association, status, metadata, and manifest-backed surfaces are world-de
 ## Occurrence
 
 Occurrence is an immutable projection event and the only allowed mechanism of world change.
+In communication flows, these projections are carried as Waves on the runtime bus.
 
 Core fields include:
 
@@ -48,6 +49,7 @@ Perception is a local awareness event produced by matching filters. It is passiv
 - Concept defines identity and purpose first, then optional structure.
 - Thing is a live instance of that shape.
 - Occurrence carries change signals.
+- Wave is the communication form of those signals between Things.
 - Perception records local awareness of relevant signals.
 
 ---

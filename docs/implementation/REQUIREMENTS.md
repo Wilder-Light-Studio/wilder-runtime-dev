@@ -64,6 +64,10 @@ behaviour. These statements clarify governance and operational expectations refe
 elsewhere in the requirements and specification. They do not introduce new features;
 they record constraints already expected by project stakeholders.
 
+Terminology update: runtime communication is Wave-based. Legacy references to
+"precept" or "precepts" are superseded by "Wave" and should be treated as older
+vocabulary.
+
 - Pull-only participation: participants consume (pull) data and state; no system-level
   push or administrative push control is provided by the runtime.
 - Voluntary reversible entry/exit: joining and leaving a federation or instance is
@@ -650,7 +654,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 ## Messaging System Requirements
 
 - The runtime must provide a **parallel messaging system** for inter-module and
-  inter-runtime communication.
+  inter-runtime Wave communication.
 - The messaging layer must use **Protobuf** as its primary schema definition format.
 - Every message must be wrapped in a `MessageEnvelope` containing:
   - `id` � unique message identifier (string or bytes).

@@ -5,6 +5,7 @@ What this is. This page is a compact glossary for terms used in runtime and conc
 - Concept: Immutable template whose universal minimum is identity plus WHY.
 - Thing: Runtime instance whose universal minimum is identity.
 - Occurrence: Immutable event that carries world-change intent.
+- Wave: Runtime communication unit propagated across the bus. Things emit Waves and other Things decide whether to perceive and process them.
 - Perception: Local awareness event produced by matching conditions.
 - Interrogative Manifest: Optional declarative contract. When present, all interrogatives must be non-empty. For Cosmos-native modules it is generated from code; for external processes it may be handwritten.
 - Status: Structured state fields attached to a Thing.
@@ -36,6 +37,7 @@ What this is. This page is a compact glossary for terms used in runtime and conc
 - Envelope: Serialized wrapper containing payload plus metadata and checksum.
 - Checksum: Digest used to verify payload integrity.
 - Transport: Configured serialization channel selection.
+- Precept (legacy): Deprecated communication vocabulary from earlier drafts; use Wave instead.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\
