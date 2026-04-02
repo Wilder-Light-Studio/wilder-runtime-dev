@@ -7,24 +7,29 @@ Specifications (how each requirement is made true) live in `docs/implementation/
 
 ## Terms and Definitions
 
-- **Cosmos instance**: a single running runtime process and its active world graph.
+- **Cosmos instance**: a single running runtime process and its active Thing/World topology.
 - **Console session**: one terminal attachment context bound to exactly one Cosmos instance.
-- **Thing**: a runtime object instantiated from a Concept.
-- **Concept**: immutable declarative template for a Thing.
-- **Occurrence**: immutable projection event and the only allowed mechanism of world change.
-- **Perception**: local awareness event produced when a Thing's filters match an Occurrence.
-- **World Ledger**: append-only record of declared references and claims.
-- **World Graph**: runtime graph reconstructed from Ledger references.
+- **Thing / World / Scope**: the same primitive seen from different aspects.
+  - Thing: identity aspect.
+  - World: interior aspect.
+  - Scope: region visible from within a Thing boundary.
+- **Occurrence**: immutable internal truth inside a Thing/World.
+- **Wave**: externalized Occurrence in the medium; ambient, undirected, non-coercive.
+- **Perception**: local awareness event produced when a Thing's filters match ambient Waves.
+- **RECORD**: atomic temporal unit of internal change; internalized Occurrence.
+- **Bridge**: a Thing/World membrane that touches another World and translates boundary effects.
+- **Wire (pattern)**: optional designer-level containment over Wave propagation.
+- **Channel (pattern)**: optional designer-level tag on Waves and filter on Perceptions.
+- **Concept (pattern)**: immutable declarative template used inside Worlds.
+- **Schema / RECORD type (pattern)**: structural declarations used inside Worlds.
 - **Schema version**: integer version for persisted status and migration decisions.
 - **Epoch**: deterministic frame-order counter used for sequencing and replay.
 - **Reconciliation**: deterministic rebuild or repair process across persistence layers.
 - **Primary layer**: authoritative persisted full-copy state.
 - **Secondary layer (txlog)**: append-only transaction log.
 - **Tertiary layer**: signed periodic snapshot store.
-- **Specialist**: Thing with narrow capability declared in interrogatives.
-- **Delegation Occurrence**: Occurrence requesting specialist handling of a subproblem.
-- **Pull-only participation**: no actor may force state/action into another actor; receivers initiate.
-- **Voluntary reversible entry/exit**: join/leave operations are opt-in and can be undone.
+- **Specialist (pattern)**: Thing with narrow capability declared in interrogatives.
+- **Delegation Occurrence**: Occurrence pattern requesting specialist handling of a subproblem.
 - **Growth model**: Small -> Step -> Repeat -> Federate -> Integrate scaling pattern.
 - **RuntimeState**: Represents the overall state of the runtime, including modules and their contexts.
 - **ModuleState**: Represents the state of an individual module within the runtime.
@@ -68,32 +73,34 @@ Terminology update: runtime communication is Wave-based. Legacy references to
 "precept" or "precepts" are superseded by "Wave" and should be treated as older
 vocabulary.
 
-- Pull-only participation: participants consume (pull) data and state; no system-level
-  push or administrative push control is provided by the runtime.
-- Voluntary reversible entry/exit: joining and leaving a federation or instance is
-  voluntary and reversible, and the system treats entry and exit with equal operational
-  regard.
-- Growth model: adopt a Small ? Step ? Repeat ? Federate ? Integrate approach for
-  scaling modules and federations; prefer small incremental changes and repeated
-  validation before federation and integration.
-- Confidentiality and opacity: information flows between nodes, eidela, and worlds
-  are expected to be end-to-end encrypted and opaque to intermediaries unless the
-  parties explicitly authorize otherwise.
+- Thing = World = Scope: changing scope is changing worlds; changing worlds is changing things.
+- Waves are the only communication physics: ambient, undirected, non-coercive truth in the medium.
+- Perception governs understanding: Things only understand Waves through local filters.
+- Waves over wires: wires are optional designer-level containment over Waves, not new primitives.
+- Channels are tuning: optional tags on Waves and optional filters on Perceptions.
+- Occurrence and RECORD coupling: Waves externalize Occurrences; RECORDS internalize Occurrences.
+- Bridges are membranes: Bridges are Thing/World templates that translate boundary effects when instantiated.
+- No new primitives: only Thing/World, Occurrence, Wave, Perception, and RECORD are primitive.
+- Growth model: adopt a Small -> Step -> Repeat -> Federate -> Integrate approach.
 
 ### Core Principle Use Cases
 
-1. Pull-only participation
-  - Use case: Thing A sends a Wave to the world bus; Thing B decides whether
-     to perceive and process it.
-   - Allowed: B subscribes or polls and then invokes local behavior.
-   - Not allowed: A directly mutates B state or forces B execution.
+1. Ambient Wave perception
+  - Use case: an Occurrence in one Thing externalizes as a Wave.
+  - Allowed: nearby Things perceive it only if local filters match.
+  - Not allowed: directed delivery, forced processing, or direct state mutation across boundaries.
 
 2. Voluntary reversible entry/exit
    - Use case: a module joins a federation for diagnostics, then detaches after analysis.
    - Allowed: join and detach are explicit commands recorded in logs.
    - Not allowed: permanent implicit enrollment with no detach path.
 
-3. Growth model (Small -> Step -> Repeat -> Federate -> Integrate)
+3. Waves over wires and channels
+  - Use case: designers apply a wire and channel tags for a scoped communication domain.
+  - Allowed: optional containment and tuning compiled to Perception masks and validation rules.
+  - Not allowed: introducing addressing, routing, or directional physics.
+
+4. Growth model (Small -> Step -> Repeat -> Federate -> Integrate)
    - Use case: ship one module with deterministic tests, add one capability, repeat,
      then federate with another instance only after replay stability checks pass.
    - Allowed: incremental releases with measurable acceptance criteria.
@@ -103,13 +110,13 @@ vocabulary.
 
 ```mermaid
 flowchart TD
-  A[Thing sends Wave] --> B[Receiver discovers by pull]
-  B --> C{Accept participation?}
-  C -->|No| D[Ignore without side effects]
-  C -->|Yes| E[Process locally]
-  E --> F{Continue participation?}
-  F -->|No| G[Exit and detach safely]
-  F -->|Yes| H[Small change]
+  A[Occurrence forms in Thing/World] --> B[Wave propagates ambiently]
+  B --> C{Perception filter match?}
+  C -->|No| D[No local uptake]
+  C -->|Yes| E[Perception occurs]
+  E --> F[Local RECORD mutation]
+  F --> G[Optional wire/channel constraints]
+  G --> H[Small change]
   H --> I[Step validation]
   I --> J[Repeat cycle]
   J --> K[Federate]
@@ -380,19 +387,20 @@ Path reset: /
 
 ## Ontology Requirements
 
-- The runtime must implement four primitives: **Concept**, **Occurrence**, **Perception**,
-  and **Thing**.
-- Concepts are immutable and declarative. They define identity, location, perceptions,
-  emissions, tempo, and status schema. No logic, behavior, or world knowledge belongs in
-  a Concept.
-- Occurrences are immutable projection events. They project nondirectionally, are globally
-  ordered, and are the only mechanism of world change.
-- Perceptions are local awareness events produced when a Thing's perception filters
-  intersect with an Occurrence's projection. Perception is passive, local, and non-coercive.
-- Things are runtime instantiations of Concepts. They are sovereign, stateful, perceptive,
-  emissive, and temporal.
-- No hidden behavior. No implicit relationships. No coercion. All change flows through
-  Occurrences.
+- The runtime must implement exactly five primitives: **Thing/World**, **Occurrence**,
+  **Wave**, **Perception**, and **RECORD**.
+- Thing and World are one primitive seen through two aspects:
+  - identity aspect -> Thing
+  - interior aspect -> World
+  - visible region from inside boundary -> Scope
+- Changing scope is changing worlds; changing worlds is changing things.
+- Occurrences are immutable internal truths inside a Thing/World.
+- Waves are externalized Occurrences in the medium and are the only communication physics.
+- Perceptions are local awareness events produced when local filters match ambient Waves.
+- RECORD is the atomic temporal unit of internal change and is the internalized Occurrence.
+- Concepts, Schemas, and RECORD types are patterns inside Worlds, not primitives.
+- Wires, Channels, Bridges, Systems, and Constellations are patterns, not primitives.
+- No hidden behavior. No implicit coercion. No routing, addressing, or directed delivery.
 
 ---
 
@@ -475,14 +483,14 @@ flowchart TD
 
 ## Interrogative Manifest Requirements
 
-- A Concept is valid with:
+- A Concept pattern is valid with:
   - **WHO** via a unique identity.
   - **WHY** via purpose or description.
 
-- A Thing is valid with:
+- A Thing/World is valid with:
   - **WHO** via a unique identity.
 
-- A Concept may declare an optional interrogative manifest containing:
+- A Concept pattern may declare an optional interrogative manifest containing:
   - **WHO** identity and naming.
   - **WHAT** purpose and type.
   - **WHY** intent and justification.
@@ -582,29 +590,28 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 
 ## World Ledger Requirements
 
-- The runtime must maintain a **World Ledger** � a declarative, append-only record
-  of structural references and relational claims between Things.
-- References are explicit, typed edges between Things (e.g., parent/child, spatial
-  adjacency). No implicit or inferred references are permitted.
-- Claims are relational assertions made by Things about other Things or about the
-  world. Claims are declarative, signed by the asserting Thing, and non-coercive.
+- The runtime must maintain a **World Ledger** as a pattern inside each Thing/World:
+  a declarative, append-only record of structural references and relational claims.
+- References are explicit, typed topology declarations inside Scope.
+  No implicit or inferred references are permitted.
+- Claims are relational assertions inside Scope. Claims are declarative,
+  signed by the asserting Thing/World, and non-coercive.
 - The World Ledger must be:
   - Deterministic.
   - Persisted (within the three-layer persistence model).
   - Introspectable via the Console (`world`, `claims` commands).
   - Validated at load time.
 - No hidden edges. No inferred relationships. All structure must be declared.
-- The World Ledger must not bypass the Occurrence system � ledger mutations must
-  flow through Occurrences.
+- The World Ledger must not bypass the Occurrence/Wave/RECORD model.
+  Topology mutations must flow through Occurrences and become local RECORD updates.
 
 ---
 
 ## World Graph Requirements
 
-- The runtime must maintain a **World Graph** � the runtime's spatial and logical
-  structure of all active Things.
-- Nodes are Things. Edges are references from the World Ledger.
-- Every Cosmos instance has a single root Thing.
+- The runtime must maintain a **World Graph** as the topology view of Thing/World Scope.
+- Nodes are Thing/World instances. Edges are explicit references from the World Ledger pattern.
+- Every Cosmos instance has a single root Thing/World.
 - The world graph must be:
   - Deterministic.
   - Reconstructible from persisted state.
@@ -613,7 +620,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
   World Ledger.
 - The world graph is the authoritative structure for:
   - Console navigation (scope and path).
-  - Perception radius evaluation.
+  - Perception visibility and local topology constraints.
   - The frame loop.
 
 ---
@@ -651,24 +658,19 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 
 ---
 
-## Messaging System Requirements
+## Wave Serialization Requirements
 
-- The runtime must provide a **parallel messaging system** for inter-module and
-  inter-runtime Wave communication.
-- The messaging layer must use **Protobuf** as its primary schema definition format.
-- Every message must be wrapped in a `MessageEnvelope` containing:
-  - `id` � unique message identifier (string or bytes).
-  - `type` � message type discriminator (string or enum).
-  - `version` � schema version of the payload (int32 or string).
-  - `timestamp` � creation time in unix milliseconds (int64).
-  - `payload` � typed payload using `oneof` for forward-compatible dispatch.
-- At least one concrete payload type must be defined (e.g. `Ping`, `ConfigUpdate`).
-- The schema must be designed for **forward compatibility**:
+- Runtime communication physics is Wave propagation only.
+- Serialization formats are implementation patterns for encoding Wave payloads,
+  not communication primitives.
+- Protobuf and JSON are permitted as Wave payload schema/encoding patterns.
+- Any envelope schema must represent ambient Waves and must not imply routing,
+  addressing, destination ownership, or directed transport.
+- Envelopes must support forward compatibility:
   - Fields must not be renumbered.
   - Removed fields must be reserved.
   - Evolution is additive only.
-- The messaging system must be observable: all envelopes in debug mode must be fully
-  introspectable (logged, inspectable via Console).
+- In debug mode, encoded Wave envelopes must be introspectable.
 - In production mode, introspection overhead must not be incurred.
 
 ---
@@ -678,7 +680,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 - The runtime must support **dynamic switching** between JSON and Protobuf serializers
   at runtime, determined by the loaded configuration (`transport` field).
 - The active serializer must be selected once at startup and injected into all subsystems
-  that require message encoding/decoding.
+  that require Wave payload encoding/decoding.
 - **JSON** is the serializer for:
   - `mode = "debug"` and `transport = "json"`.
   - Filesystem bridge (persistence layer reads/writes).
@@ -687,8 +689,8 @@ These artifacts enable consistent, reproducible unit and integration tests requi
   - `mode = "production"` and `transport = "protobuf"`.
 - The serializer abstraction must present a uniform encode/decode interface regardless
   of the underlying format.
-- JSON serialization must be stable and round-trippable for all `MessageEnvelope` and
-  payload types.
+- JSON serialization must be stable and round-trippable for all Wave envelope and
+  payload patterns.
 - Protobuf serialization must be schema-versioned and forward-compatible.
 
 ---
@@ -1065,7 +1067,8 @@ All checks should run in local development and CI.
 
 4. Ontology and World Model
    - Test type: schema and behavior tests.
-   - Verify: only four primitives are used; world changes flow only through Occurrences;
+   - Verify: only Thing/World, Occurrence, Wave, Perception, and RECORD are primitive;
+     world changes flow through Occurrence -> Wave -> Perception -> RECORD semantics;
      world graph edges originate from World Ledger.
    - Evidence: ontology and world tests plus static model validation.
 

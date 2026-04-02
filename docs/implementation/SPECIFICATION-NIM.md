@@ -8,10 +8,16 @@
 
 The runtime must implement the following principles mechanically:
 
-- **Pull‑only participation**: No subsystem may push state or behavior into a Thing. All interactions must be initiated by the receiver.
-- **Voluntary reversible entry/exit**: No irreversible bindings. All module, instance, and federation participation must be opt‑in and reversible.
-- **Small → Step → Repeat → Federate → Integrate**: All runtime components must support incremental growth and deterministic testing.
-- **Confidentiality and opacity**: No subsystem may inspect or infer internal state of a Thing. All state access must be explicit and declared.
+- **Thing = World = Scope**: Thing is identity aspect, World is interior aspect, Scope is visibility region from inside a Thing boundary.
+- **Waves are the only communication physics**: Waves are ambient, undirected, and non-coercive truth in the medium.
+- **Perception determines understanding**: Things only understand Waves through local filters.
+- **Waves over wires**: wires are optional designer-level containment patterns over Wave propagation.
+- **Channels are optional tuning**: channel tags on Waves and channel filters on Perceptions do not change physics.
+- **Occurrence and RECORD duality**: Waves are externalized Occurrences; RECORDS are internalized Occurrences.
+- **Bridges are membranes**: Bridges are Thing/World templates that become boundary translators when instantiated.
+- **No new primitives**: only Thing/World, Occurrence, Wave, Perception, and RECORD are primitive.
+- **Voluntary reversible entry/exit**: no irreversible bindings; participation is opt-in and reversible.
+- **Small -> Step -> Repeat -> Federate -> Integrate**: all runtime components must support incremental growth and deterministic testing.
 
 ---
 
@@ -161,46 +167,64 @@ The Console must expose:
 
 # 4. Ontology Specification
 
-The runtime must implement four primitives:
+The runtime must implement exactly five primitives:
 
-### 4.1 Concept
-Immutable declarative template with six sections:
-
-- Identity
-- Location
+- Thing/World
+- Occurrence
+- Wave
 - Perception
-- Emission
-- Tempo
-- Status
+- RECORD
 
-Plus the **Interrogative Manifest**.
+### 4.1 Thing / World / Scope
+Thing and World are one primitive seen in different aspects:
+
+- Thing: identity aspect
+- World: interior aspect
+- Scope: region visible from inside a Thing boundary
+
+Changing scope is changing worlds; changing worlds is changing things.
 
 ### 4.2 Occurrence
-Immutable projection event:
+Occurrence is immutable internal truth inside a Thing/World:
 
 - `id: string`
 - `source: string`
 - `epoch: int`
 - `payload: JsonNode`
-- `projectionRadius: float` — propagation distance; 0.0 = no limit
 
-Occurrences are the only mechanism of world change.
+Occurrences are the canonical interior change truth.
 
-### 4.3 Perception
-Local awareness event:
+### 4.3 Wave
+Wave is externalized Occurrence in the medium:
 
-- produced when filters match
-- passive, local, non‑coercive
+- ambient
+- undirected
+- non-coercive
+- carries type, payload, and optional channel tags
+
+Waves are the metaphysical substrate for all communication.
+
+### 4.4 Perception
+Perception is local awareness:
+
+- produced when local filters match ambient Waves
+- passive and local
 - stored in bounded perception memory
 
-### 4.4 Thing
-Runtime instantiation of a Concept:
+### 4.5 RECORD
+RECORD is the atomic temporal unit of internal change:
 
-- sovereign
-- stateful
-- perceptive
-- emissive
-- temporal
+- RECORDS are internalized Occurrences.
+- No internal mutation may bypass RECORD semantics.
+
+### 4.6 Patterns (Non-Primitives)
+The following are patterns inside Worlds, not primitives:
+
+- Concept
+- Schema and RECORD types
+- Wire and Channel
+- Bridge
+- Specialist, Delegation, System, Constellation
 
 ---
 
@@ -473,21 +497,21 @@ Delegation Occurrences:
 
 # 10. World Ledger Specification
 
-The World Ledger is a declarative, append-only record of structural references and
-relational claims between Things.
+The World Ledger is a declarative, append-only pattern inside Thing/World interiority,
+recording structural references and relational claims within Scope.
 
 ### 10.1 References
-- Explicit, typed edges between Things (e.g., parent/child, spatial adjacency).
+- Explicit, typed edges between Thing/World instances (e.g., parent/child, spatial adjacency).
 - No implicit or inferred references.
 
 ### 10.2 Claims
-- Relational assertions made by Things about other Things or the world.
-- Declarative, signed by the asserting Thing, non-coercive.
+- Relational assertions made by Thing/World instances about local topology.
+- Declarative, signed by the asserting Thing/World, non-coercive.
 
 ### 10.3 Invariants
 - Persisted within the three-layer persistence model.
 - Validated at load time.
-- Mutations flow through Occurrences.
+- Mutations flow through Occurrence -> Wave -> Perception -> RECORD semantics.
 - No hidden edges. All structure must be declared.
 
 ### 10.4 Introspection
@@ -499,10 +523,10 @@ relational claims between Things.
 # 11. World Graph Specification
 
 ### 11.1 Structure
-The world graph is:
+The world graph is the topology view of Thing/World Scope:
 
-- nodes = Things
-- edges = explicit references (from World Ledger)
+- nodes = Thing/World instances
+- edges = explicit references (from World Ledger pattern)
 
 ### 11.2 Invariants
 - no implicit edges
@@ -732,17 +756,18 @@ type
 
 # 22. Messaging System Specification
 
-**REQ:** Messaging System Requirements
-**Schema format:** Protobuf (`.proto` file at `proto/messaging.proto`).
+**REQ:** Wave Serialization Requirements
+**Schema format:** Protobuf (`.proto` file at `proto/messaging.proto`) and JSON as encoding patterns.
 
-### 22.1 MessageEnvelope Fields
+### 22.1 WaveEnvelope Fields
 
 | Field       | Protobuf type | Notes                              |
 |-------------|---------------|------------------------------------|
-| `id`        | `string`      | unique message identifier          |
-| `type`      | `string`      | message type discriminator         |
+| `id`        | `string`      | unique wave identifier             |
+| `type`      | `string`      | wave type discriminator            |
 | `version`   | `int32`       | payload schema version             |
 | `timestamp` | `int64`       | unix milliseconds                  |
+| `channels`  | `repeated string` | optional designer-level channel tags |
 | `payload`   | `oneof`       | typed payload; see §22.2           |
 
 ### 22.2 Payload Types
@@ -758,10 +783,16 @@ Additional payload types are additive and must not renumber existing fields.
 - Field numbers must never be reused or renumbered.
 - All evolution is additive.
 
-### 22.4 Debug Introspection
-- In `mode = "debug"`, every `MessageEnvelope` must be logged in full before dispatch.
-- The Console `watch` command must be able to tail the live message stream.
-- In `mode = "production"`, envelope logging must not occur unless `logLevel ≤ info`.
+### 22.4 Communication Physics Boundary
+- Envelope schemas are encoding patterns over Waves and must not redefine communication physics.
+- No envelope field may imply routing, addressing, destination ownership, or directed delivery.
+- Wires and channels remain optional designer-level constraints compiled to Perception masks,
+  validation rules, and topology hints.
+
+### 22.5 Debug Introspection
+- In `mode = "debug"`, every `WaveEnvelope` must be introspectable before local handling.
+- The Console `watch` command must be able to tail the live Wave stream.
+- In `mode = "production"`, envelope logging must not occur unless `logLevel <= info`.
 
 ---
 
@@ -778,8 +809,8 @@ type
   Serializer = ref object of RootObj
     kind: SerializerKind
 
-proc encode*(s: Serializer, msg: MessageEnvelope): seq[byte]
-proc decode*(s: Serializer, data: seq[byte]): MessageEnvelope
+proc encode*(s: Serializer, msg: WaveEnvelope): seq[byte]
+proc decode*(s: Serializer, data: seq[byte]): WaveEnvelope
 ```
 
 ### 23.2 Selection Rules
@@ -791,12 +822,12 @@ proc decode*(s: Serializer, data: seq[byte]): MessageEnvelope
 ### 23.3 JSON Serializer
 - Uses standard Nim `json` module.
 - Must produce stable, deterministic output (key order determined by field declaration).
-- Must round-trip all `MessageEnvelope` and payload types without loss.
+- Must round-trip all `WaveEnvelope` and payload types without loss.
 - Used for: filesystem bridge, debug mode, and fallback when Protobuf is unavailable.
 
 ### 23.4 Protobuf Serializer
 - Schema defined in `proto/messaging.proto`.
-- Must round-trip all `MessageEnvelope` and payload types.
+- Must round-trip all `WaveEnvelope` and payload types.
 - Used for: production mode (`transport = "protobuf"`).
 
 ### 23.5 Fallback Policy
@@ -814,11 +845,11 @@ proto/
 src/runtime/
   config.nim            # config loading, validation, RuntimeConfig type
   serialization.nim     # envelopeWrap/envelopeUnwrap + Serializer abstraction
-  messaging.nim         # MessageEnvelope dispatch, debug introspection
+  messaging.nim         # Wave envelope handling, debug introspection
 tests/
   config_test.nim       # config loading, validation tests
   serialization_test.nim # JSON and Protobuf round-trip tests
-  messaging_test.nim    # envelope dispatch and introspection tests
+  messaging_test.nim    # Wave envelope handling and introspection tests
 ```
 
 ---
