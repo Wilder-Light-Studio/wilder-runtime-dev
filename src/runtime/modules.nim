@@ -81,6 +81,7 @@ proc newModuleRegistry*(): ModuleRegistry =
   ## Simile: An empty slot panel — ready for modules to snap in.
   result = ModuleRegistry(entries: initTable[string, ModuleEntry]())
 
+# Flow: Attach authoritative code-defined contract metadata for native modules.
 proc attachCodeDefinedContract*(meta: var ModuleMetadata,
     manifest: InterrogativeManifest) =
   ## Attach a code-defined contract to a Cosmos-native module.
@@ -88,6 +89,7 @@ proc attachCodeDefinedContract*(meta: var ModuleMetadata,
   meta.contractSource = mcsCodeDefined
   meta.contractManifest = manifest
 
+# Flow: Attach handwritten manifest authority for external process modules.
 proc attachExternalManifest*(meta: var ModuleMetadata,
     command: string,
     manifest: InterrogativeManifest,
@@ -101,12 +103,14 @@ proc attachExternalManifest*(meta: var ModuleMetadata,
   meta.entryArgs = args
   meta.transport = transport
 
+# Flow: Convert authoritative contract manifest to JSON representation.
 proc contractManifestJson*(meta: ModuleMetadata): JsonNode =
   ## Generate a JSON manifest view from the authoritative contract in code.
   if not hasMeaningfulManifest(meta.contractManifest):
     return newJNull()
   manifestToJson(meta.contractManifest)
 
+# Flow: Enforce module contract-source and execution-kind consistency.
 proc validateModuleContract(meta: ModuleMetadata) =
   ## Enforce contract-authority rules for native modules and external wrappers.
   case meta.executionKind

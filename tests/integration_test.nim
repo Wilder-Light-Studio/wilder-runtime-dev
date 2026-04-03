@@ -117,6 +117,26 @@ suite "integration — full startup and shutdown":
     check lc.cfg.port == 9091
     teardownTest()
 
+  test "startup loads config exactly once":
+    setupTest("integration_single_config_load")
+    let cfgPath = writeDevConfig(testTmpDir)
+    resetConfigLoadInvocationCount()
+    let lc = newRuntimeLifecycle()
+    startup(lc, cfgPath, @[])
+    check getConfigLoadInvocationCount() == 1
+    teardownTest()
+
+  test "shutdown does not trigger extra config load":
+    setupTest("integration_no_config_reload")
+    let cfgPath = writeDevConfig(testTmpDir)
+    resetConfigLoadInvocationCount()
+    let lc = newRuntimeLifecycle()
+    startup(lc, cfgPath, @[])
+    check getConfigLoadInvocationCount() == 1
+    shutdown(lc)
+    check getConfigLoadInvocationCount() == 1
+    teardownTest()
+
   test "startup and shutdown emit required host events safely":
     setupTest("integration_host_events")
     let cfgPath = writeDevConfig(testTmpDir)

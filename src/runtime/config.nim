@@ -42,6 +42,8 @@ type
     logLevel*: Option[string]
     port*: Option[int]
 
+var configLoadInvocationCount*: int = 0
+
 # Flow: Normalize text value and map to RuntimeMode.
 proc parseRuntimeMode(raw: string): RuntimeMode =
   ## Parse runtime mode from string configuration.
@@ -131,6 +133,14 @@ proc applyCliOverrides(n: var JsonNode, overrides: RuntimeConfigOverrides) =
   if overrides.port.isSome:
     n["port"] = %overrides.port.get()
 
+# Flow: Return total number of config loads in this process.
+proc getConfigLoadInvocationCount*(): int =
+  configLoadInvocationCount
+
+# Flow: Reset config load counter for deterministic test assertions.
+proc resetConfigLoadInvocationCount*() =
+  configLoadInvocationCount = 0
+
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc loadConfigWithOverrides*(path: string,
                               overrides: RuntimeConfigOverrides = RuntimeConfigOverrides()): RuntimeConfig =
@@ -140,6 +150,8 @@ proc loadConfigWithOverrides*(path: string,
   if not fileExists(path):
     raise newException(ValueError,
       "loadConfig: config file not found")
+
+  inc configLoadInvocationCount
 
   let raw = readFile(path)
   var n = parseJson(raw)

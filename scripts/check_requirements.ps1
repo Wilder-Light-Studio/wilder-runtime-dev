@@ -263,6 +263,24 @@ foreach ($artifact in $requiredHeaderArtifacts) {
   }
 }
 
+$requiredCompletionArtifacts = @(
+  "docs/implementation/Chapter1/MODULE-FLOWCHARTS.md",
+  "docs/implementation/Chapter2/MODULE-FLOWCHARTS.md",
+  "docs/implementation/Chapter3/MODULE-FLOWCHARTS.md",
+  "docs/implementation/Chapter4/MODULE-FLOWCHARTS.md",
+  "docs/implementation/Chapter5/MODULE-FLOWCHARTS.md",
+  "docs/implementation/Chapter6/MODULE-FLOWCHARTS.md",
+  "tests/security_boundary_test.nim",
+  "tests/core_principles_test.nim",
+  "scripts/test_validate_config_script.ps1"
+)
+
+foreach ($artifact in $requiredCompletionArtifacts) {
+  if (-not (Test-Path $artifact)) {
+    $missing.Add("Missing completion artifact: $artifact")
+  }
+}
+
 # Nim code comment contract checks.
 $nimFiles = Get-ChildItem -Recurse -File | Where-Object { $_.Extension -eq ".nim" -and $_.FullName -notmatch "\\nimcache\\" }
 foreach ($nimFile in $nimFiles) {

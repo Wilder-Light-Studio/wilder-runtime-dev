@@ -38,6 +38,7 @@ proc loadableMeta(name: string, cap: int = 0): ModuleMetadata =
   ModuleMetadata(name: name, kind: mkLoadable, schemaVersion: 1,
                  memoryCap: cap, resourceBudget: 0, description: "loadable " & name)
 
+# Flow: Build a deterministic valid contract manifest for module tests.
 proc validContract(who: string): InterrogativeManifest =
   InterrogativeManifest(
     WHO: who,

@@ -66,6 +66,7 @@ type
     args*: seq[string]
     transport*: ExternalTransport
 
+# Flow: Check whether a JSON node carries meaningful non-empty content.
 proc jsonHasMeaningfulContent(node: JsonNode): bool =
   ## Returns true when a JSON section carries meaningful content.
   if node.isNil:
@@ -80,6 +81,7 @@ proc jsonHasMeaningfulContent(node: JsonNode): bool =
   else:
     return true
 
+# Flow: Validate minimal Concept identity and WHY requirements.
 proc validateConcept*(c: Concept) =
   ## Validate the minimal Concept contract.
   ## A Concept requires identity plus a non-empty WHY section.
@@ -89,11 +91,13 @@ proc validateConcept*(c: Concept) =
     raise newException(ValueError, "Concept: WHY cannot be empty")
   validateManifestJson(c.manifest)
 
+# Flow: Validate minimal Thing identity contract.
 proc validateThing*(thing: Thing) =
   ## Validate the minimal Thing contract.
   if thing.id.len == 0:
     raise newException(ValueError, "Thing: id cannot be empty")
 
+# Flow: Construct a Thing from identity-first inputs and defaults.
 proc createThing*(thingId: string, conceptId: string = "", initialStatus: JsonNode = nil,
     metadata: JsonNode = nil, epoch: int64 = 0, active: bool = true): Thing =
   ## Create a Thing using the minimal identity-first contract.
@@ -129,6 +133,7 @@ proc createConceptWithManifest*(id: string, what, why, how, where, `when`,
   result = createConcept(id, what, why, how, where, `when`,
     withSection, manifestToJson(m))
 
+# Flow: Wrap an external process with handwritten manifest authority.
 proc wrapExternalProcessThing*(thingId, command: string, manifest: InterrogativeManifest,
     args: seq[string] = @[],
     transport: ExternalTransport = etStdInStdOut): ExternalProcessThing =

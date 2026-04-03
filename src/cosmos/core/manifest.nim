@@ -32,12 +32,14 @@ type
     PROVIDES*: seq[string] ## Capabilities this Concept exposes to others.
     WITH*: seq[string]     ## Peers or collaborators this Concept works with.
 
+# Flow: Determine whether any manifest field has non-empty content.
 proc hasMeaningfulManifest*(m: InterrogativeManifest): bool =
   ## Returns true when any manifest field carries content.
   m.WHO.len > 0 or m.WHAT.len > 0 or m.WHY.len > 0 or m.WHERE.len > 0 or
     m.WHEN.len > 0 or m.HOW.len > 0 or m.REQUIRES.len > 0 or m.WANTS.len > 0 or
     m.PROVIDES.len > 0 or m.WITH.len > 0
 
+# Flow: Detect whether a JSON manifest node is structurally present.
 proc manifestPresent*(manifest: JsonNode): bool =
   ## Returns true when a JSON manifest is present and not structurally empty.
   if manifest.isNil:
@@ -52,6 +54,7 @@ proc manifestPresent*(manifest: JsonNode): bool =
   else:
     return true
 
+# Flow: Validate non-empty list field values with fail-fast behavior.
 proc validateNonEmptyItems(fieldName: string, values: seq[string]) =
   ## Fail fast on empty list fields or empty entries within list fields.
   if values.len == 0:
@@ -62,12 +65,14 @@ proc validateNonEmptyItems(fieldName: string, values: seq[string]) =
       raise newException(ValueError,
         "InterrogativeManifest: " & fieldName & " cannot contain empty values")
 
+# Flow: Enforce one required non-empty string field in a manifest object.
 proc requireStringField(manifest: JsonNode, key: string) =
   ## Validate one required string field in a JSON manifest.
   if key notin manifest or manifest[key].kind != JString or manifest[key].getStr.len == 0:
     raise newException(ValueError,
       "InterrogativeManifest: " & key & " cannot be empty")
 
+# Flow: Enforce one required non-empty sequence field in a manifest object.
 proc requireSeqField(manifest: JsonNode, key: string) =
   ## Validate one required sequence field in a JSON manifest.
   if key notin manifest or manifest[key].kind != JArray or manifest[key].len == 0:
@@ -106,6 +111,7 @@ proc validateManifest*(m: InterrogativeManifest) =
   validateNonEmptyItems("PROVIDES", m.PROVIDES)
   validateNonEmptyItems("WITH", m.WITH)
 
+# Flow: Validate JSON manifest only when present and non-empty.
 proc validateManifestJson*(manifest: JsonNode) =
   ## Validate a JSON manifest only when one is actually present.
   ## Raises: ValueError if the manifest shape is incomplete or empty.
