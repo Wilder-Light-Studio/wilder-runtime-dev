@@ -1,4 +1,4 @@
-# Wilder Cosmos Runtime � Requirements
+﻿# Wilder Cosmos Runtime � Requirements
 
 This document defines what must be true for the Wilder Cosmos Runtime to be correct.
 Specifications (how each requirement is made true) live in `docs/implementation/SPECIFICATION-NIM.md`.
@@ -140,11 +140,19 @@ flowchart TD
 - The repository must provide a thin CLI entrypoint at `src/console_main.nim`.
 - The console entrypoint must orchestrate attachment and watch startup only; it must not own runtime lifecycle, persistence, or reconciliation logic.
 - The console entrypoint must support the following flags:
-  - `--config <path>` � required runtime config path.
-  - `--mode <dev|debug|prod>` � optional runtime mode override.
-  - `--attach <identity>` � optional auto-attach target.
-  - `--watch <path>` � optional watch target started after attach.
+  - `--config <path>` - required runtime config path.
+  - `--mode <dev|debug|prod>` - optional runtime mode override.
+  - `--attach <identity>` - optional auto-attach target.
+  - `--watch <path>` - optional watch target started after attach.
+  - `--log-level <trace|debug|info|warn|error>` - optional log level override.
+  - `--port <N>` - optional port override (1-65535).
+  - `--help`/`-h` - optional; prints full help text and exits 0.
 - Launch without `--config` must exit non-zero and print usage.
+- `--help`/`-h` is sovereign: exits 0 and bypasses all validation, including missing required flags.
+- `--port` must be validated as an integer in range 1-65535; invalid values exit non-zero.
+- `--log-level` must be validated against `trace|debug|info|warn|error`; invalid values exit non-zero.
+- Help text must include a minimal example and a full example.
+- CLI overrides must not inject defaults: only explicitly provided flags apply to `RuntimeConfigOverrides`.
 - Attach binds identity and permissions to the current session only; detach must clear that session state and return the layout to a neutral state.
 
 ### Instance Binding
@@ -361,9 +369,18 @@ Path reset: /
   - `--console <auto|attach|detach>` (optional) - console launch mode.
   - `--watch <path>` (optional) - watch target to open on initial console attach.
   - `--daemonize` (optional) - run detached/background startup behavior.
+  - `--log-level <trace|debug|info|warn|error>` (optional) - log level override.
+  - `--port <N>` (optional) - port override (1–65535).
+  - `--help`/`-h` (optional) - print full help text and exit 0.
 - Launch without `--config` must exit non-zero and print usage.
-- `--watch <path>` implies attached console startup behavior equivalent to
-  `--console auto`.
+- `--help`/`-h` is sovereign: exits 0 and bypasses all validation, including missing required flags.
+- `--watch <path>` without an explicit `--console` flag resolves console mode contextually:
+  - if `--daemonize` is set: effective console mode is `detach`.
+  - if `--daemonize` is not set: effective console mode is `attach`.
+- `--daemonize` combined with explicit `--console attach` is an invalid combination; fail fast.
+- `--port` must be validated as an integer in range 1–65535; invalid values exit immediately.
+- `--log-level` must be validated against `trace|debug|info|warn|error`; invalid values exit immediately.
+- CLI overrides must not inject defaults into `RuntimeConfigOverrides`.
 - Invalid flag combinations must fail fast with non-zero exit and usage output.
 
 ### Startup and Console Integration
@@ -392,6 +409,9 @@ Path reset: /
   - `--console <auto|attach|detach>`
   - `--watch <path>`
   - `--daemonize`
+  - `--log-level <trace|debug|info|warn|error>`
+  - `--port <N>`
+  - `--help`/`-h`
 - Mode aliases must normalize as:
   - `dev` -> `development`
   - `debug` -> `debug`
@@ -399,7 +419,10 @@ Path reset: /
 - Unknown arguments, missing values, and invalid flag combinations must fail fast
   with non-zero exit and usage output.
 - `--watch` must only be valid in attached console startup modes (explicit `attach`
-  or implied `auto` behavior).
+  or contextually resolved `attach` behavior).
+- `--daemonize` combined with explicit `--console attach` is an invalid combination.
+- The coordinator must return a structured `CoordinatorStartupReport` on successful startup.
+- Help text must include a minimal example and a full example.
 - The coordinator CLI interface must remain a thin orchestration surface and must not
   bypass lifecycle gate enforcement.
 

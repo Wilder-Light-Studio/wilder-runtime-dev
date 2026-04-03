@@ -10,7 +10,30 @@ import std/[strutils, options]
 import runtime/[console, config]
 
 const
-  UsageText* = "Usage: console_main --config <path> [--mode <dev|debug|prod>] [--attach <identity>] [--watch <path>]"
+  UsageText* =
+    "Usage: console_main --config <path> [--mode <dev|debug|prod>] " &
+    "[--attach <identity>] [--watch <path>] " &
+    "[--log-level <trace|debug|info|warn|error>] [--port <N>] [--help]"
+  ConsoleHelpText* =
+    "Wilder Cosmos Console — attach and inspect a running runtime instance\n" &
+    "\n" &
+    "Usage:\n" &
+    "  console_main --config <path> [options]\n" &
+    "\n" &
+    "Required:\n" &
+    "  --config <path>           Runtime config file path\n" &
+    "\n" &
+    "Optional:\n" &
+    "  --mode <dev|debug|prod>   Override runtime mode\n" &
+    "  --attach <identity>       Auto-attach to this identity on launch\n" &
+    "  --watch <path>            Start watch on this path (requires --attach)\n" &
+    "  --log-level <level>       Override log level (trace|debug|info|warn|error)\n" &
+    "  --port <N>                Override port (1-65535)\n" &
+    "  --help, -h                Print this help text and exit\n" &
+    "\n" &
+    "Examples:\n" &
+    "  console_main --config config/runtime.json\n" &
+    "  console_main --config config/runtime.json --attach operator --mode dev --log-level debug --watch /thing/a"
 
 type
   ConsoleLaunchOptions* = object
@@ -18,6 +41,9 @@ type
     modeOverride*: string
     attachIdentity*: string
     watchTarget*: string
+    logLevel*: string
+    port*: int
+    wantHelp*: bool
 
 # Flow: Convert CLI mode shorthand to config override values.
 proc normalizeMode(raw: string): string =
@@ -31,6 +57,11 @@ proc normalizeMode(raw: string): string =
 
 # Flow: Parse command-line arguments into structured launch options.
 proc parseLaunchOptions*(args: seq[string]): ConsoleLaunchOptions =
+  # Pre-scan: --help/-h is sovereign; if present, return immediately.
+  for arg in args:
+    if arg == "--help" or arg == "-h":
+      result.wantHelp = true
+      return
   var i = 0
   while i < args.len:
     case args[i]
@@ -58,15 +89,43 @@ proc parseLaunchOptions*(args: seq[string]): ConsoleLaunchOptions =
           "console_main: --watch requires a path")
       result.watchTarget = args[i + 1]
       i += 2
+    of "--help", "-h":
+      result.wantHelp = true
+      i += 1
+    of "--log-level":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "console_main: --log-level requires a value")
+      result.logLevel = args[i + 1].toLowerAscii.strip
+      i += 2
+    of "--port":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "console_main: --port requires a value")
+      try:
+        result.port = parseInt(args[i + 1])
+      except ValueError:
+        raise newException(ValueError,
+          "console_main: --port must be an integer, got '" & args[i + 1] & "'")
+      i += 2
     else:
       raise newException(ValueError,
         "console_main: unknown argument '" & args[i] & "'")
 
 # Flow: Validate required startup arguments and cross-flag constraints.
 proc validateLaunchOptions*(opts: ConsoleLaunchOptions) =
+  if opts.wantHelp:
+    return
   if opts.configPath.strip.len == 0:
     raise newException(ValueError,
       "console_main: --config is required")
+  if opts.logLevel.len > 0 and
+     opts.logLevel notin ["trace", "debug", "info", "warn", "error"]:
+    raise newException(ValueError,
+      "console_main: --log-level must be one of trace|debug|info|warn|error")
+  if opts.port != 0 and (opts.port < 1 or opts.port > 65535):
+    raise newException(ValueError,
+      "console_main: --port must be in range 1-65535, got " & $opts.port)
   if opts.watchTarget.strip.len > 0 and opts.attachIdentity.strip.len == 0:
     raise newException(ValueError,
       "console_main: --watch requires --attach")
@@ -75,11 +134,19 @@ proc validateLaunchOptions*(opts: ConsoleLaunchOptions) =
 proc runConsoleMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
   try:
     let opts = parseLaunchOptions(args)
+
+    if opts.wantHelp:
+      return (0, @[ConsoleHelpText])
+
     validateLaunchOptions(opts)
 
     var overrides = RuntimeConfigOverrides()
     if opts.modeOverride.len > 0:
       overrides.mode = some(opts.modeOverride)
+    if opts.logLevel.len > 0:
+      overrides.logLevel = some(opts.logLevel)
+    if opts.port != 0:
+      overrides.port = some(opts.port)
 
     discard loadConfigWithOverrides(opts.configPath, overrides)
 

@@ -6,6 +6,42 @@
 
 ---
 
+## Completion Matrix
+
+| Chapter | Title | Status | Tests |
+|---------|-------|--------|-------|
+| **Ch 1** | Foundations & Taxonomy | ✅ Complete | ch1_test, ch1_uat |
+| **Ch 2** | Data Model & Serialization | ✅ Complete | validation_test, serialization_test |
+| **Ch 2A** | Runtime Configuration | ✅ Complete | config_test |
+| **Ch 2B** | Messaging System & Transport | ✅ Complete | serialization_test, messaging_test |
+| **Ch 2C** | Validating Prefilter Runtime Gate | ✅ Complete | validation_membrane_test, validation_membrane_perf_test, validation_table_generation_test, validation_failure_occurrence_test |
+| **Ch 3** | Persistence Model | ✅ Complete | reconciliation_test, ch3_uat |
+| **Ch 4** | Ontology | ✅ Complete | ontology_test, ch4_ontology_test |
+| **Ch 5** | Interrogative Manifest | ✅ Complete | interrogative_test |
+| **Ch 6** | Status & Memory Model | ✅ Complete | status_memory_test |
+| **Ch 7** | World Ledger & World Graph | ✅ Complete | world_test |
+| **Ch 8** | Scheduler & Tempo | ✅ Complete | scheduler_test |
+| **Ch 9** | Delegation | ✅ Complete | delegation_test |
+| **Ch 10** | Runtime Lifecycle | ✅ Complete | lifecycle_test |
+| **Ch 11** | Console Subsystem | ✅ Complete | console_status_test |
+| **Ch 12** | Module System | ✅ Complete | module_test |
+| **Ch 13** | Portability | ✅ Complete | portability_test |
+| **Ch 14** | Security & Performance | ✅ Complete | security_bench_test |
+| **Ch 15** | Documentation & ND Accessibility | 🔄 In Progress | — |
+| **Ch 16** | Packaging, Release & Archive | ✅ Complete | example_test |
+| **Ch 20** | Runtime Start Coordinator | ✅ Complete | coordinator_test |
+| **Ch 20B** | Runtime Entrypoint CLI Interface | ✅ Complete | coordinator_test, console_status_test |
+| **Ch 99** | Testing Infrastructure & CI Gating | ✅ Complete | harness_test, integration_test |
+| **HH-1** | Persistence Hardening | ✅ Complete | ch3_uat, reconciliation_test |
+| **HH-2** | Lifecycle & Error Hardening | ✅ Complete | lifecycle_test, integration_test |
+| **HH-3** | Config & Observability Hardening | ✅ Complete | config_test, integration_test |
+| **HH-4** | Console Entrypoint Hardening | ✅ Complete | console_status_test |
+| **HH-5** | Hardening Verification Gate | ✅ Complete | all hardening tests |
+
+**21 of 22 chapters complete. Ch 15 (Documentation) actively in progress.**
+
+---
+
 ## How to Use This Plan
 
 - Chapters are ordered by dependency. Complete them in sequence.
@@ -941,7 +977,7 @@ supports flags and switches, and optionally launches an attached console.
 **SPEC:** §5B Runtime Start Coordinator (CLI interface contract)
 **Goal:** Add explicit runtime entrypoint CLI goals and tasks so launch parsing,
 validation, and failure semantics are testable and operator-safe.
-**Status:** ⏳ **PLANNED** — phase added for execution; implementation and tests pending.
+**Status:** ✅ **COMPLETE** — All tasks implemented and tests passing.
 
 ### Goals
 1. Lock coordinator launch options and parsing behavior.
@@ -950,21 +986,44 @@ validation, and failure semantics are testable and operator-safe.
 4. Provide explicit structured failure output contract for operators and CI.
 
 ### Tasks
-20B.1. Define `CoordinatorLaunchOptions` model for config path, mode override,
-      console mode, watch target, and daemonize switch.
-20B.2. Define deterministic parse + normalize + validate flow for all launch flags.
-20B.3. Enforce required `--config` and watch/console mode constraints.
-20B.4. Map startup failures to structured output fields aligned with `StartupError`
-      (`haltedAt`, `reason`, `recoveryGuidance`).
-20B.5. Add coordinator CLI tests for parse failures, validation failures,
-      mode branching, watch constraints, and success-path exit behavior.
-20B.6. Update operator-facing usage examples in public docs.
+20B.1. ✅ Define `CoordinatorLaunchOptions`: configPath, modeOverride, logLevel, port,
+      consoleMode, consoleModeExplicit, watchTarget, daemonize, wantHelp (per SPEC §5B.6).
+20B.2. ✅ Define `CoordinatorStartupReport`: consoleBranch, configPath, modeResolved, exitCode.
+20B.3. ✅ Implement deterministic left-to-right parser for all 8 flags:
+      `--config`, `--mode`, `--log-level`, `--port`, `--console`, `--watch`,
+      `--daemonize`, `--help`/`-h`. Unknown flags fail immediately.
+20B.4. ✅ Implement validation:
+      - `wantHelp` → sovereign bypass; exits 0 with help text.
+      - `configPath` required and non-empty.
+      - `daemonize` + explicit `ccmAttach` → fail.
+      - `--watch` without explicit console: if `daemonize` → `ccmDetach`; else → `ccmAttach`.
+      - watch + effective `ccmDetach` → fail.
+      - `port` in range 1–65535.
+      - `logLevel` in `trace|debug|info|warn|error`.
+20B.5. ✅ Implement `runCoordinatorMain*(args)`: parse → `resolveConsoleMode` → validate →
+      help early-return → `loadConfigWithOverrides` (no defaults injected) →
+      emit `CoordinatorStartupReport` → return `(exitCode, lines)`.
+20B.6. ✅ Implement `CoordinatorHelpText*` with per-flag descriptions, minimal example,
+      and full example.
+20B.7. ✅ Extend `src/console_main.nim`: added `--log-level`, `--port`, `--help`/`-h`;
+      sovereign pre-scan; port-range + log-level validation;
+      `RuntimeConfigOverrides` wired only when flags explicitly set.
+20B.8. ✅ Added coordinator CLI tests in `tests/coordinator_test.nim` (27 passing tests:
+      parse/resolve, validation failures, help sovereign, success path).
+20B.9. ✅ Extended `tests/console_status_test.nim` (9 new tests: help sovereign,
+      log-level accept/reject, port accept/range/parse, constraint preservation).
+20B.10. ✅ Updated operator-facing usage examples in `docs/public/getting-started/install-run-console.md`.
 
 ### Acceptance
-- Missing/invalid launch args return non-zero with usage output.
-- Successful startup returns zero and preserves deterministic lifecycle ordering.
-- Startup failures include structured halt reason and recovery guidance semantics.
-- CLI entrypoint does not bypass reconciliation or prefilter gate enforcement.
+- `--help`/`-h` exits 0 with help text + examples; bypasses all validation. ✅
+- Missing/invalid launch args return non-zero with usage output. ✅
+- `--daemonize` + `--console attach` fails validation with non-zero exit. ✅
+- `--watch` without explicit console resolves mode contextually per daemonize presence. ✅
+- `--port` and `--log-level` validated; invalid values fail immediately. ✅
+- CLI overrides do not inject defaults into `RuntimeConfigOverrides`. ✅
+- Successful startup returns `CoordinatorStartupReport` with active console branch. ✅
+- Startup failures include structured `haltedAt`, `reason`, `recoveryGuidance`. ✅
+- CLI entrypoint does not bypass reconciliation or prefilter gate enforcement. ✅
 
 
 ---

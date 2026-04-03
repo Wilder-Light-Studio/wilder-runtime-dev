@@ -25,12 +25,19 @@ The console entrypoint supports:
 - `--config <path>` (required)
 - `--mode <dev|debug|prod>`
 - `--attach <identity>`
-- `--watch <path>`
+- `--watch <path>` (requires `--attach`)
+- `--log-level <trace|debug|info|warn|error>`
+- `--port <N>` (1–65535)
+- `--help`/`-h`
 
-Example:
+Examples:
 
 ```powershell
-nim c -r src/console_main.nim -- --config config/runtime.json --attach local-dev
+# Minimal
+nim c -r src/console_main.nim -- --config config/runtime.json
+
+# Full attach with overrides
+nim c -r src/console_main.nim -- --config config/runtime.json --attach local-dev --mode dev --log-level debug --watch /thing/a
 ```
 
 Coordinator entrypoint supports startup plus optional console launch:
@@ -40,12 +47,22 @@ Coordinator entrypoint supports startup plus optional console launch:
 - `--console <auto|attach|detach>`
 - `--watch <path>` (attached console mode only)
 - `--daemonize`
+- `--log-level <trace|debug|info|warn|error>`
+- `--port <N>` (1–65535)
+- `--help`/`-h`
+
+Examples:
 
 ```powershell
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --console auto
+# Minimal
+nim c -r src/cosmos_main.nim -- --config config/runtime.json
+
+# Full start with watchable console session
+nim c -r src/cosmos_main.nim -- --config config/runtime.json --watch /thing/a --console attach --mode dev --log-level debug
 ```
 
-If launch arguments are invalid, the coordinator exits non-zero and prints usage.
+Pass `--help` to either entrypoint to see the full flag reference.
+If launch arguments are invalid, the entrypoint exits non-zero and prints usage.
 If startup halts, operator output includes halt step, reason, and recovery guidance.
 
 ## What To Look For

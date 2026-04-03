@@ -158,7 +158,15 @@ The Console must expose:
   - `--mode <dev|debug|prod>` — optional override.
   - `--attach <identity>` — optional auto-attach target.
   - `--watch <path>` — optional watch target started after attach.
+  - `--log-level <trace|debug|info|warn|error>` — optional log level override.
+  - `--port <N>` — optional port override (1–65535).
+  - `--help`/`-h` — print full help text and exit 0.
 - Missing `--config` must print usage and exit non-zero.
+- `--help`/`-h` is sovereign: exits 0 and bypasses all validation, including missing required flags.
+- `--log-level` must be validated against `trace|debug|info|warn|error`; invalid values exit non-zero.
+- `--port` must be validated as an integer in range 1–65535; invalid values exit non-zero.
+- Help text must include a minimal example and a full example.
+- CLI overrides must not inject defaults: only explicitly provided flags apply to `RuntimeConfigOverrides`.
 - `--attach` binds identity and permissions to the current console session only.
 - `detach` clears attachment state and returns the three-layer layout to its neutral rendering.
 - `watch` must emit snapshot lines on observed data changes and must stop cleanly on `detach`.
@@ -357,11 +365,21 @@ non-Windows platforms.
 - `--console <auto|attach|detach>` (optional, default `detach`)
 - `--watch <path>` (optional)
 - `--daemonize` (optional)
+- `--log-level <trace|debug|info|warn|error>` (optional)
+- `--port <N>` (optional, 1–65535)
+- `--help`/`-h` (optional)
 
 Rules:
 - Missing `--config` must print usage and exit non-zero.
-- `--watch <path>` implies `--console auto`.
-- Invalid combinations fail fast with usage output and non-zero exit.
+- `--help`/`-h` is sovereign: exits 0 and bypasses all validation, including missing required flags.
+- `--watch <path>` without an explicit `--console` flag resolves console mode contextually:
+  - if `--daemonize` is set: effective console mode is `detach`.
+  - if `--daemonize` is not set: effective console mode is `attach`.
+- `--daemonize` combined with explicit `--console attach` is an invalid combination; fail fast with non-zero exit.
+- `--port` must be validated as an integer in range 1–65535; invalid values exit immediately with non-zero.
+- `--log-level` must be validated against `trace|debug|info|warn|error`; invalid values exit immediately with non-zero.
+- CLI overrides must not inject defaults: only explicitly provided flags apply to `RuntimeConfigOverrides`.
+- All other invalid combinations fail fast with usage output and non-zero exit.
 
 ### 5B.3 Startup Flow Contract
 1. Parse and validate coordinator args.
@@ -398,9 +416,19 @@ type
   CoordinatorLaunchOptions = object
     configPath: string
     modeOverride: Option[string]      ## development|debug|production
+    logLevel: Option[string]          ## trace|debug|info|warn|error
+    port: Option[int]                 ## 1-65535
     consoleMode: CoordinatorConsoleMode
+    consoleModeExplicit: bool         ## true if --console was explicitly provided
     watchTarget: Option[string]
     daemonize: bool
+    wantHelp: bool
+
+  CoordinatorStartupReport* = object
+    consoleBranch*: string            ## "detach" | "auto" | "attach"
+    configPath*: string
+    modeResolved*: string
+    exitCode*: int
 ```
 
 Argument parsing rules:
@@ -413,17 +441,26 @@ Argument parsing rules:
 
 Validation rules:
 
+- If `wantHelp` is true, all other validation is bypassed; exits 0 with help text.
 - `configPath` is required and non-empty.
+- `daemonize` combined with explicit `consoleMode == ccmAttach` is invalid.
 - `watchTarget` is valid only in attached console modes.
-- If `watchTarget` is set while `consoleMode == ccmDetach`, validation fails.
+- If `watchTarget` is set and the effective `consoleMode == ccmDetach`, validation fails.
+- `port` when present must be in range 1–65535.
+- `logLevel` when present must be one of `trace|debug|info|warn|error`.
+- Only explicitly provided flags populate `RuntimeConfigOverrides`; no defaults are injected.
 
 ### 5B.7 Coordinator Output Contract
 
 - Invalid argument/validation input returns non-zero and prints usage output.
 - Startup failure returns non-zero and includes structured fields aligned to
   `StartupError` semantics (`haltedAt`, `reason`, `recoveryGuidance`).
-- Successful startup returns `0` and reports the active startup branch
-  (`detach`, `auto`, or `attach`).
+- Successful startup returns `0` and emits a `CoordinatorStartupReport` containing
+  `consoleBranch` (`detach`, `auto`, or `attach`), `configPath`, `modeResolved`,
+  and `exitCode = 0`.
+- `--help`/`-h` exits `0` and prints help text with examples; no `CoordinatorStartupReport`
+  is emitted.
+- Help text must include a minimal example and a full example.
 
 ---
 

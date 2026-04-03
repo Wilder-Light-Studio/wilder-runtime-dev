@@ -379,6 +379,73 @@ suite "console cli entrypoint":
     check lines.anyIt("watch: active" in it)
     teardownTest()
 
+# ── console cli new flags ─────────────────────────────────────────────────────
+
+suite "console cli help flag":
+  test "--help exits zero with help text":
+    let (code, lines) = runConsoleMain(@["--help"])
+    check code == 0
+    check lines.anyIt("console_main" in it or "--config" in it)
+
+  test "-h exits zero":
+    let (code, lines) = runConsoleMain(@["-h"])
+    check code == 0
+
+  test "--help bypasses missing --config (sovereign)":
+    let (code, _) = runConsoleMain(@["--help"])
+    check code == 0
+
+suite "console cli log-level flag":
+  test "--log-level debug with valid config exits zero":
+    setupTest("console_loglevel_accept")
+    let configPath = testTmpDir / "runtime.json"
+    writeFile(configPath, """{
+      "mode": "development",
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+    let (code, _) = runConsoleMain(@["--config", configPath, "--log-level", "debug"])
+    check code == 0
+    teardownTest()
+
+  test "--log-level invalid value exits non-zero":
+    let (code, _) = runConsoleMain(@["--config", "/x", "--log-level", "verbose"])
+    check code != 0
+
+suite "console cli port flag":
+  test "--port 9090 with valid config exits zero":
+    setupTest("console_port_accept")
+    let configPath = testTmpDir / "runtime.json"
+    writeFile(configPath, """{
+      "mode": "development",
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+    let (code, _) = runConsoleMain(@["--config", configPath, "--port", "9090"])
+    check code == 0
+    teardownTest()
+
+  test "--port non-integer exits non-zero":
+    let (code, _) = runConsoleMain(@["--config", "/x", "--port", "abc"])
+    check code != 0
+
+  test "--port zero exits non-zero":
+    let (code, _) = runConsoleMain(@["--config", "/x", "--port", "0"])
+    check code != 0
+
+  test "new flags preserve watch requires attach constraint":
+    let (code, lines) = runConsoleMain(@[
+      "--config", "/x",
+      "--watch", "/thing/a",
+      "--log-level", "debug"
+    ])
+    check code != 0
+    check lines.anyIt("--watch requires --attach" in it)
+
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
 # Contact: teamwilder@wildercode.org
