@@ -5,7 +5,9 @@ param(
   [string]$PullRequestTemplatePath = ".github/pull_request_template.md",
   [string]$PreReleaseWorkflowPath = ".github/workflows/pre_release_verify.yml",
   [string]$ReleaseArtifactsWorkflowPath = ".github/workflows/release_artifacts.yml",
-  [string]$ReleaseManifestScriptPath = "scripts/generate_release_manifest.ps1"
+  [string]$ReleaseManifestScriptPath = "scripts/generate_release_manifest.ps1",
+  [string]$ChecksumScriptPath = "scripts/generate_artifact_checksums.ps1",
+  [string]$InstallerContractScriptPath = "scripts/test_installer_contract.ps1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,6 +44,16 @@ if (-not (Test-Path $ReleaseArtifactsWorkflowPath)) {
 
 if (-not (Test-Path $ReleaseManifestScriptPath)) {
   Write-Error "Release manifest script not found: $ReleaseManifestScriptPath"
+  exit 1
+}
+
+if (-not (Test-Path $ChecksumScriptPath)) {
+  Write-Error "Checksum script not found: $ChecksumScriptPath"
+  exit 1
+}
+
+if (-not (Test-Path $InstallerContractScriptPath)) {
+  Write-Error "Installer contract script not found: $InstallerContractScriptPath"
   exit 1
 }
 
@@ -212,12 +224,21 @@ $requiredReleaseWorkflowPatterns = @(
   "name: Release Artifacts \(Phase 19A Scaffold\)",
   "workflow_dispatch:",
   "if: \$\{\{ vars.ENABLE_RELEASE_ARTIFACTS == 'true' \}\}",
+  "Stage 1 - build",
+  "Stage 2 - package",
+  "Stage 3 - sign scaffold",
+  "Stage 4 - verify-signature and checksums",
+  "Stage 5 - publish scaffold metadata",
+  "test_installer_contract.ps1",
+  "generate_artifact_checksums.ps1",
   "windows-amd64",
   "linux-amd64",
   "linux-arm64",
   "darwin-amd64",
   "darwin-arm64",
-  "generate_release_manifest.ps1"
+  "generate_release_manifest.ps1",
+  "stable",
+  "preview"
 )
 
 foreach ($pattern in $requiredReleaseWorkflowPatterns) {

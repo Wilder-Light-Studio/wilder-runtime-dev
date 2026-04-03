@@ -750,19 +750,18 @@ microbenchmark results.
 **SPEC:** §19A Binary Build, Installer, and Release Tooling
 **Goal:** Implement cross-platform artifact automation, installer contracts, checksums,
 manifest emission, and release-channel publishing foundations.
-**Status:** 🔄 IN PROGRESS — workflow and manifest tooling scaffold started; full
-multi-platform installers and signing remain open.
+**Status:** ✅ COMPLETE — release matrix workflow now includes staged build/package/sign/verify-signature/publish scaffold flow, checksum automation, installer contract checks, uninstall residue checks, and channel-aware manifest metadata.
 
 ### Tasks
-19A.1. 🔄 Add release artifact workflow skeleton with explicit target matrix:
+19A.1. ✅ Add release artifact workflow skeleton with explicit target matrix:
       windows-amd64, linux-amd64, linux-arm64, darwin-amd64, darwin-arm64.
-19A.2. 🔄 Add machine-readable `release-manifest.json` generation tooling.
-19A.3. ☐ Add artifact checksum generation and verification gates (SHA-256).
-19A.4. ☐ Add installer mode contract checks (`user` and `system`) for filesystem layout.
-19A.5. ☐ Add uninstall residue checks for installer-owned paths.
-19A.6. ☐ Add signing stage scaffolding (Windows/macOS/Linux) with explicit TODO gates.
-19A.7. ☐ Add release channel metadata handling (`stable` and `preview`).
-19A.8. ☐ Wire CI compliance check to fail when required 19A matrix targets are missing.
+19A.2. ✅ Add machine-readable `release-manifest.json` generation tooling.
+19A.3. ✅ Add artifact checksum generation and verification gates (SHA-256).
+19A.4. ✅ Add installer mode contract checks (`user` and `system`) for filesystem layout.
+19A.5. ✅ Add uninstall residue checks for installer-owned paths.
+19A.6. ✅ Add signing stage scaffolding (Windows/macOS/Linux) with explicit TODO gates.
+19A.7. ✅ Add release channel metadata handling (`stable` and `preview`).
+19A.8. ✅ Wire CI compliance check to fail when required 19A matrix targets are missing.
 
 ### Acceptance
 - Release tooling defines all required target matrix entries from SPEC §19A.1.
