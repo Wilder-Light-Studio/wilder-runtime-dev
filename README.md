@@ -2,12 +2,7 @@
   <img src="docs/assets/wilder-cosmos-logo.png" alt="Wilder Cosmos Logo" width="300"/>
 </p>
 
-# Wilder Cosmos Runtime
-
-### “For those who kept their conscience even when it cost them everything.”
-
-
-
+# Wilder Cosmos - A Runtime Foundation
 
 Wilder Cosmos Runtime is a Nim-based runtime for deterministic world-state
 execution, boundary validation, structured messaging, and layered
