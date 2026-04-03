@@ -3,7 +3,9 @@ param(
   [string]$MatrixPath = "docs/implementation/COMPLIANCE-MATRIX.md",
   [string]$GuidelinesPath = "docs/implementation/DEVELOPMENT-GUIDELINES.md",
   [string]$PullRequestTemplatePath = ".github/pull_request_template.md",
-  [string]$PreReleaseWorkflowPath = ".github/workflows/pre_release_verify.yml"
+  [string]$PreReleaseWorkflowPath = ".github/workflows/pre_release_verify.yml",
+  [string]$ReleaseArtifactsWorkflowPath = ".github/workflows/release_artifacts.yml",
+  [string]$ReleaseManifestScriptPath = "scripts/generate_release_manifest.ps1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,11 +35,22 @@ if (-not (Test-Path $PreReleaseWorkflowPath)) {
   exit 1
 }
 
+if (-not (Test-Path $ReleaseArtifactsWorkflowPath)) {
+  Write-Error "Release artifacts workflow file not found: $ReleaseArtifactsWorkflowPath"
+  exit 1
+}
+
+if (-not (Test-Path $ReleaseManifestScriptPath)) {
+  Write-Error "Release manifest script not found: $ReleaseManifestScriptPath"
+  exit 1
+}
+
 $content = Get-Content -Path $RequirementsPath -Raw
 $matrixContent = Get-Content -Path $MatrixPath -Raw
 $guidelinesContent = Get-Content -Path $GuidelinesPath -Raw
 $prTemplateContent = Get-Content -Path $PullRequestTemplatePath -Raw
 $preReleaseWorkflowContent = Get-Content -Path $PreReleaseWorkflowPath -Raw
+$releaseArtifactsWorkflowContent = Get-Content -Path $ReleaseArtifactsWorkflowPath -Raw
 $missing = New-Object System.Collections.Generic.List[string]
 
 # Required high-value sections and examples.
@@ -192,6 +205,25 @@ foreach ($pattern in $requiredWorkflowPatterns) {
 
 if ($preReleaseWorkflowContent -match '(?m)^\s*pull_request:\s*$' -or $preReleaseWorkflowContent -match '(?m)^\s*push:\s*$') {
   $missing.Add("Pre-release workflow must remain inactive and must not include push/pull_request triggers.")
+}
+
+# Phase 19A release scaffold checks.
+$requiredReleaseWorkflowPatterns = @(
+  "name: Release Artifacts \(Phase 19A Scaffold\)",
+  "workflow_dispatch:",
+  "if: \$\{\{ vars.ENABLE_RELEASE_ARTIFACTS == 'true' \}\}",
+  "windows-amd64",
+  "linux-amd64",
+  "linux-arm64",
+  "darwin-amd64",
+  "darwin-arm64",
+  "generate_release_manifest.ps1"
+)
+
+foreach ($pattern in $requiredReleaseWorkflowPatterns) {
+  if (-not ($releaseArtifactsWorkflowContent -match $pattern)) {
+    $missing.Add("Missing release workflow section/pattern: $pattern")
+  }
 }
 
 # Header template and generator artifact checks.

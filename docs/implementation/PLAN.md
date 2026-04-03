@@ -27,8 +27,9 @@
 | **Ch 12** | Module System | ✅ Complete | module_test |
 | **Ch 13** | Portability | ✅ Complete | portability_test |
 | **Ch 14** | Security & Performance | ✅ Complete | security_bench_test |
-| **Ch 15** | Documentation & ND Accessibility | 🔄 In Progress | — |
+| **Ch 15** | Documentation & ND Accessibility | ✅ Complete | docs/index.md, docs/public/*, .github/ND_DOCS_CHECKLIST.md |
 | **Ch 16** | Packaging, Release & Archive | ✅ Complete | example_test |
+| **Ch 19A** | Binary Build, Installer, and Release Tooling | 🔄 In Progress | release_artifacts workflow, release-manifest tooling |
 | **Ch 20** | Runtime Start Coordinator | ✅ Complete | coordinator_test |
 | **Ch 20B** | Runtime Entrypoint CLI Interface | ✅ Complete | coordinator_test, console_status_test |
 | **Ch 99** | Testing Infrastructure & CI Gating | ✅ Complete | harness_test, integration_test |
@@ -38,7 +39,7 @@
 | **HH-4** | Console Entrypoint Hardening | ✅ Complete | console_status_test |
 | **HH-5** | Hardening Verification Gate | ✅ Complete | all hardening tests |
 
-**21 of 22 chapters complete. Ch 15 (Documentation) actively in progress.**
+**22 of 23 chapters complete. Ch 19A is now active as the next phase.**
 
 ---
 
@@ -721,7 +722,7 @@ microbenchmark results.
 
 **SPEC:** §18 Documentation
 **Goal:** Complete, offline, ND-friendly documentation.
-**Status:** 🔄 IN PROGRESS — ND checklist and source-comment pass complete; public documentation IA and repository organization extension active.
+**Status:** ✅ COMPLETE — ND checklist and source-comment pass complete; public documentation IA finalized; chapter acceptance criteria satisfied with PR-template checklist reference.
 
 ### Tasks
 15.1. Ensure all public APIs follow `docs/implementation/COMMENT_STYLE.md`.
@@ -863,6 +864,7 @@ before work on Ch 4+ begins.
 | §17 Security | Ch 14 |
 | §18 Documentation | Ch 15 |
 | §19 Packaging | Ch 16 |
+| §19A Binary Build, Installer, and Release Tooling | Ch 19A |
 | §20 Archive Completeness | Ch 16 |
 | §21 Runtime Configuration | Ch 2A |
 | §22 Messaging System | Ch 2B |
@@ -1024,6 +1026,35 @@ validation, and failure semantics are testable and operator-safe.
 - Successful startup returns `CoordinatorStartupReport` with active console branch. ✅
 - Startup failures include structured `haltedAt`, `reason`, `recoveryGuidance`. ✅
 - CLI entrypoint does not bypass reconciliation or prefilter gate enforcement. ✅
+
+---
+
+## Phase 4 Extension — Chapter 19A Binary Build, Installer, and Release Tooling
+
+**SPEC:** §19A Binary Build, Installer, and Release Tooling
+**Goal:** Implement cross-platform artifact automation, installer contracts, checksums,
+manifest emission, and release-channel publishing foundations.
+**Status:** 🔄 **IN PROGRESS** — workflow and manifest tooling scaffold started; full
+multi-platform installers and signing remain open.
+
+### Tasks
+19A.1. 🔄 Add release artifact workflow skeleton with explicit target matrix:
+      windows-amd64, linux-amd64, linux-arm64, darwin-amd64, darwin-arm64.
+19A.2. 🔄 Add machine-readable `release-manifest.json` generation tooling.
+19A.3. ☐ Add artifact checksum generation and verification gates (SHA-256).
+19A.4. ☐ Add installer mode contract checks (`user` and `system`) for filesystem layout.
+19A.5. ☐ Add uninstall residue checks for installer-owned paths.
+19A.6. ☐ Add signing stage scaffolding (Windows/macOS/Linux) with explicit TODO gates.
+19A.7. ☐ Add release channel metadata handling (`stable` and `preview`).
+19A.8. ☐ Wire CI compliance check to fail when required 19A matrix targets are missing.
+
+### Acceptance
+- Release tooling defines all required target matrix entries from SPEC §19A.1.
+- Manifest generation emits required fields per artifact.
+- Checksum generation and verification are automated in workflow.
+- Installer mode and uninstall contracts are validated by tests/gates.
+- Signing and publish stages are explicitly represented in pipeline ordering.
+- Channel-aware release outputs exist for `stable` and `preview`.
 
 
 ---

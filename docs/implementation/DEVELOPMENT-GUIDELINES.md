@@ -148,6 +148,9 @@ flowchart TD
 Single activation flag:
 - Set repository variable `ENABLE_PRE_RELEASE_CI=true` to enable `.github/workflows/pre_release_verify.yml`.
 
+Phase 19A release scaffold activation flag:
+- Set repository variable `ENABLE_RELEASE_ARTIFACTS=true` to enable `.github/workflows/release_artifacts.yml`.
+
 Pre-release default:
 - Keep variable unset or set to `false`.
 - Keep only `workflow_dispatch` trigger to avoid automatic CI resource usage.
