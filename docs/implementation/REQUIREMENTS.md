@@ -1179,6 +1179,43 @@ All checks should run in local development and CI.
 - Pre-release CI activation must use a single repository variable flag:
   `ENABLE_PRE_RELEASE_CI=true`.
 
+### Project Phase: Binary Build, Installer, and Release Tooling
+
+- All major distributable packages must ship with binary installers for Windows, macOS,
+  and Linux.
+- Installers must support both user-home and system-wide install modes.
+- User-home installation must use OS-appropriate per-user locations and must not require
+  elevated privileges.
+- System-wide installation must use OS-appropriate shared locations and require elevation
+  only when required by the operating system.
+- Installers must provide optional PATH integration for runtime and supporting binaries.
+- Uninstall operations must remove all installed binaries, launchers, manifests, and
+  generated installer metadata.
+- Uninstall operations must leave zero residue except user-created project content.
+- The canonical runtime entrypoint must always be `cosmos.exe`.
+- All packaged applications must internally delegate startup execution to `cosmos.exe`.
+- Both user-local and system-wide installs must expose `cosmos.exe` as an invokable
+  command.
+- Wrapper scripts, launchers, aliases, and symlinks must resolve to `cosmos.exe`.
+- The runtime home tree under `~/.wilder/cosmos/` must include, at minimum: `config/`,
+  `logs/`, `cache/`, `messages/`, `projects/`, `registry/`, `bin/`, and `temp/`.
+- Users must be able to create Cosmos applications in any writable filesystem location,
+  independent of runtime home.
+- The CLI must provide `cosmos.exe startapp`.
+- `cosmos.exe startapp` must prompt for custom configuration values, provide sane
+  defaults, and generate a complete new-application scaffold.
+- Build and release tooling must provide a cross-platform build matrix, packaging,
+  signing, publishing, and versioned release channels.
+- Release channels must include at least `stable` and `preview`, and artifacts must be
+  traceable to source revision and build metadata.
+- Every release artifact must include checksums and verifiable provenance metadata.
+- Signing keys and publishing credentials must be sourced from secure CI secrets and must
+  never be stored in repository plaintext.
+- Release workflows must support deterministic rebuild verification from a tagged
+  revision.
+- Installer and release workflows must emit machine-readable manifests suitable for
+  automated compliance tests.
+
 ---
 
 ## Archive Completeness Requirements

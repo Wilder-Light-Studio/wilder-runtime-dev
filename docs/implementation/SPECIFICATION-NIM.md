@@ -796,6 +796,134 @@ Acceptance:
 
 ---
 
+# 19A. Binary Build, Installer, and Release Tooling Phase Specification
+
+**REQ:** Project Phase: Binary Build, Installer, and Release Tooling
+
+### 19A.1 Build Matrix and Artifact Contract
+
+- CI must build release artifacts for:
+  - `windows-amd64`
+  - `linux-amd64`
+  - `linux-arm64`
+  - `darwin-amd64`
+  - `darwin-arm64`
+- Every build job must produce:
+  - runtime binary payload containing canonical `cosmos.exe`
+  - installer payload for the target platform
+  - SHA-256 checksum file for each distributable artifact
+  - machine-readable release manifest entry
+- Build output identity must include version, git commit, target triple, and UTC build
+  timestamp.
+
+### 19A.2 Installer Modes and Filesystem Layout Contract
+
+Installers must support two explicit modes:
+- `user`: install under user-home paths.
+- `system`: install under shared system paths.
+
+Canonical runtime home tree (per install mode root) must include:
+
+```text
+.wilder/cosmos/
+  config/
+  logs/
+  cache/
+  messages/
+  projects/
+  registry/
+  bin/
+  temp/
+```
+
+Mode-specific root mapping:
+- Windows user mode: `%USERPROFILE%\\.wilder\\cosmos\\`
+- Windows system mode: `%ProgramData%\\Wilder\\Cosmos\\`
+- Linux/macOS user mode: `~/.wilder/cosmos/`
+- Linux/macOS system mode: `/var/lib/wilder/cosmos/`
+
+Installers must create required directories idempotently and preserve existing user data.
+
+### 19A.3 Entrypoint Canonicalization Contract
+
+- The canonical startup executable name is always `cosmos.exe` on every supported OS.
+- Runtime invocation paths, wrappers, package launch scripts, and symlink targets must
+  terminate at `cosmos.exe`.
+- If a compatibility alias is provided (for example `cosmos`), it must be a thin
+  delegator to `cosmos.exe` and must not bypass runtime bootstrap logic.
+- Both `user` and `system` installs must expose `cosmos.exe` on-demand via explicit path
+  and optional PATH integration.
+
+### 19A.4 PATH Integration and Uninstall Contract
+
+- Installers must offer opt-in PATH integration during install.
+- PATH mutation must be scoped to user environment for `user` mode and machine
+  environment for `system` mode.
+- Uninstall must remove:
+  - installed binaries and wrappers
+  - PATH entries added by installer
+  - installer-generated manifests and metadata
+- Uninstall must not delete user-created project content under `projects/` or outside
+  runtime home.
+- After uninstall, no installer-owned files may remain in install targets.
+
+### 19A.5 Application Scaffold Command Contract (`cosmos.exe startapp`)
+
+`cosmos.exe startapp` must execute deterministic scaffold generation with interactive
+prompts.
+
+Required behavior:
+1. Accept optional target path argument; default to current working directory.
+2. Prompt for app name, runtime mode, transport, and initial module set.
+3. Show defaults for every prompt and allow accept-by-enter.
+4. Validate destination path writability before generation.
+5. Generate scaffold atomically (temporary staging then rename/move).
+6. Emit a completion summary containing generated paths and next commands.
+7. Exit `0` on success; non-zero with structured error on validation or IO failure.
+
+Generation must be location-agnostic: users may create projects in any writable path.
+
+### 19A.6 Signing, Publishing, Versioning, and Channels Contract
+
+- Release pipeline stages must execute in this order:
+  1. build
+  2. package
+  3. sign
+  4. verify-signature
+  5. publish
+- Signing must support:
+  - Authenticode (Windows)
+  - Developer ID or equivalent notarized signing for macOS distributions
+  - detached signature files for Linux artifacts
+- Publishing must produce channel-separated outputs at minimum for `stable` and
+  `preview`.
+- Versioning must be sourced from `.nimble` and enforce monotonic release progression
+  per channel.
+- Each published artifact must include checksum, signature data, and source provenance
+  (commit, tag, build job id).
+
+### 19A.7 Automation and Compliance Execution Contract
+
+- Release workflows must emit `release-manifest.json` with one entry per artifact.
+- Manifest fields must include at minimum:
+  - `artifactName`
+  - `version`
+  - `channel`
+  - `target`
+  - `checksumSha256`
+  - `signatureType`
+  - `sourceCommit`
+  - `buildId`
+  - `publishedAtUtc`
+- CI compliance tests must fail if:
+  - a required target in the build matrix is missing
+  - `cosmos.exe` is absent from any package
+  - installer mode behavior deviates from path contract
+  - uninstall leaves installer-owned residue
+  - manifest schema or required fields are missing
+
+---
+
 # 20. Archive Completeness Specification
 
 - no external dependencies

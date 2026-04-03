@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="docs/assets/wilder-cosmos-logo.png" alt="Wilder Cosmos Logo" width="300"/>
+  <img src="docs/assets/wilder-cosmos-v3.png" alt="Wilder Cosmos Logo" width="300"/>
 </p>
 
 # Wilder Cosmos - A Runtime Foundation
