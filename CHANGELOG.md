@@ -2,16 +2,26 @@
 
 This file tracks public-facing project milestones for Wilder Cosmos Runtime.
 
-Current development line: `0.9.4`
+Current development line: `0.9.5`
 
-Current preview tag: `v0.9.4-wip`
+Current preview tag: `v0.9.5-wip`
 
-## v0.9.4 - In Progress
+## v0.9.5 - In Progress
 
 This development line reflects the current package version and the active work in
 the repository.
 
 Highlights so far:
+
+- Phase X documentation is now in place for installer, build, release, and
+	Concept system work, including canonical `cosmos.exe` entrypoint rules,
+	runtime-home ownership, and channel expansion expectations.
+- Runtime-home resolution and directory creation helpers are implemented for the
+	Phase X filesystem contract.
+- Concept registry foundations are implemented with programmatic-overrides-manual
+	effective Concept selection and stable ABI export scaffolding.
+- `cosmos startapp` now creates a deterministic starter scaffold with
+	`cosmos.toml`, `src/`, and build-manifest generation.
 
 - Runtime API foundations are in place, including typed runtime state, module
 	context, status schema, and reconciliation result structures.
