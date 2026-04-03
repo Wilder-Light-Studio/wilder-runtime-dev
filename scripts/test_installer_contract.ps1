@@ -59,6 +59,8 @@ function Ensure-Layout {
 
   # Installer-owned metadata marker.
   Set-Content -LiteralPath (Join-Path $Root "registry/installer.manifest") -Value "owned=true" -Encoding utf8
+  Set-Content -LiteralPath (Join-Path $Root "registry/version-registry.json") -Value '{"installedVersion":"0.0.0","channel":"nightly"}' -Encoding utf8
+  Set-Content -LiteralPath (Join-Path $Root "registry/path-metadata.json") -Value '{"pathIntegrated":true}' -Encoding utf8
   # Simulate installer-owned binary.
   Set-Content -LiteralPath (Join-Path $Root "bin/cosmos.exe") -Value "placeholder" -Encoding utf8
 }

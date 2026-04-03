@@ -167,6 +167,27 @@ suite "coordinator success path":
     check lines.anyIt("attach" in it)
     teardownTest()
 
+suite "startapp subcommand":
+  test "startapp generates scaffold files":
+    setupTest("startapp_generates_scaffold")
+    defer: teardownTest()
+    let targetDir = testTmpDir / "demo-app"
+    let (code, lines) = runCoordinatorMain(@["startapp", targetDir, "--mode", "dev"])
+    check code == 0
+    check dirExists(targetDir / "src")
+    check fileExists(targetDir / "cosmos.toml")
+    check fileExists(targetDir / "build-manifest.json")
+    check lines.anyIt("scaffold created" in it)
+
+  test "startapp rejects non-empty target directory":
+    setupTest("startapp_rejects_nonempty")
+    defer: teardownTest()
+    let targetDir = testTmpDir / "occupied-app"
+    createDir(targetDir)
+    writeFile(targetDir / "sentinel.txt", "occupied")
+    let (code, _) = runCoordinatorMain(@["startapp", targetDir])
+    check code != 0
+
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
 # Contact: teamwilder@wildercode.org

@@ -354,8 +354,9 @@ Path reset: /
 
 ### Identity and Boundaries
 
-- The runtime start coordinator binary must be named `cosmos.exe` on Windows and `cosmos`
-  on non-Windows platforms.
+- The canonical runtime start coordinator entrypoint must always resolve to `cosmos.exe`.
+- Compatibility aliases such as `cosmos` may exist on non-Windows platforms, but they must
+  delegate to `cosmos.exe` and must not bypass startup orchestration.
 - The coordinator is the primary startup entrypoint for launching a Cosmos instance.
 - The coordinator owns startup orchestration and runtime lifecycle handoff.
 - The existing console entrypoint at `src/console_main.nim` remains a thin attachment and
@@ -1179,42 +1180,96 @@ All checks should run in local development and CI.
 - Pre-release CI activation must use a single repository variable flag:
   `ENABLE_PRE_RELEASE_CI=true`.
 
-### Project Phase: Binary Build, Installer, and Release Tooling
+### Project Phase: Phase X — Installer, Build, Release, and Concept System
 
-- All major distributable packages must ship with binary installers for Windows, macOS,
-  and Linux.
+#### Installer and Runtime Entrypoint Requirements
+
+- All major distributable packages must ship with cross-platform binary installers for
+  Windows, macOS, and Linux.
 - Installers must support both user-home and system-wide install modes.
 - User-home installation must use OS-appropriate per-user locations and must not require
   elevated privileges.
 - System-wide installation must use OS-appropriate shared locations and require elevation
   only when required by the operating system.
-- Installers must provide optional PATH integration for runtime and supporting binaries.
-- Uninstall operations must remove all installed binaries, launchers, manifests, and
-  generated installer metadata.
-- Uninstall operations must leave zero residue except user-created project content.
+- Installers must provide optional PATH integration for `cosmos.exe` and supporting
+  binaries.
+- Uninstall operations must remove all installed binaries, wrappers, launchers,
+  manifests, PATH mutations, and installer-generated metadata.
+- Uninstall operations must leave zero installer-owned residue except user-created
+  project content.
 - The canonical runtime entrypoint must always be `cosmos.exe`.
 - All packaged applications must internally delegate startup execution to `cosmos.exe`.
-- Both user-local and system-wide installs must expose `cosmos.exe` as an invokable
-  command.
 - Wrapper scripts, launchers, aliases, and symlinks must resolve to `cosmos.exe`.
+- No packaged application may embed, bypass, or replace the runtime bootstrap owned by
+  `cosmos.exe`.
+- All CLI commands must resolve through `cosmos.exe`, even when launched through a
+  compatibility alias.
+
+#### Concept System Requirements
+
+- Cosmos must support both programmatic Concepts derived from code and manual Concept
+  files used to wrap external programs or other non-programmatic artifacts.
+- When both programmatic and manual Concepts exist for the same identity, the
+  programmatic Concept must override the manual Concept.
+- The build system must automatically derive programmatic Concepts from code-defined
+  contracts.
+- The build system must validate manual Concept files when no programmatic Concept exists
+  for the same identity.
+- The build system must detect the effective Concept for each packaged application and
+  embed that effective Concept into the packaged artifact.
+- The build system must emit a stable Concept ABI suitable for runtime loading across
+  supported platforms.
+- The runtime must attempt to load programmatic Concepts first and fall back to manual
+  Concept files only when no programmatic Concept exists.
+- The runtime must maintain a Concept registry under `~/.wilder/cosmos/registry/`.
+- The runtime may warn when both programmatic and manual Concepts exist for the same
+  identity, but warning behavior must not change effective override semantics.
+
+#### Runtime Home Tree Requirements
+
 - The runtime home tree under `~/.wilder/cosmos/` must include, at minimum: `config/`,
   `logs/`, `cache/`, `messages/`, `projects/`, `registry/`, `bin/`, and `temp/`.
-- Users must be able to create Cosmos applications in any writable filesystem location,
-  independent of runtime home.
+- `config/` must be user-editable.
+- `registry/` must be treated as tool-owned state.
+- `projects/` is optional convenience storage; users must be able to create Cosmos
+  projects in any writable filesystem location.
+- `bin/` must contain user-local runtime tools when installed in user-home mode.
+
+#### CLI and Developer Experience Requirements
+
 - The CLI must provide `cosmos.exe startapp`.
-- `cosmos.exe startapp` must prompt for custom configuration values, provide sane
-  defaults, and generate a complete new-application scaffold.
-- Build and release tooling must provide a cross-platform build matrix, packaging,
-  signing, publishing, and versioned release channels.
-- Release channels must include at least `stable` and `preview`, and artifacts must be
+- `cosmos.exe startapp` must execute an interactive wizard with sane defaults.
+- `cosmos.exe startapp` must generate `cosmos.toml`, `src/`, a build manifest, and
+  optional templates.
+- The CLI must provide `cosmos concept show` to reveal the effective Concept.
+- The CLI must provide `cosmos concept validate` to validate manual or effective Concept
+  inputs.
+- The CLI must provide `cosmos concept export` to emit a stable serialized Concept
+  payload.
+- The CLI must provide `cosmos concept registry` commands to list and inspect registry
+  entries.
+
+#### Build, Release, Versioning, and Update Requirements
+
+- Build and release tooling must implement the following build matrix:
+  Windows x64, Windows ARM64, macOS x64, macOS ARM64, Linux x64, Linux ARM64.
+- The release pipeline must include, in order: compilation, tests, packaging, signing,
+  publishing, and artifact verification.
+- Versioning must use semantic versioning.
+- Release channels must include `stable`, `beta`, and `nightly`.
+- Every release artifact must include checksums and verifiable provenance metadata and be
   traceable to source revision and build metadata.
-- Every release artifact must include checksums and verifiable provenance metadata.
 - Signing keys and publishing credentials must be sourced from secure CI secrets and must
   never be stored in repository plaintext.
 - Release workflows must support deterministic rebuild verification from a tagged
   revision.
 - Installer and release workflows must emit machine-readable manifests suitable for
   automated compliance tests.
+- Updates must support manual upgrade through installers.
+- The CLI may provide an optional auto-update check, but any update check must read
+  version registry state from `~/.wilder/cosmos/registry/`.
+- Version registry metadata stored under `~/.wilder/cosmos/registry/` must be sufficient
+  to determine installed version, channel, and latest-known available update status.
 
 ---
 

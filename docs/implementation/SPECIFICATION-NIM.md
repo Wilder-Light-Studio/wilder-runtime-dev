@@ -349,8 +349,9 @@ type
 # 5B. Runtime Start Coordinator Specification
 
 The runtime start coordinator is the primary startup entrypoint process.
-Binary naming is platform-scoped: `cosmos.exe` on Windows and `cosmos` on
-non-Windows platforms.
+The canonical startup executable is always `cosmos.exe`; compatibility aliases such as
+`cosmos` may exist, but they must delegate to `cosmos.exe` without bypassing runtime
+bootstrap logic.
 
 ### 5B.1 Boundaries
 - The coordinator owns startup orchestration and lifecycle handoff.
@@ -796,33 +797,45 @@ Acceptance:
 
 ---
 
-# 19A. Binary Build, Installer, and Release Tooling Phase Specification
+# 19A. Phase X — Installer, Build, Release, and Concept System Specification
 
-**REQ:** Project Phase: Binary Build, Installer, and Release Tooling
+**REQ:** Project Phase: Phase X — Installer, Build, Release, and Concept System
 
 ### 19A.1 Build Matrix and Artifact Contract
 
 - CI must build release artifacts for:
   - `windows-amd64`
+  - `windows-arm64`
   - `linux-amd64`
   - `linux-arm64`
   - `darwin-amd64`
   - `darwin-arm64`
+- Every build job must execute, in order: compile, test, package, sign, publish, and
+  verify artifacts.
 - Every build job must produce:
   - runtime binary payload containing canonical `cosmos.exe`
   - installer payload for the target platform
   - SHA-256 checksum file for each distributable artifact
   - machine-readable release manifest entry
-- Build output identity must include version, git commit, target triple, and UTC build
-  timestamp.
+  - concept payload containing the embedded effective Concept for packaged apps
+- Build output identity must include version, channel, git commit, target triple, and
+  UTC build timestamp.
 
-### 19A.2 Installer Modes and Filesystem Layout Contract
+### 19A.2 Installer Modes, OS Mapping, and Runtime Home Contract
 
 Installers must support two explicit modes:
 - `user`: install under user-home paths.
 - `system`: install under shared system paths.
 
-Canonical runtime home tree (per install mode root) must include:
+Mode-specific install roots:
+- Windows user mode: `%USERPROFILE%\\.wilder\\cosmos\\`
+- Windows system mode: `%ProgramData%\\Wilder\\Cosmos\\`
+- Linux user mode: `~/.wilder/cosmos/`
+- Linux system mode: `/var/lib/wilder/cosmos/`
+- macOS user mode: `~/.wilder/cosmos/`
+- macOS system mode: `/var/lib/wilder/cosmos/`
+
+Canonical runtime home tree must include:
 
 ```text
 .wilder/cosmos/
@@ -836,25 +849,31 @@ Canonical runtime home tree (per install mode root) must include:
   temp/
 ```
 
-Mode-specific root mapping:
-- Windows user mode: `%USERPROFILE%\\.wilder\\cosmos\\`
-- Windows system mode: `%ProgramData%\\Wilder\\Cosmos\\`
-- Linux/macOS user mode: `~/.wilder/cosmos/`
-- Linux/macOS system mode: `/var/lib/wilder/cosmos/`
+Ownership rules:
+- `config/` is user-editable and must never be removed if it contains user-created files
+  outside installer-owned defaults.
+- `registry/` is tool-owned and may contain installer manifests, concept indices,
+  and version-registry state.
+- `projects/` is optional convenience storage only; installers must not assume all user
+  projects reside there.
+- `bin/` contains user-local runtime tools in `user` mode and shared runtime tools in
+  `system` mode.
 
 Installers must create required directories idempotently and preserve existing user data.
 
-### 19A.3 Entrypoint Canonicalization Contract
+### 19A.3 Canonical Entrypoint Resolution Contract
 
 - The canonical startup executable name is always `cosmos.exe` on every supported OS.
 - Runtime invocation paths, wrappers, package launch scripts, and symlink targets must
   terminate at `cosmos.exe`.
-- If a compatibility alias is provided (for example `cosmos`), it must be a thin
-  delegator to `cosmos.exe` and must not bypass runtime bootstrap logic.
-- Both `user` and `system` installs must expose `cosmos.exe` on-demand via explicit path
-  and optional PATH integration.
+- If a compatibility alias is provided, it must be a thin delegator to `cosmos.exe` and
+  must not bypass runtime bootstrap logic.
+- All CLI commands must be dispatched by `cosmos.exe` even when the operator launches a
+  compatibility alias.
+- Packaged applications must invoke `cosmos.exe` as the runtime host and must not embed
+  or bypass runtime bootstrap logic.
 
-### 19A.4 PATH Integration and Uninstall Contract
+### 19A.4 PATH Integration, Uninstall, and Update Registry Contract
 
 - Installers must offer opt-in PATH integration during install.
 - PATH mutation must be scoped to user environment for `user` mode and machine
@@ -863,46 +882,92 @@ Installers must create required directories idempotently and preserve existing u
   - installed binaries and wrappers
   - PATH entries added by installer
   - installer-generated manifests and metadata
+  - tool-owned version registry entries created for the removed install
 - Uninstall must not delete user-created project content under `projects/` or outside
   runtime home.
 - After uninstall, no installer-owned files may remain in install targets.
+- Runtime update state must be stored under `registry/` and must include installed
+  version, installed channel, and last-known update-check result.
+- The runtime may perform an optional check-only auto-update query, but installation of
+  updates remains installer-driven.
 
-### 19A.5 Application Scaffold Command Contract (`cosmos.exe startapp`)
+### 19A.5 Concept Derivation Engine Contract
+
+- The build system must derive programmatic Concepts from code-defined contracts.
+- Derived Concepts must normalize into a stable serialized structure independent of source
+  file ordering.
+- When both a derived programmatic Concept and a manual Concept exist for the same
+  identity, the derived programmatic Concept is the effective Concept.
+- Manual Concept files may be used only when no derived programmatic Concept exists for
+  the same identity.
+- The build must fail if a manual Concept is selected as effective and does not validate.
+- The build must emit deterministic concept metadata sufficient to embed the effective
+  Concept in packaged applications.
+
+### 19A.6 Concept ABI and Registry Format Contract
+
+- The Concept ABI must be stable across supported platforms and versioned explicitly.
+- Every serialized effective Concept must include at minimum:
+  - `abiVersion`
+  - `conceptId`
+  - `sourceKind` (`programmatic` or `manual`)
+  - `schemaVersion`
+  - `checksumSha256`
+  - `manifest`
+  - `sections`
+  - `derivedFrom`
+- The runtime registry must store one record per concept identity under
+  `~/.wilder/cosmos/registry/`.
+- Registry records must include effective-source metadata and enough information to list,
+  inspect, validate, and export Concepts without recomputing unrelated identities.
+
+### 19A.7 Runtime Concept Loading Contract
+
+- Runtime startup must resolve runtime home before concept loading begins.
+- Runtime concept loading order must be:
+  1. load embedded programmatic Concepts for packaged apps
+  2. load registry-backed programmatic Concepts
+  3. fall back to validated manual Concept files when no programmatic Concept exists
+- Runtime must register the effective Concept for each identity in the registry.
+- If both programmatic and manual Concepts exist, runtime may emit a warning but must keep
+  the programmatic Concept as effective.
+
+### 19A.8 CLI Command Contract
 
 `cosmos.exe startapp` must execute deterministic scaffold generation with interactive
 prompts.
 
-Required behavior:
+Required `startapp` behavior:
 1. Accept optional target path argument; default to current working directory.
-2. Prompt for app name, runtime mode, transport, and initial module set.
+2. Prompt for app name, runtime mode, transport, and initial template selection.
 3. Show defaults for every prompt and allow accept-by-enter.
 4. Validate destination path writability before generation.
-5. Generate scaffold atomically (temporary staging then rename/move).
-6. Emit a completion summary containing generated paths and next commands.
-7. Exit `0` on success; non-zero with structured error on validation or IO failure.
+5. Generate scaffold atomically using temporary staging then rename/move.
+6. Generate `cosmos.toml`, `src/`, a build manifest, and optional templates.
+7. Emit a completion summary containing generated paths and next commands.
+8. Exit `0` on success; non-zero with structured error on validation or IO failure.
 
-Generation must be location-agnostic: users may create projects in any writable path.
+Required concept commands:
+- `cosmos concept show` returns the effective Concept for the requested identity or app.
+- `cosmos concept validate` validates a manual Concept file or the effective registered
+  Concept and returns machine-readable pass/fail status.
+- `cosmos concept export` emits the stable ABI serialization for the effective Concept.
+- `cosmos concept registry list` returns deterministic ordered entries.
+- `cosmos concept registry inspect <conceptId>` returns one registry record.
 
-### 19A.6 Signing, Publishing, Versioning, and Channels Contract
+### 19A.9 Signing, Publishing, Versioning, and Channels Contract
 
-- Release pipeline stages must execute in this order:
-  1. build
-  2. package
-  3. sign
-  4. verify-signature
-  5. publish
 - Signing must support:
-  - Authenticode (Windows)
+  - Authenticode for Windows artifacts
   - Developer ID or equivalent notarized signing for macOS distributions
   - detached signature files for Linux artifacts
-- Publishing must produce channel-separated outputs at minimum for `stable` and
-  `preview`.
-- Versioning must be sourced from `.nimble` and enforce monotonic release progression
-  per channel.
-- Each published artifact must include checksum, signature data, and source provenance
-  (commit, tag, build job id).
+- Publishing must produce channel-separated outputs for `stable`, `beta`, and `nightly`.
+- Versioning must be sourced from `.nimble`, expressed as semantic versioning, and enforce
+  monotonic release progression per channel.
+- Each published artifact must include checksum, signature data, source provenance,
+  and channel metadata.
 
-### 19A.7 Automation and Compliance Execution Contract
+### 19A.10 Automation and Compliance Execution Contract
 
 - Release workflows must emit `release-manifest.json` with one entry per artifact.
 - Manifest fields must include at minimum:
@@ -915,11 +980,14 @@ Generation must be location-agnostic: users may create projects in any writable 
   - `sourceCommit`
   - `buildId`
   - `publishedAtUtc`
+  - `conceptAbiVersion`
+  - `effectiveConceptId`
 - CI compliance tests must fail if:
   - a required target in the build matrix is missing
   - `cosmos.exe` is absent from any package
   - installer mode behavior deviates from path contract
   - uninstall leaves installer-owned residue
+  - concept registry records omit required ABI metadata
   - manifest schema or required fields are missing
 
 ---

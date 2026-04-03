@@ -30,6 +30,7 @@
 | **Ch 15** | Documentation & ND Accessibility | ✅ Complete | docs/index.md, docs/public/*, .github/ND_DOCS_CHECKLIST.md |
 | **Ch 16** | Packaging, Release & Archive | ✅ Complete | example_test |
 | **Ch 19A** | Binary Build, Installer, and Release Tooling | ✅ Complete | release_artifacts workflow, release-manifest tooling, checksum + installer-contract scripts |
+| **Phase X** | Installer, Build, Release, and Concept System | 🚧 In Progress | concept registry tests, coordinator CLI tests, installer-contract checks, release artifact workflow |
 | **Ch 20** | Runtime Start Coordinator | ✅ Complete | coordinator_test |
 | **Ch 20B** | Runtime Entrypoint CLI Interface | ✅ Complete | coordinator_test, console_status_test |
 | **Ch 99** | Testing Infrastructure & CI Gating | ✅ Complete | harness_test, integration_test |
@@ -39,7 +40,7 @@
 | **HH-4** | Console Entrypoint Hardening | ✅ Complete | console_status_test |
 | **HH-5** | Hardening Verification Gate | ✅ Complete | all hardening tests |
 
-**23 of 23 chapters complete.**
+**23 chapters complete, 1 phase in progress.**
 
 ---
 
@@ -65,8 +66,9 @@ The following priority sequence governs near-term implementation. Items marked
 | **P1** | **Ch 3** — Persistence | `FileBackend`, `InMemoryBackend`, streaming for blobs > 64 KB, three-layer reconciliation tests | Ch 2C (prefilter types), Ch 2B (serialization) |
 | **P2** | **Ch 10** — Startup Sequence | Prefilter activation gate, reconciliation enforcement before ingress, startup tests | Ch 2C, Ch 3 |
 | **P2A** | **Host Hardening Extension** | FileBridge durability, lifecycle guidance, config overrides, host observability, console CLI entrypoint, hardening test gate | Ch 2, Ch 3, Ch 10, Ch 11 |
-| **P3A** | **Ch 20** — Runtime Start Coordinator | `cosmos.exe`/`cosmos` startup coordinator, flag/switch parser, optional attached console launch, coordinator tests | Ch 10, Ch 11, Host Hardening |
+| **P3A** | **Ch 20** — Runtime Start Coordinator | canonical `cosmos.exe` startup coordinator, flag/switch parser, optional attached console launch, coordinator tests | Ch 10, Ch 11, Host Hardening |
 | **P3B** | **Ch 20B** — Runtime Entrypoint CLI Interface | Coordinator launch options model, parse/validate matrix, watch-mode constraints, structured failure output contract, operator usage coverage | Ch 20, Ch 10, Host Hardening |
+| **P3C** | **Phase X** — Installer, Build, Release, and Concept System | Runtime-home resolver, concept registry, concept CLI, startapp scaffold, expanded release matrix, version registry | Ch 12, Ch 19A, Ch 20B |
 | **P3** | **Ch 99** — Test Harness & CI Gating | Harness completion, core tests required for merges, CI workflow | All P0–P2 tests passing |
 | **P4** | **Ch 14** — Security & Performance | Microbenchmarks for prefilter hot path, perception filtering, startup time; iterate on results | Ch 10 (full startup) |
 
@@ -1044,7 +1046,7 @@ manifest emission, and release-channel publishing foundations.
 19A.4. ✅ Add installer mode contract checks (`user` and `system`) for filesystem layout.
 19A.5. ✅ Add uninstall residue checks for installer-owned paths.
 19A.6. ✅ Add signing stage scaffolding (Windows/macOS/Linux) with explicit TODO gates.
-19A.7. ✅ Add release channel metadata handling (`stable` and `preview`).
+19A.7. ✅ Add release channel metadata handling foundation (later expanded by Phase X to `stable`, `beta`, and `nightly`).
 19A.8. ✅ Wire CI compliance check to fail when required 19A matrix targets are missing.
 
 ### Acceptance
@@ -1053,7 +1055,80 @@ manifest emission, and release-channel publishing foundations.
 - Checksum generation and verification are automated in workflow.
 - Installer mode and uninstall contracts are validated by tests/gates.
 - Signing and publish stages are explicitly represented in pipeline ordering.
-- Channel-aware release outputs exist for `stable` and `preview`.
+- Foundation release-channel outputs exist and are superseded by Phase X channel expansion.
+
+---
+
+## Phase X — Installer, Build, Release, and Concept System
+
+**SPEC:** §19A Phase X — Installer, Build, Release, and Concept System
+**Goal:** Extend the existing packaging and release foundation into a full operational
+phase covering canonical `cosmos.exe` command resolution, runtime-home ownership rules,
+programmatic and manual Concept handling, concept registry mechanics, scaffold CLI,
+expanded build matrix, semantic-version channels, and update-registry behavior.
+**Status:** 🚧 **IN PROGRESS** — normative docs reconciled; initial implementation starts with
+runtime-home resolution, concept registry scaffolding, CLI expansion, and verification.
+
+### Dependencies
+
+- Ch 12 Module System for deterministic registry patterns and code-defined contract shape.
+- Ch 19A packaging foundation for release manifest, checksum, and installer contract
+      automation.
+- Ch 20 and Ch 20B coordinator CLI surfaces for canonical command dispatch through
+      `cosmos.exe`.
+- Runtime config and lifecycle chapters for startup-time path resolution and registry
+      loading.
+
+### Outputs
+
+- Runtime-home path resolver with explicit user/system install mappings.
+- Concept registry implementation with effective-source precedence.
+- Stable Concept ABI serialization and registry record format.
+- `cosmos concept show`, `cosmos concept validate`, `cosmos concept export`, and
+      `cosmos concept registry` CLI commands.
+- `cosmos startapp` scaffold generation for `cosmos.toml`, `src/`, build manifest, and
+      optional templates.
+- Release workflow expansion for Windows, macOS, and Linux on x64 and ARM64, plus
+      semantic-version channels `stable`, `beta`, and `nightly`.
+- Version-registry state under `~/.wilder/cosmos/registry/` for manual-update and
+      optional check-only update behavior.
+
+### Ordered Tasks
+
+Phase X.1. Add runtime-home resolver and ownership helpers for `config/`, `logs/`,
+                  `cache/`, `messages/`, `projects/`, `registry/`, `bin/`, and `temp/`.
+Phase X.2. Extend installer contract verification for Windows, macOS, and Linux
+                  user/system mappings, PATH metadata, and update-registry residue rules.
+Phase X.3. Add Concept registry types and effective-source precedence using code-defined
+                  Concepts first and manual files as fallback only.
+Phase X.4. Add Concept ABI serialization and registry-record persistence contract.
+Phase X.5. Add build-time derivation hooks for programmatic Concepts and validation of
+                  manual Concept files when no programmatic Concept exists.
+Phase X.6. Extend runtime startup to resolve runtime home and load Concept registry state
+                  before Concept-dependent execution.
+Phase X.7. Extend `cosmos.exe` CLI routing with `concept show`, `concept validate`,
+                  `concept export`, and `concept registry` commands.
+Phase X.8. Add `cosmos.exe startapp` interactive scaffold generation with atomic writes.
+Phase X.9. Expand release automation to include Windows ARM64 and semantic-version
+                  channels `stable`, `beta`, and `nightly`.
+Phase X.10. Add version-registry handling and optional CLI update-check behavior.
+Phase X.11. Update compliance matrix and public docs after implementation behavior is
+                  verified.
+
+### Acceptance Criteria
+
+- Canonical runtime command resolution always terminates at `cosmos.exe`.
+- Runtime-home resolution produces deterministic user/system paths and required
+      directories.
+- Programmatic Concepts override manual Concepts when both exist.
+- Manual Concepts are validated when selected as effective fallback.
+- Concept registry records are listable, inspectable, and exportable via CLI.
+- `cosmos startapp` generates `cosmos.toml`, `src/`, and a build manifest with sane
+      defaults.
+- Release automation emits matrix-complete artifacts, checksums, signatures, channel
+      metadata, and concept metadata.
+- Version registry state is stored under `~/.wilder/cosmos/registry/` and supports manual
+      update workflows plus optional check-only CLI update behavior.
 
 
 ---

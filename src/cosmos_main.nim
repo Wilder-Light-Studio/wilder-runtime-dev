@@ -6,8 +6,9 @@
 # Memory note: keep orchestration thin; do not duplicate config or lifecycle logic.
 # Flow: parse args -> resolve console mode -> validate -> load config -> emit startup report.
 
-import std/[strutils, options]
+import std/[os, strutils, options]
 import runtime/config
+import runtime/startapp
 
 type
   CoordinatorConsoleMode* = enum
@@ -38,6 +39,9 @@ const
   CoordinatorHelpText* =
     "Wilder Cosmos Runtime -- launch and coordinate a Cosmos instance\n" &
     "\n" &
+    "Subcommands:\n" &
+    "  startapp [path] [--name <name>] [--mode <dev|debug|prod>] [--transport <json|protobuf>] [--no-template]\n" &
+    "\n" &
     "Usage:\n" &
     "  cosmos --config <path> [options]\n" &
     "\n" &
@@ -56,6 +60,11 @@ const
     "Examples:\n" &
     "  cosmos --config config/runtime.json\n" &
     "  cosmos --config config/runtime.json --watch /thing/a --console attach --mode dev --log-level debug"
+
+const
+  StartAppHelpText* =
+    "Usage: cosmos startapp [path] [--name <name>] [--mode <dev|debug|prod>] " &
+    "[--transport <json|protobuf>] [--no-template]"
 
 # Flow: Convert CLI mode shorthand to config override values.
 proc normalizeCoordinatorMode(raw: string): string =
@@ -168,8 +177,63 @@ proc validateCoordinatorOptions*(opts: CoordinatorLaunchOptions) =
       raise newException(ValueError,
         "cosmos: --port must be in range 1-65535, got " & $p)
 
+# Flow: Execute startapp subcommand with deterministic defaults and staged writes.
+proc runStartAppCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  try:
+    var opts = StartAppOptions(
+      targetDir: getCurrentDir(),
+      appName: "",
+      mode: "development",
+      transport: "json",
+      includeTemplate: true
+    )
+    var i = 0
+    var targetExplicit = false
+    while i < args.len:
+      case args[i]
+      of "--help", "-h":
+        return (0, @[StartAppHelpText])
+      of "--name":
+        if i + 1 >= args.len:
+          raise newException(ValueError,
+            "startapp: --name requires a value")
+        opts.appName = args[i + 1]
+        i += 2
+      of "--mode":
+        if i + 1 >= args.len:
+          raise newException(ValueError,
+            "startapp: --mode requires a value")
+        opts.mode = args[i + 1]
+        i += 2
+      of "--transport":
+        if i + 1 >= args.len:
+          raise newException(ValueError,
+            "startapp: --transport requires a value")
+        opts.transport = args[i + 1]
+        i += 2
+      of "--no-template":
+        opts.includeTemplate = false
+        i += 1
+      else:
+        if args[i].startsWith("--"):
+          raise newException(ValueError,
+            "startapp: unknown argument '" & args[i] & "'")
+        if targetExplicit:
+          raise newException(ValueError,
+            "startapp: only one target path may be provided")
+        opts.targetDir = args[i]
+        targetExplicit = true
+        i += 1
+    return (0, scaffoldApp(opts))
+  except ValueError as err:
+    return (2, @[err.msg, StartAppHelpText])
+  except CatchableError as err:
+    return (1, @["startapp: failed - " & err.msg])
+
 # Flow: Run coordinator launch orchestration and return exit code plus output lines.
 proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len > 0 and args[0] == "startapp":
+    return runStartAppCommand(args[1 .. ^1])
   try:
     var opts = parseCoordinatorOptions(args)
 
