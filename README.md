@@ -12,7 +12,7 @@ This repository is the development home for the runtime itself. It combines
 the implementation, the requirements and specification documents that define
 correctness, and the tests used to verify progress.
 
-**Version:** 0.9.5
+**Version:** 0.9.6
 
 Contact: [teamwilder@wildercode.org](mailto:teamwilder@wildercode.org)
 

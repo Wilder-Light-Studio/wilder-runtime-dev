@@ -2,16 +2,22 @@
 
 This file tracks public-facing project milestones for Wilder Cosmos Runtime.
 
-Current development line: `0.9.5`
+Current development line: `0.9.6`
 
-Current preview tag: `v0.9.5-wip`
+Current preview tag: `v0.9.6-wip`
 
-## v0.9.5 - In Progress
+## v0.9.6 - In Progress
 
 This development line reflects the current package version and the active work in
 the repository.
 
 Highlights so far:
+
+- Validation firewall terminology now replaces the older membrane wording
+	across requirements, specification, plans, compliance tracking, and user-facing
+	test text.
+- Chapter 2C validation test artifacts now use `validation_firewall_*` naming,
+	and the repo verification flow is green after the rename and compliance cleanup.
 
 - Phase X documentation is now in place for installer, build, release, and
 	Concept system work, including canonical `cosmos.exe` entrypoint rules,
