@@ -14,7 +14,7 @@ The runtime must implement the following principles mechanically:
 - **Waves over wires**: wires are optional designer-level containment patterns over Wave propagation.
 - **Channels are optional tuning**: channel tags on Waves and channel filters on Perceptions do not change physics.
 - **Occurrence is the only mechanism of change**: Waves are externalized Occurrences; RECORDS are internalized Occurrences.
-- **Bridges are membranes**: Bridges are Thing/World templates that become boundary translators when instantiated.
+- **Bridges are validation firewalls**: Bridges are Thing/World templates that become boundary translators when instantiated.
 - **No new primitives**: only Thing/World, Occurrence, Wave, Perception, and RECORD are primitive.
 - **Voluntary reversible entry/exit**: no irreversible bindings; participation is opt-in and reversible.
 - **Small -> Step -> Repeat -> Federate -> Integrate**: all runtime components must support incremental growth and deterministic testing.
@@ -1249,7 +1249,7 @@ principle:
 ### 24.9 Validating Prefilter Runtime Specification
 
 **REQ:** Validating Prefilter Requirements
-**Source:** docs/implementation/Chapter2/VALIDATION-MEMBRANE-REQUIREMENTS.md
+**Source:** docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md
 
 The validating prefilter is a runtime boundary gate. It must execute before both
 dispatch and Occurrence recording. No bypass path is permitted.

@@ -15,7 +15,7 @@
 ## Flow: test validation -> test serialization -> test messaging -> verify security invariants.
 
 ## Covers: validation helpers, serialization envelopes, runtime config,
-## messaging dispatch, prefilter membrane, and security invariants.
+## messaging dispatch, prefilter validation firewall, and security invariants.
 
 import unittest
 import json
@@ -363,10 +363,10 @@ suite "UAT Messaging Dispatch":
       )
 
 # ===========================================================================
-# 5. Prefilter Membrane UATs
+# 5. Prefilter Validation Firewall UATs
 # ===========================================================================
 
-suite "UAT Prefilter Membrane":
+suite "UAT Prefilter Validation Firewall":
   test "UAT-PF-001 valid Ping payload passes prefilter and dispatches":
     let index = loadGeneratedValidationIndex()
     let decision = prefilterValidate(

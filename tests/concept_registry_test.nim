@@ -11,6 +11,7 @@ import json
 import ../src/runtime/concepts
 import ../src/cosmos/thing/thing
 
+# Flow: Build canonical Concept fixtures for registry tests.
 proc makeConcept(id: string, whyText: string): Concept =
   createConcept(
     id,

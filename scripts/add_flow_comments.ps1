@@ -21,8 +21,8 @@ $files = @(
     "tests\serialization_test.nim",
     "tests\validation_checksum_test.nim",
     "tests\validation_failure_occurrence_test.nim",
-    "tests\validation_membrane_perf_test.nim",
-    "tests\validation_membrane_test.nim",
+    "tests\validation_firewall_perf_test.nim",
+    "tests\validation_firewall_test.nim",
     "tests\validation_table_generation_test.nim",
     "tests\validation_test.nim"
 )

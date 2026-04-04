@@ -1,18 +1,18 @@
 # Wilder Cosmos 0.4.0
-# Module name: validation_membrane_test Tests
-# Module Path: tests/validation_membrane_test.nim
+# Module name: validation_firewall_test Tests
+# Module Path: tests/validation_firewall_test.nim
 #
 # Summary: Test module covering deterministic runtime behavior and contract checks.
 # Simile: Like a launch checklist, each case verifies one safety condition before go-live.
 # Memory note: keep tests explicit, isolated, and safe for repeated local and CI runs.
 # Flow: setup fixture -> execute behavior -> assert invariants and failure boundaries.
 
-## validation_membrane_test.nim
+## validation_firewall_test.nim
 #
-## Summary: Concrete membrane behavior tests for Chapter 2C acceptance.
-## Simile: Like testing a biological membrane deciding what passes through.
-## Memory note: membrane behavior is deterministic; test prefilter coverage thoroughly.
-## Flow: test prefilter -> test membrane behavior -> verify fail-fast -> check performance.
+## Summary: Concrete validation firewall behavior tests for Chapter 2C acceptance.
+## Simile: Like testing a biological validation firewall deciding what passes through.
+## Memory note: validation firewall behavior is deterministic; test prefilter coverage thoroughly.
+## Flow: test prefilter -> test validation firewall behavior -> verify fail-fast -> check performance.
 
 import unittest
 import json
@@ -56,7 +56,7 @@ proc inbound(namespaceId, symbolId: string,
     args: args
   )
 
-suite "ValidationMembrane":
+suite "ValidationFirewall":
   test "unknown signature emits failure occurrence":
     let idx = buildValidationIndex(@[], "gen-1")
     let msg = inbound("runtime", "Dispatch", 1, @[%*{"id": "x", "count": 1}])

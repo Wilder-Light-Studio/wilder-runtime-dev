@@ -14,7 +14,7 @@
 | **Ch 2** | Data Model & Serialization | ✅ Complete | validation_test, serialization_test |
 | **Ch 2A** | Runtime Configuration | ✅ Complete | config_test |
 | **Ch 2B** | Messaging System & Transport | ✅ Complete | serialization_test, messaging_test |
-| **Ch 2C** | Validating Prefilter Runtime Gate | ✅ Complete | validation_membrane_test, validation_membrane_perf_test, validation_table_generation_test, validation_failure_occurrence_test |
+| **Ch 2C** | Validating Prefilter Runtime Gate | ✅ Complete | validation_firewall_test, validation_firewall_perf_test, validation_table_generation_test, validation_failure_occurrence_test |
 | **Ch 3** | Persistence Model | ✅ Complete | reconciliation_test, ch3_uat |
 | **Ch 4** | Ontology | ✅ Complete | ontology_test, ch4_ontology_test |
 | **Ch 5** | Interrogative Manifest | ✅ Complete | interrogative_test |
@@ -39,8 +39,9 @@
 | **HH-3** | Config & Observability Hardening | ✅ Complete | config_test, integration_test |
 | **HH-4** | Console Entrypoint Hardening | ✅ Complete | console_status_test |
 | **HH-5** | Hardening Verification Gate | ✅ Complete | all hardening tests |
+| **Phase VF** | Validation Firewall Vocabulary Refactor | ✅ Complete | requirements/spec/plan/compliance alignment, Chapter 2 reference doc, comment, test text, and test artifact rename updates |
 
-**23 chapters complete, 1 phase in progress.**
+**23 chapters complete; Phase X remains in progress and Phase VF is complete.**
 
 ---
 
@@ -61,7 +62,8 @@ The following priority sequence governs near-term implementation. Items marked
 
 | Priority | Chapter(s) | Deliverables | Prerequisites |
 |----------|-----------|-------------|---------------|
-| **P0** | **Ch 2C** — Validating Prefilter | Generator, runtime loader, payload mask builder, mask conjunction check, `ValidationFailureOccurrence`, `validation_membrane_test.nim`, `validation_membrane_perf_test.nim`, `validation_table_generation_test.nim`, `validation_failure_occurrence_test.nim` | Ch 2 (types + validation helpers) |
+| **P0** | **Ch 2C** — Validating Prefilter | Generator, runtime loader, payload mask builder, mask conjunction check, `ValidationFailureOccurrence`, `validation_firewall_test.nim`, `validation_firewall_perf_test.nim`, `validation_table_generation_test.nim`, `validation_failure_occurrence_test.nim` | Ch 2 (types + validation helpers) |
+| **P0A** | **Phase VF** — Validation Firewall Vocabulary Refactor | Requirements/spec terminology alignment, Chapter 2 validation firewall reference doc, plan/compliance updates, comment and test text cleanup | Ch 2C |
 | **P0** | **Ch 2 (2.7–2.9) + Ch 2B** — Serialization & Messaging *(parallel with 2C)* | Deterministic JSON serializer, Protobuf schema + bindings, envelope checksum hooks, round-trip tests | Ch 2 (types), Ch 2A (config) |
 | **P1** | **Ch 3** — Persistence | `FileBackend`, `InMemoryBackend`, streaming for blobs > 64 KB, three-layer reconciliation tests | Ch 2C (prefilter types), Ch 2B (serialization) |
 | **P2** | **Ch 10** — Startup Sequence | Prefilter activation gate, reconciliation enforcement before ingress, startup tests | Ch 2C, Ch 3 |
@@ -312,7 +314,7 @@ wire transport selection to config, and validate all message inputs.
 **Goal:** Implement the signature-keyed validating prefilter with mask-based
 structural validation so only structurally validated data can be dispatched or
 recorded as normal domain Occurrences.
-**Status:** ✅ **COMPLETE** — All prefilter types, mask derivation, signature-key derivation, payload mask computation, mask conjunction check, ingress pipeline, dispatch/admission gates, and redacted failure Occurrences implemented in `src/runtime/validation.nim`; generated table in `src/runtime/prefilter_table_generated.nim`; all four test suites passing: `validation_membrane_test.nim` (12), `validation_membrane_perf_test.nim` (3), `validation_table_generation_test.nim` (5), `validation_failure_occurrence_test.nim` (5).
+**Status:** ✅ **COMPLETE** — All prefilter types, mask derivation, signature-key derivation, payload mask computation, mask conjunction check, ingress pipeline, dispatch/admission gates, and redacted failure Occurrences implemented in `src/runtime/validation.nim`; generated table in `src/runtime/prefilter_table_generated.nim`; all four test suites passing: `validation_firewall_test.nim` (12), `validation_firewall_perf_test.nim` (3), `validation_table_generation_test.nim` (5), `validation_failure_occurrence_test.nim` (5).
 
 ### Tasks
 2C.1. Define prefilter core types in `src/runtime/validation.nim` (or split module if needed):
@@ -348,10 +350,10 @@ recorded as normal domain Occurrences.
 2C.11. Implement no-copying and regeneration behavior:
       regenerate when artifacts are stale or missing; fail startup if regeneration
       cannot produce a valid prefilter index.
-2C.12. Write tests: `tests/validation_membrane_test.nim` — unknown signature,
+2C.12. Write tests: `tests/validation_firewall_test.nim` — unknown signature,
       arg mismatch, type mismatch, missing field, unknown-field policy,
       ordering/cardinality violations, mask conjunction pass/fail, gate enforcement.
-2C.13. Write tests: `tests/validation_membrane_perf_test.nim` — O(1) lookup,
+2C.13. Write tests: `tests/validation_firewall_perf_test.nim` — O(1) lookup,
       constant-time mask comparison, zero-allocation payload mask computation,
       no dynamic schema parsing on hot path.
 2C.14. Write tests: `tests/validation_table_generation_test.nim` — generated
@@ -372,6 +374,27 @@ recorded as normal domain Occurrences.
 - Payload mask computation does not allocate.
 - Prefilter failures produce deterministic failure Occurrences with safe diagnostics.
 - Hot path uses O(1) signature-key lookup and no dynamic schema parsing.
+
+---
+
+## Phase VF — Validation Firewall Vocabulary Refactor
+
+**Goal:** Apply validation firewall terminology across normative documentation, plan artifacts, comments, and user-facing test text while preserving identifiers and underscore-delimited filenames.
+**Status:** ✅ **COMPLETE** — Requirements, specification, development guidelines, compliance tracking, plan artifacts, and Chapter 2 prefilter reference material now use validation firewall terminology; Chapter 2C test artifact names and user-facing suite labels are aligned with the updated vocabulary.
+
+### Tasks
+VF.1. Update `docs/implementation/REQUIREMENTS.md` terms and principle language to validation firewall terminology.
+VF.2. Update `docs/implementation/SPECIFICATION-NIM.md` implementation-principle language and Chapter 2 source references.
+VF.3. Create `docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md` as the canonical Chapter 2 reference target for validating prefilter requirements.
+VF.4. Update `docs/implementation/DEVELOPMENT-GUIDELINES.md` and `docs/implementation/COMPLIANCE-MATRIX.md` to track the new terminology.
+VF.5. Update mirrored plan artifacts and Chapter 2C planning references to record this refactor as a completed implementation phase.
+VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labels to validation firewall equivalents, then sync all workflow, script, and documentation references.
+
+### Acceptance
+- Normative docs use validation firewall terminology for whole-word occurrences.
+- Chapter 2 validating prefilter references resolve to an existing validation firewall requirements document.
+- Plan and compliance artifacts record the vocabulary refactor as completed work.
+- Chapter 2C test artifact names are aligned with validation firewall terminology across docs, CI, and scripts.
 
 ---
 
@@ -910,8 +933,8 @@ core tests as merge gates, and establish CI pipeline.
 99.3. Add example tests that import the harness: `tests/harness_test.nim`, `tests/example_test.nim`.
 99.4. Verify `nimble test` runs and example tests pass locally.
 99.5. Define the **core test suite** that must pass before merge:
-      - `tests/validation_membrane_test.nim` (Ch 2C)
-      - `tests/validation_membrane_perf_test.nim` (Ch 2C)
+      - `tests/validation_firewall_test.nim` (Ch 2C)
+      - `tests/validation_firewall_perf_test.nim` (Ch 2C)
       - `tests/validation_table_generation_test.nim` (Ch 2C)
       - `tests/validation_failure_occurrence_test.nim` (Ch 2C)
       - `tests/serialization_test.nim` (Ch 2 + 2B)

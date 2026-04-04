@@ -9,7 +9,7 @@
 # Memory note: never edit by hand; regenerate from canonical
 #   signature and schema sources.
 # Flow: provide source digests -> supply generated ValidationRecords
-#   -> used by ValidationMembrane at startup.
+#   -> used by ValidationFirewall at startup.
 ## prefilter_table_generated.nim
 ## Auto-generated validation prefilter table (deterministic baseline).
 ## This file is generated from canonical signature sources.

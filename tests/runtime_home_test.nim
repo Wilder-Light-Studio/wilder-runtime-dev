@@ -11,6 +11,7 @@ import std/[os, strutils]
 import harness
 import ../src/runtime/home
 
+# Flow: Normalize platform-specific separators for deterministic path assertions.
 proc normalizePath(path: string): string =
   path.replace('\\', '/').replace("//", "/")
 

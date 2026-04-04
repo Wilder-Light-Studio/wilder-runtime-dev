@@ -1,13 +1,13 @@
 # Wilder Cosmos 0.4.0
-# Module name: validation_membrane_perf_test Tests
-# Module Path: tests/validation_membrane_perf_test.nim
+# Module name: validation_firewall_perf_test Tests
+# Module Path: tests/validation_firewall_perf_test.nim
 #
 # Summary: Test module covering deterministic runtime behavior and contract checks.
 # Simile: Like a launch checklist, each case verifies one safety condition before go-live.
 # Memory note: keep tests explicit, isolated, and safe for repeated local and CI runs.
 # Flow: setup fixture -> execute behavior -> assert invariants and failure boundaries.
 
-## validation_membrane_perf_test.nim
+## validation_firewall_perf_test.nim
 #
 ## Summary: Bounded performance checks for prefilter lookup and hot-path validation.
 ## Simile: Like stress testing to ensure the gatekeeper doesn't slow down traffic.
@@ -43,7 +43,7 @@ proc makeIndex(size: int): ValidationIndex =
     records.add(makeRecord(i))
   result = buildValidationIndex(records, "gen")
 
-suite "ValidationMembranePerf":
+suite "ValidationFirewallPerf":
   test "lookup remains bounded as table grows":
     let small = makeIndex(10)
     let large = makeIndex(1000)

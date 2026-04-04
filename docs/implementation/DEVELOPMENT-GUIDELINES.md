@@ -72,7 +72,7 @@ When editing requirements:
 - confirm scripts/check_requirements.ps1 still passes,
 - if a requirement involves data handling or validation, update SPECIFICATION-NIM.md
   section 24 (including §24.9–§24.14 for validating prefilter work).
-- if validating prefilter semantics change, update docs/implementation/Chapter2/VALIDATION-MEMBRANE-REQUIREMENTS.md,
+- if validating prefilter semantics change, update docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md,
   docs/implementation/PLAN.md (Chapter 2C), and docs/implementation/COMPLIANCE-MATRIX.md in the same change set.
 
 ## Code Comment Contract

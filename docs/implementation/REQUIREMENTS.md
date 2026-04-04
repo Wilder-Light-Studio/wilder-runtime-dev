@@ -17,7 +17,7 @@ Specifications (how each requirement is made true) live in `docs/implementation/
 - **Wave**: externalized Occurrence in the medium; ambient, undirected, non-coercive.
 - **Perception**: local awareness event produced when a Thing's filters match ambient Waves.
 - **RECORD**: atomic temporal unit of internal change; internalized Occurrence.
-- **Bridge**: a Thing/World membrane that touches another World and translates boundary effects.
+- **Bridge**: a Thing/World validation firewall that touches another World and translates boundary effects.
 - **Wire (pattern)**: optional designer-level containment over Wave propagation.
 - **Channel (pattern)**: optional designer-level tag on Waves and filter on Perceptions.
 - **Concept (pattern)**: immutable declarative template used inside Worlds.
@@ -79,7 +79,7 @@ vocabulary.
 - Waves over wires: wires are optional designer-level containment over Waves, not new primitives.
 - Channels are tuning: optional tags on Waves and optional filters on Perceptions.
 - Occurrence is the only mechanism of change: Waves externalize Occurrences; RECORDS internalize Occurrences.
-- Bridges are membranes: Bridges are Thing/World templates that translate boundary effects when instantiated.
+- Bridges are validation firewalls: Bridges are Thing/World templates that translate boundary effects when instantiated.
 - No new primitives: only Thing/World, Occurrence, Wave, Perception, and RECORD are primitive.
 - Growth model: adopt a Small -> Step -> Repeat -> Federate -> Integrate approach.
 
@@ -994,7 +994,7 @@ for structural validation on the hot path.
   required presence, type compatibility, ordering policy, and cardinality bounds.
 
 - Canonical validating prefilter requirements are defined in
-  `docs/implementation/Chapter2/VALIDATION-MEMBRANE-REQUIREMENTS.md`.
+  `docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md`.
 
 ---
 
