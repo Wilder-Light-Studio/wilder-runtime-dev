@@ -263,3 +263,59 @@ Phase X implementation is complete only when:
 - module binding validation tests cover all binding error classes
 - concept derivation tests verify Nim-first extraction and registry population
 - no consumer-side signature duplication is required by any test or runtime path
+
+---
+
+## 8. Phase XE Licensing Addendum (Offline-first, Humane, Propagation-safe)
+
+This addendum defines executable behavior for the licensing phase and must remain
+consistent with `docs/implementation/REQUIREMENTS.md` (Phase XE) and
+`docs/implementation/SPECIFICATION-NIM.md` §19F.
+
+### 8.1 Installer Flow
+
+- First-run licensing flow must provide clear local choices: paid path or complimentary hardship path.
+- Local license generation is available only after explicit agreement to the Wilder License text.
+- Declining optional transparency email has no effect on license generation or runtime behavior.
+- No hidden or automatic network calls are allowed in installer licensing paths.
+
+### 8.2 Local License Generation and File Structure
+
+- Generation must be deterministic and offline-only.
+- Local license file must be human-readable and include at minimum:
+  - `schemaVersion`
+  - `runtimeVersion`
+  - `licenseMode` (`paid` or `complimentary`)
+  - `generatedAt`
+  - `identityFingerprint`
+  - `agreementRef`
+  - `signature`
+- Validation uses only local checks (structure, signature, version compatibility).
+
+### 8.3 Optional Transparency Email Invocation
+
+- Email workflow must be one-time, optional, explicit, and user-initiated.
+- Template content must be visible and editable before send.
+- Decline and delivery failure paths are deterministic no-ops for licensing/runtime behavior.
+
+### 8.4 Deactivation and Liberation Behavior
+
+- Valid local license presence deactivates licensing enforcement checks for that runtime version.
+- No periodic renewal or remote revalidation is permitted.
+- Three-year liberation timer is version-scoped and local-only.
+- On timer expiry, licensing enforcement for that version permanently deactivates.
+
+### 8.5 Runtime Integration and Error Contract
+
+- Runtime evaluates licensing state deterministically using local artifacts and release metadata.
+- Structured states include: `licensed`, `unlicensed`, `liberated`, and `invalid_local_license`.
+- Errors must remain deterministic and must not expose sensitive local identity data.
+
+### 8.6 Testability Contract
+
+- Deterministic generation for identical inputs.
+- Valid paid/complimentary generation and validation coverage.
+- Invalid/tampered local license detection coverage.
+- No-network guarantees across generation, validation, deactivation, and liberation paths.
+- Optional transparency-email decline and failure no-op coverage.
+- Liberation timer expiry deactivation coverage.

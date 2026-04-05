@@ -1562,57 +1562,63 @@ All checks should run in local development and CI.
 
 #### Licensing Philosophy Requirements
 
-- Licensing must be humane, transparent, and offline-first.
-- No telemetry, tracking, or coercive network behavior.
-- Licenses must be locally generatable from offline-capable tools.
-- Optional email transparency opt-in must not affect functionality or be forced.
-- Deactivation must be explicit user action and must not require network access.
-- Three-year liberation timer: after three years offline, installed software remains fully functional without license checks.
+- Licensing must be humane, transparent, offline-first, and propagation-safe.
+- Duty-to-pay and compassion are both first-class: reachable paid licensing is expected when possible, and complimentary licensing is available for hardship without proof collection.
+- No telemetry, no tracking, no profiling, no hidden network behavior, and no coercive UX patterns are permitted.
+- Wilder License agreement must be the explicit legal and ethical foundation for local license generation.
 
 #### Local License Generation Requirements
 
 - License generation must operate fully offline without network access.
-- Licenses must be deterministic for a given input (system identifier, expiration). 
+- License generation is permitted only after explicit user agreement to the Wilder License text.
+- Licenses must be deterministic for a given input set (version, local identity fingerprint, generation timestamp, and declared license path).
 - License file format must be stable, verifiable, and human-readable for diagnostic purposes.
-- License validity checks must perform only local file verification (signature validation, expiration timestamp).
+- License validity checks must perform only local verification against the local license artifact and deterministic version metadata.
 - License checks must never initiate outbound network activity.
 
 #### Optional Transparency Email Requirements
 
-- Email submission for license generation is optional and never mandatory.
-- Email submission (if chosen) must not affect license validity, functionality, or behavior.
-- Opt-in/opt-out status must be stored locally only and never transmitted.
-- Email content must be visible to the user before submission and user must approve.
-- Email delivery failures must not affect licensing or runtime behavior.
+- Optional transparency email must be one-time, user-initiated, editable, and fully transparent.
+- Declining optional transparency email must have zero impact on license generation, license validity, runtime behavior, or update behavior.
+- Runtime binaries must not send email automatically, must not contain hidden delivery logic, and must not include undisclosed network side effects.
+- If the user chooses to send the email, the content must be shown before send and controllable by the user.
 
 #### Deactivation Requirements
 
-- Deactivation must be an explicit user action (`cosmos license deactivate`).
-- Deactivation removes local license file but does not halt runtime functionality.
-- Deactivated runtime continues to operate fully; deactivation is purely administrative.
-- No periodic re-check behavior; license validity is checked at startup only.
+- When a valid local license file is present for a version, licensing checks for that version must deactivate.
+- No periodic re-check, renewal requirement, remote revalidation, or background enforcement loop is permitted.
+- `cosmos license deactivate` may remain available as an explicit administrative action and must remain local-only.
 
 #### Offline Fallback and Liberation Timer Requirements
 
-- After three years since last online license refresh, installed runtime remains fully functional.
-- No network calls are attempted during the liberation window.
-- Expiration timestamp is local-only and part of license file; no centralized enforcement.
+- Each release version must include a built-in three-year liberation timer tied to that version's release date.
+- On liberation timer expiry, licensing code for that version must permanently deactivate.
+- On liberation timer expiry, that version must be treated as automatically liberated under the project's open-source or shared-source policy metadata.
+- No network calls are attempted before, during, or after liberation transitions.
 
 #### Installer and Build Integration Requirements
 
 - Concept registration and visibility must not depend on licensing state.
 - License file location: `~/.wilder/cosmos/config/license.txt` (or Windows equivalent).
-- Installer must provide clear license install/activation workflow as part of first-run experience.
-- Installer must not require licensing before runtime execution.
-- CLI must provide `cosmos license show`, `cosmos license validate`, `cosmos license deactivate`.
+- Installer must provide a clear, respectful first-run licensing workflow with explicit user choices and no dark patterns.
+- Installer must not require network access for any licensing path.
+- Installer must not block runtime execution when the user chooses a legitimate local licensing path (paid or complimentary).
+- CLI must provide `cosmos license show`, `cosmos license validate`, `cosmos license deactivate`, and a deterministic local generation path.
+
+#### Non-Responsibilities and Enforcement Boundaries
+
+- Licensing is not responsible for telemetry, tracking, analytics, user profiling, or remote enforcement.
+- Licensing must not collect proof of hardship, financial records, identity dossiers, or institutional surveillance data.
+- Licensing must not implement kill-switch behavior, remote disable controls, or punitive degradation paths.
 
 #### Testability Requirements
 
-- Tests must verify offline license generation determinism.
-- Tests must verify optional email opt-in behavior (enabled/disabled) has zero impact on licensing.
-- Tests must verify deactivation behavior removes license file but does not halt runtime.
-- Tests must verify no network calls are attempted in license validation path.
-- Tests must verify liberation timer expiry behavior (after 3 years, no license checks required).
+- Tests must verify offline local license generation determinism.
+- Tests must verify paid and complimentary licensing paths both produce valid local licenses without network calls.
+- Tests must verify optional transparency email decline path is a no-op for functionality.
+- Tests must verify valid local license presence deactivates licensing checks for that version.
+- Tests must verify no network calls are attempted in generation, validation, deactivation, and liberation paths.
+- Tests must verify liberation timer expiry permanently deactivates licensing checks for that version.
 
 ---
 
