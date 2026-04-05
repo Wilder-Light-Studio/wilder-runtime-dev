@@ -6,9 +6,11 @@
 # Memory note: keep orchestration thin; do not duplicate config or lifecycle logic.
 # Flow: parse args -> resolve console mode -> validate -> load config -> emit startup report.
 
-import std/[os, strutils, options]
+import std/[os, strutils, options, json]
 import runtime/config
 import runtime/capabilities
+import runtime/coordinator_ipc
+import runtime/scanner
 import runtime/startapp
 
 type
@@ -42,6 +44,11 @@ const
     "\n" &
     "Subcommands:\n" &
     "  capabilities\n" &
+    "  ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]...\n" &
+    "  ipc endpoint [--host <host>] [--port <N>]\n" &
+    "  notify format --time <iso> --level <level> --component <component> --message <text>\n" &
+    "  scan [path] [--json]\n" &
+    "  capability conflicts [path]\n" &
     "  concept resolve --want <Thing|Thing.provide> [--expect-signature <sig>] --provide <Thing.provide:signature>...\n" &
     "  startapp [path] [--name <name>] [--mode <dev|debug|prod>] [--transport <json|protobuf>] [--no-template]\n" &
     "\n" &
@@ -74,6 +81,16 @@ const
   ConceptResolveHelpText* =
     "Usage: cosmos concept resolve --want <Thing|Thing.provide> [--expect-signature <sig>] " &
     "--provide <Thing.provide:signature>..."
+  ScanHelpText* =
+    "Usage: cosmos scan [path] [--json]"
+  CapabilityConflictsHelpText* =
+    "Usage: cosmos capability conflicts [path]"
+  IpcRequestHelpText* =
+    "Usage: cosmos ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]..."
+  IpcEndpointHelpText* =
+    "Usage: cosmos ipc endpoint [--host <host>] [--port <N>]"
+  NotifyFormatHelpText* =
+    "Usage: cosmos notify format --time <iso> --level <level> --component <component> --message <text>"
 
 # Flow: Parse Thing.provide:signature into one provider declaration.
 proc parseProvideArg(raw: string): ProvideDeclaration =
@@ -355,10 +372,211 @@ proc runConceptResolveCommand(args: seq[string]): tuple[exitCode: int, lines: se
       return (0, @[ConceptResolveHelpText])
     return (2, @[err.msg, ConceptResolveHelpText])
 
+# Flow: Execute semantic scanner subcommand for one target path.
+proc runScanCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  var target = getCurrentDir()
+  var asJson = false
+  var i = 0
+  while i < args.len:
+    case args[i]
+    of "--help", "-h":
+      return (0, @[ScanHelpText])
+    of "--json":
+      asJson = true
+      inc i
+    else:
+      if args[i].startsWith("--"):
+        return (2, @["scan: unknown argument '" & args[i] & "'", ScanHelpText])
+      target = args[i]
+      inc i
+
+  try:
+    if asJson:
+      return (0, @[scanThingsJson(target).pretty])
+    let things = scanPath(target)
+    let conflicts = findCapabilityConflicts(things)
+    return (0, @[
+      "scan: ok",
+      "target: " & target,
+      "things: " & $things.len,
+      "conflicts: " & $conflicts.len
+    ])
+  except ValueError as err:
+    return (2, @["scan: failed - " & err.msg, ScanHelpText])
+
+# Flow: Execute capability conflict report command from scanner output.
+proc runCapabilityConflictsCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len > 0 and (args[0] == "--help" or args[0] == "-h"):
+    return (0, @[CapabilityConflictsHelpText])
+  let target = if args.len > 0: args[0] else: getCurrentDir()
+  try:
+    let conflicts = findCapabilityConflicts(scanPath(target))
+    if conflicts.len == 0:
+      return (0, @["capability conflicts: none"]) 
+    var lines = @["capability conflicts: " & $conflicts.len]
+    for conflict in conflicts:
+      lines.add(conflict)
+    return (0, lines)
+  except ValueError as err:
+    return (2, @["capability conflicts: failed - " & err.msg, CapabilityConflictsHelpText])
+
+# Flow: Execute IPC request/endpoint command set for deterministic schema contracts.
+proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 0 or args[0] == "--help" or args[0] == "-h":
+    return (0, @[IpcRequestHelpText, IpcEndpointHelpText])
+
+  case args[0]
+  of "endpoint":
+    var host = "127.0.0.1"
+    var port = 7700
+    var i = 1
+    while i < args.len:
+      case args[i]
+      of "--help", "-h":
+        return (0, @[IpcEndpointHelpText])
+      of "--host":
+        if i + 1 >= args.len:
+          return (2, @["ipc endpoint: --host requires a value", IpcEndpointHelpText])
+        host = args[i + 1]
+        i += 2
+      of "--port":
+        if i + 1 >= args.len:
+          return (2, @["ipc endpoint: --port requires a value", IpcEndpointHelpText])
+        try:
+          port = parseInt(args[i + 1])
+        except ValueError:
+          return (2, @["ipc endpoint: --port must be an integer", IpcEndpointHelpText])
+        i += 2
+      else:
+        return (2, @["ipc endpoint: unknown argument '" & args[i] & "'", IpcEndpointHelpText])
+    try:
+      return (0, @[ipcEndpointUri(host, port)])
+    except ValueError as err:
+      return (2, @[err.msg, IpcEndpointHelpText])
+
+  of "request":
+    var requestId = "cli-1"
+    var requestMethod = ""
+    var params = %*{}
+    var subscribeEvents: seq[string] = @[]
+    var i = 1
+    while i < args.len:
+      case args[i]
+      of "--help", "-h":
+        return (0, @[IpcRequestHelpText])
+      of "--id":
+        if i + 1 >= args.len:
+          return (2, @["ipc request: --id requires a value", IpcRequestHelpText])
+        requestId = args[i + 1]
+        i += 2
+      of "--method":
+        if i + 1 >= args.len:
+          return (2, @["ipc request: --method requires a value", IpcRequestHelpText])
+        requestMethod = args[i + 1]
+        i += 2
+      of "--params-json":
+        if i + 1 >= args.len:
+          return (2, @["ipc request: --params-json requires a value", IpcRequestHelpText])
+        try:
+          let parsed = parseJson(args[i + 1])
+          if parsed.kind != JObject:
+            return (2, @["ipc request: --params-json must decode to a JSON object", IpcRequestHelpText])
+          params = parsed
+        except JsonParsingError as err:
+          return (2, @["ipc request: invalid JSON - " & err.msg, IpcRequestHelpText])
+        i += 2
+      of "--subscribe":
+        if i + 1 >= args.len:
+          return (2, @["ipc request: --subscribe requires an event key", IpcRequestHelpText])
+        subscribeEvents.add(args[i + 1])
+        i += 2
+      else:
+        return (2, @["ipc request: unknown argument '" & args[i] & "'", IpcRequestHelpText])
+
+    if requestMethod.strip.len == 0:
+      return (2, @["ipc request: --method is required", IpcRequestHelpText])
+
+    var session = newIpcSession()
+    if subscribeEvents.len > 0:
+      discard handleRequest(session, %*{
+        "id": "cli-subscribe",
+        "method": "subscribe",
+        "params": {
+          "events": subscribeEvents
+        }
+      })
+
+    let response = handleRequest(session, %*{
+      "id": requestId,
+      "method": requestMethod,
+      "params": params
+    })
+    var lines = @[response.pretty]
+    for eventNode in drainPushEvents(session):
+      lines.add(eventNode.pretty)
+    let exitCode = if response.hasKey("error"): 2 else: 0
+    return (exitCode, lines)
+
+  else:
+    return (2, @["ipc: expected 'request' or 'endpoint'", IpcRequestHelpText, IpcEndpointHelpText])
+
+# Flow: Execute human-readable notification formatter command.
+proc runNotifyCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 0 or args[0] == "--help" or args[0] == "-h":
+    return (0, @[NotifyFormatHelpText])
+  if args[0] != "format":
+    return (2, @["notify: expected 'format'", NotifyFormatHelpText])
+
+  var time = ""
+  var level = ""
+  var component = ""
+  var message = ""
+  var i = 1
+  while i < args.len:
+    case args[i]
+    of "--help", "-h":
+      return (0, @[NotifyFormatHelpText])
+    of "--time":
+      if i + 1 >= args.len:
+        return (2, @["notify format: --time requires a value", NotifyFormatHelpText])
+      time = args[i + 1]
+      i += 2
+    of "--level":
+      if i + 1 >= args.len:
+        return (2, @["notify format: --level requires a value", NotifyFormatHelpText])
+      level = args[i + 1]
+      i += 2
+    of "--component":
+      if i + 1 >= args.len:
+        return (2, @["notify format: --component requires a value", NotifyFormatHelpText])
+      component = args[i + 1]
+      i += 2
+    of "--message":
+      if i + 1 >= args.len:
+        return (2, @["notify format: --message requires a value", NotifyFormatHelpText])
+      message = args[i + 1]
+      i += 2
+    else:
+      return (2, @["notify format: unknown argument '" & args[i] & "'", NotifyFormatHelpText])
+
+  try:
+    let line = formatNotificationLine(time, level, component, message)
+    return (0, @[line])
+  except ValueError as err:
+    return (2, @[err.msg, NotifyFormatHelpText])
+
 # Flow: Run coordinator launch orchestration and return exit code plus output lines.
 proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
   if args.len > 0 and args[0] == "capabilities":
     return runCapabilitiesCommand(args[1 .. ^1])
+  if args.len > 0 and args[0] == "ipc":
+    return runIpcCommand(args[1 .. ^1])
+  if args.len > 0 and args[0] == "notify":
+    return runNotifyCommand(args[1 .. ^1])
+  if args.len > 0 and args[0] == "scan":
+    return runScanCommand(args[1 .. ^1])
+  if args.len > 1 and args[0] == "capability" and args[1] == "conflicts":
+    return runCapabilityConflictsCommand(args[2 .. ^1])
   if args.len > 1 and args[0] == "concept" and args[1] == "resolve":
     return runConceptResolveCommand(args[2 .. ^1])
   if args.len > 0 and args[0] == "startapp":

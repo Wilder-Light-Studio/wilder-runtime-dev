@@ -1372,6 +1372,96 @@ All checks should run in local development and CI.
 - CLI must provide `cosmos capability conflicts` to report inferred capability conflicts
   from scanner output.
 
+### Project Phase: Phase XC — Coordinator IPC and Console Notification Stream
+
+#### Coordinator IPC Requirements
+
+- Runtime tooling must expose a structured, versioned, bidirectional coordinator IPC
+  channel for GUI tools, dashboards, and REPL clients.
+- IPC transport contract for this phase is localhost TCP endpoint semantics represented
+  as `tcp://127.0.0.1:<port>`.
+- IPC request schema must support:
+  - `request { id, method, params }`
+  - `response { id, result | error }`
+  - `event { event, payload }`
+- IPC command surface must include at minimum:
+  - `pause`
+  - `resume`
+  - `step`
+  - `snapshot`
+  - `inspect`
+- IPC must support event subscriptions and push-event emission for subscribed event keys.
+
+#### Coordinator IPC State Exposure Requirements
+
+- IPC inspect output must expose deterministic runtime state fields:
+  - pause/running status
+  - tempo
+  - health
+  - Things summary
+  - reconciliation status
+- IPC response payload order and key set must remain stable for identical input.
+
+#### Console Notification Stream Requirements
+
+- Runtime tooling must expose a secondary line-oriented notification format for console
+  and log viewers.
+- Notification format must be:
+  - `[time] [level] [component] message`
+- Notification stream must remain human-readable and tail-friendly.
+- Notification stream must not reuse or leak raw IPC request/response schema.
+
+#### Messaging Safety Requirements
+
+- Coordinator IPC handlers must validate message structure before method dispatch.
+- Invalid request envelopes must return structured errors and must not mutate runtime
+  state.
+- Unsupported methods must return deterministic structured method-not-found errors.
+- IPC and notification behavior must remain deterministic for equivalent input.
+
+#### Messaging CLI Requirements
+
+- CLI must provide `cosmos ipc request` for deterministic IPC request simulation and
+  schema validation.
+- CLI must provide `cosmos ipc endpoint` for resolved localhost transport URI output.
+- CLI must provide `cosmos notify format` for console notification line generation.
+
+### Project Phase: Phase XD — Encrypted Triumvirate RECORD
+
+#### Encrypted RECORD Entry Requirements
+
+- All RECORD entries must persist encrypted payloads.
+- Encryption must be deterministic per entry identity so ciphertext remains stable for
+  identical payload and metadata inputs.
+- Each encrypted RECORD entry must include:
+  - encrypted payload
+  - hash of encrypted payload
+  - hash of previous entry
+  - sequence number
+  - entry type
+  - pseudonymous author id
+
+#### Reconciliation Metadata Requirements
+
+- Reconciliation decisions for RECORD chains must use only structural metadata:
+  - encrypted payload hash
+  - previous hash
+  - sequence
+  - entry type
+- Reconciliation procedures must not decrypt payloads.
+- Structural chain validation must be deterministic across repeated runs.
+
+#### Sovereign Copy Requirements
+
+- The runtime must preserve three sovereign encrypted RECORD copies for reconciliation.
+- Encrypted copy reconciliation must remain possible without payload decryption.
+
+#### Testability Requirements
+
+- Tests must verify deterministic ciphertext generation for repeated identical inputs.
+- Tests must verify metadata-only chain validation behavior.
+- Tests must verify invalid previous-hash or sequence metadata is rejected.
+
 ---
 
 ## Archive Completeness Requirements

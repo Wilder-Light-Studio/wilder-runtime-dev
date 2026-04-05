@@ -9,6 +9,7 @@ What this is. This page is the entry point for documentation in this repository.
 - Governing requirements: `docs/implementation/REQUIREMENTS.md`
 - Implementation specification: `docs/implementation/SPECIFICATION-NIM.md`
 - Execution plan: `docs/implementation/PLAN.md`
+- Improvement roadmap: `docs/implementation/ROADMAP.md`
 
 ## Documentation Lanes
 

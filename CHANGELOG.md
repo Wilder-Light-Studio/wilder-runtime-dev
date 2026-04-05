@@ -36,6 +36,20 @@ Highlights so far:
 	fatal capability resolution issues and logs deterministic validation outcomes.
 - Coordinator CLI now supports data-driven `cosmos capabilities` output and
 	`cosmos concept resolve` mapping introspection.
+- Phase XB semantic scanner work has started with deterministic source scanning,
+	relationship inference, and initial CLI surfaces for `cosmos scan` and
+	`cosmos capability conflicts`.
+- Phase XB scanner tests now pass (`semantic_scanner_test` and extended
+	coordinator CLI suites), and compliance tracking has been updated to verified.
+- Phase XC runtime messaging strategy is now implemented with coordinator IPC
+	request/response/event schema handling, localhost endpoint validation,
+	subscription push events, and deterministic `cosmos ipc` command routes.
+- Console notification stream formatting is now available via
+	`cosmos notify format`, and Phase XC evidence is verified in
+	`coordinator_ipc_test` and coordinator CLI contracts.
+- Phase XD encrypted RECORD work is now in progress with deterministic
+	entry encryption/decryption primitives, structural metadata chain
+	validation, and passing `encrypted_record_test` coverage.
 
 - Runtime API foundations are in place, including typed runtime state, module
 	context, status schema, and reconciliation result structures.

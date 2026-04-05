@@ -1187,6 +1187,159 @@ Minimum required tests:
 
 ---
 
+# 19D. Phase XC — Runtime Messaging Strategy Specification
+
+**REQ:** Project Phase: Phase XC — Coordinator IPC and Console Notification Stream
+
+### 19D.1 Coordinator IPC Transport Contract
+
+- Transport endpoint must resolve to localhost TCP URI form:
+  - `tcp://127.0.0.1:<port>`
+- Endpoint validation must reject non-localhost hostnames for this phase.
+- Port validation must enforce `[1, 65535]`.
+
+### 19D.2 IPC Message Schema Contract
+
+Request envelope:
+- `{ "id": string, "method": string, "params": object }`
+
+Response envelope:
+- success: `{ "id": string, "result": object }`
+- failure: `{ "id": string, "error": { "code": string, "message": string } }`
+
+Event envelope:
+- `{ "event": string, "payload": object }`
+
+All envelopes for this phase include a protocol marker:
+- `"version": "ipc-v1"`
+
+### 19D.3 IPC Command Method Contract
+
+Required methods:
+- `pause`
+- `resume`
+- `step`
+- `snapshot`
+- `inspect`
+
+Additional coordinator methods for this phase:
+- `subscribe`
+- `unsubscribe`
+
+Method semantics:
+- `pause`: runtime enters paused state and emits `runtime.paused` event.
+- `resume`: runtime exits paused state and emits `runtime.resumed` event.
+- `step`: runtime tick increments and emits `runtime.step` event.
+- `snapshot`: snapshot revision increments and emits `runtime.snapshot` event.
+- `inspect`: returns deterministic state payload with pause, tempo, health,
+  Things, and reconciliation fields.
+
+### 19D.4 Subscription and Push Event Contract
+
+- Session maintains deterministic subscription set for event keys.
+- Event is queued for push when event key is subscribed or wildcard `*` is subscribed.
+- Duplicate subscriptions do not produce duplicate push events.
+
+### 19D.5 Console Notification Stream Contract
+
+- Notification format is line-oriented:
+  - `[time] [level] [component] message`
+- `level` is normalized to uppercase.
+- Notification formatting must not embed IPC request/response envelopes.
+
+### 19D.6 Failure and Safety Contract
+
+- Invalid request structure returns structured `invalid_request` failure.
+- Unknown method returns structured `method_not_found` failure.
+- Method failures must not mutate unrelated session state.
+- Repeated identical valid requests over identical prior state yield deterministic
+  payload structure.
+
+### 19D.7 CLI Contract
+
+`cosmos ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]...`:
+- validates request schema
+- routes to coordinator IPC handler
+- emits deterministic JSON response line
+- emits queued event lines when subscriptions match
+
+`cosmos ipc endpoint [--host <host>] [--port <N>]`:
+- emits validated localhost endpoint URI
+
+`cosmos notify format --time <iso> --level <level> --component <component> --message <text>`:
+- emits one formatted notification line
+
+### 19D.8 Testability Contract
+
+Minimum required tests:
+- request schema validation failures
+- required method behavior (`pause`, `resume`, `step`, `snapshot`, `inspect`)
+- deterministic endpoint URI and localhost guard
+- subscription push behavior for wildcard and direct event keys
+- notification formatting contract and level normalization
+- coordinator CLI coverage for `ipc request`, `ipc endpoint`, `notify format`
+
+---
+
+# 19E. Phase XD — Encrypted Triumvirate RECORD Specification
+
+**REQ:** Project Phase: Phase XD — Encrypted Triumvirate RECORD
+
+### 19E.1 Encrypted RECORD Entry Contract
+
+Entry object fields:
+- `entryType: string`
+- `authorId: string`
+- `sequence: int`
+- `previousHash: string`
+- `encryptedPayload: string` (hex)
+- `encryptedPayloadHash: string` (SHA256 over encrypted payload bytes)
+
+### 19E.2 Deterministic Encryption Contract
+
+- Encryption inputs are deterministic tuple:
+  - payload JSON string
+  - key material
+  - sequence
+  - entry type
+  - author id
+  - previous hash
+- Encryption algorithm for this phase uses deterministic keystream expansion from SHA256
+  counters over nonce material derived from the tuple above.
+- Equal inputs must yield equal ciphertext and equal ciphertext hash.
+
+### 19E.3 Decryption Contract
+
+- Decryption uses the same keystream derivation tuple as encryption.
+- Decrypted payload must parse as JSON object or fail with structured error.
+
+### 19E.4 Metadata-Only Reconciliation Contract
+
+- Chain validation input is ordered seq of encrypted entries.
+- Validation checks:
+  - sequence must be strictly increasing by one
+  - first entry sequence must be `1`
+  - entry `n.previousHash` must equal entry `n-1.encryptedPayloadHash`
+  - each `encryptedPayloadHash` must equal recomputed SHA256(encryptedPayload)
+- Validation must not decrypt payloads.
+
+### 19E.5 Triumvirate Comparison Contract
+
+- Reconciliation compares only metadata tuples:
+  - `(sequence, entryType, encryptedPayloadHash, previousHash)`
+- Any mismatch in metadata tuple across copies is structural divergence.
+
+### 19E.6 Testability Contract
+
+Minimum required tests:
+- deterministic ciphertext stability for identical inputs
+- ciphertext divergence for payload or metadata change
+- encrypt/decrypt round-trip with JSON payload
+- metadata-only chain pass/fail cases
+- non-decrypting reconciliation behavior over malformed encrypted payload text
+
+---
+
 # 21. Runtime Configuration Specification
 
 **REQ:** Runtime Configuration Requirements

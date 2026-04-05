@@ -241,6 +241,82 @@ suite "concept resolve subcommand":
     check code == 0
     check lines.anyIt("Usage: cosmos concept resolve" in it)
 
+suite "scan subcommand":
+  test "scan summary succeeds":
+    setupTest("scan_summary")
+    defer: teardownTest()
+    writeFile(testTmpDir / "a.nim", "proc alpha*(): int = 1\n")
+    let (code, lines) = runCoordinatorMain(@["scan", testTmpDir])
+    check code == 0
+    check lines.anyIt("scan: ok" in it)
+    check lines.anyIt("things: 1" in it)
+
+  test "scan json mode returns payload":
+    setupTest("scan_json")
+    defer: teardownTest()
+    writeFile(testTmpDir / "a.nim", "proc alpha*(): int = 1\n")
+    let (code, lines) = runCoordinatorMain(@["scan", testTmpDir, "--json"])
+    check code == 0
+    check lines.len == 1
+    check "scan:a.nim" in lines[0]
+
+suite "capability conflicts subcommand":
+  test "conflicts command reports conflicts":
+    setupTest("scan_conflicts")
+    defer: teardownTest()
+    writeFile(testTmpDir / "a.nim", "proc duplicate*(): int = 1\n")
+    writeFile(testTmpDir / "b.nim", "proc duplicate*(): int = 2\n")
+    let (code, lines) = runCoordinatorMain(@["capability", "conflicts", testTmpDir])
+    check code == 0
+    check lines.anyIt("capability conflicts:" in it)
+    check lines.anyIt("duplicate@" in it)
+
+suite "ipc subcommand":
+  test "ipc endpoint returns validated localhost URI":
+    let (code, lines) = runCoordinatorMain(@["ipc", "endpoint", "--port", "7788"])
+    check code == 0
+    check lines.len == 1
+    check lines[0] == "tcp://127.0.0.1:7788"
+
+  test "ipc request pause returns structured success":
+    let (code, lines) = runCoordinatorMain(@[
+      "ipc", "request", "--id", "req-1", "--method", "pause"
+    ])
+    check code == 0
+    check lines.len >= 1
+    check "\"version\": \"ipc-v1\"" in lines[0]
+    check "\"paused\": true" in lines[0]
+
+  test "ipc request with subscription emits event line":
+    let (code, lines) = runCoordinatorMain(@[
+      "ipc", "request",
+      "--method", "pause",
+      "--subscribe", "runtime.paused"
+    ])
+    check code == 0
+    check lines.len == 2
+    check "\"event\": \"runtime.paused\"" in lines[1]
+
+  test "ipc request unknown method returns error exit":
+    let (code, lines) = runCoordinatorMain(@[
+      "ipc", "request", "--method", "does.not.exist"
+    ])
+    check code != 0
+    check "\"method_not_found\"" in lines[0]
+
+suite "notify subcommand":
+  test "notify format emits line oriented output":
+    let (code, lines) = runCoordinatorMain(@[
+      "notify", "format",
+      "--time", "2026-04-05T10:00:00Z",
+      "--level", "warn",
+      "--component", "reconcile",
+      "--message", "drift detected"
+    ])
+    check code == 0
+    check lines.len == 1
+    check lines[0] == "[2026-04-05T10:00:00Z] [WARN] [reconcile] drift detected"
+
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
 # Contact: teamwilder@wildercode.org

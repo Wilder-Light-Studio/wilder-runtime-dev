@@ -26,6 +26,9 @@ Public newcomer docs: `public/index.md`.
 - `PLAN.md`
   The chapter-by-chapter implementation plan and current execution order.
 
+- `ROADMAP.md`
+  Future improvement backlog used to shape upcoming planning cycles.
+
 - `IMPLEMENTATION-DETAILS.md`
   Supporting notes for how major areas are expected to be built.
 
@@ -73,9 +76,9 @@ For active development work:
 
 ## Active Workstream Note
 
-Phase XA (DRY Wants/Provides and Capability Discovery) is now active. During this
-workstream, keep capability requirements, specification algorithms, plan tasks, and
-test evidence synchronized in this order:
+Active phase execution currently includes XA, XB, XC, and XD. During these workstreams,
+keep requirements, specification algorithms, plan tasks, and test evidence synchronized
+in this order:
 
 1. `REQUIREMENTS.md`
 2. `SPECIFICATION-NIM.md`

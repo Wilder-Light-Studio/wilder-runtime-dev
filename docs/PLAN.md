@@ -845,8 +845,9 @@ XA.6. Update compliance matrix and implementation docs references after verifica
 **SPEC:** §19C Phase XB — Dynamic Semantic Scanner and Relationship Extraction Specification
 **Goal:** Implement deterministic codebase scanning that emits canonical Thing objects
 with inferred needs/wants/provides/conflicts/before/after metadata and CLI inspection.
-**Status:** 🚧 IN PROGRESS — normative requirements/specification updates are in;
-scanner module, CLI integration, and test coverage are being implemented.
+**Status:** ✅ COMPLETE — deterministic scanner module implemented with
+Thing-emission metadata, conflict detection, `cosmos scan` and
+`cosmos capability conflicts` CLI integration, and passing scanner/coordinator tests.
 
 ### Dependencies
 
@@ -881,6 +882,95 @@ XB.7. Update compliance matrix and changelog after test verification.
 - Duplicate provide declarations are surfaced as deterministic conflict entries.
 - `cosmos scan` and `cosmos capability conflicts` commands pass CLI contract tests.
 - Scanner tests pass in local verification workflow.
+
+---
+
+## Phase XC — Coordinator IPC and Console Notification Stream
+
+**SPEC:** §19D Phase XC — Runtime Messaging Strategy Specification
+**Goal:** Provide deterministic structured coordinator IPC request/response/event
+contracts and a separate human-readable console notification stream for operators and GUI
+tooling.
+**Status:** ✅ COMPLETE — coordinator IPC module implemented with deterministic
+request validation, required command handlers, subscription push-events, notify formatter,
+coordinator CLI integration, and passing IPC/coordinator test suites.
+
+### Dependencies
+
+- Ch 20 runtime coordinator entrypoint routing.
+- Ch 10 lifecycle event classes for notification/event payload vocabulary.
+- Existing config port constraints and deterministic validation helpers.
+
+### Outputs
+
+- Coordinator IPC module with request validation and method dispatch.
+- Deterministic IPC response and event envelope builders.
+- Subscription and push-event handling for runtime events.
+- Notification stream formatter for line-oriented console output.
+- `cosmos ipc request` and `cosmos ipc endpoint` CLI command paths.
+- `cosmos notify format` CLI command path.
+- Unit/CLI tests for schema validation, method behavior, and formatting contract.
+
+### Tasks
+
+XC.1. Implement coordinator IPC state/session model and localhost endpoint helper.
+XC.2. Implement request schema validation and structured error responses.
+XC.3. Implement pause/resume/step/snapshot/inspect method handlers.
+XC.4. Implement subscription management and push-event queue behavior.
+XC.5. Implement notification line formatter and append helper.
+XC.6. Wire `cosmos ipc request`, `cosmos ipc endpoint`, and
+      `cosmos notify format` commands in coordinator CLI.
+XC.7. Add dedicated coordinator IPC tests and coordinator CLI command tests.
+XC.8. Update compliance matrix and changelog with verification evidence.
+
+### Acceptance
+
+- IPC request validation rejects malformed envelopes with structured errors.
+- Required methods produce deterministic responses and state transitions.
+- Event subscriptions control which push events are emitted.
+- Notification formatter emits `[time] [level] [component] message` output.
+- CLI command surfaces pass deterministic contract tests.
+
+---
+
+## Phase XD — Encrypted Triumvirate RECORD
+
+**SPEC:** §19E Phase XD — Encrypted Triumvirate RECORD Specification
+**Goal:** Implement deterministic encrypted RECORD entries with metadata-only
+reconciliation support for sovereign copy comparison.
+**Status:** 🟡 IN PROGRESS — requirements/spec coverage is now added; encrypted
+entry primitives and tests are being implemented.
+
+### Dependencies
+
+- Ch 2 serialization hashing helpers.
+- Ch 3 persistence layer envelope contracts.
+- Reconciliation integrity checks and deterministic ordering contracts.
+
+### Outputs
+
+- Encrypted RECORD entry model with required metadata fields.
+- Deterministic decrypt helper for local inspection paths.
+- Metadata-only chain validation routine (no payload decrypt during reconciliation).
+- Triumvirate metadata comparison helpers.
+- Tests for deterministic encryption and structural reconciliation safety.
+
+### Tasks
+
+XD.1. Add encrypted RECORD model with required metadata fields.
+XD.2. Implement deterministic entry encryption and payload hash derivation.
+XD.3. Implement deterministic decrypt helper for controlled decode paths.
+XD.4. Implement metadata-only chain validation without payload decryption.
+XD.5. Add triumvirate metadata tuple comparison helper.
+XD.6. Add encrypted RECORD tests for deterministic and failure paths.
+XD.7. Update compliance/changelog status once verification passes.
+
+### Acceptance
+
+- Equal encryption inputs produce equal ciphertext and encrypted payload hash.
+- Structural reconciliation validation does not decrypt payloads.
+- Sequence/previous-hash violations are rejected deterministically.
+- Encrypted RECORD tests pass in local verification workflow.
 
 ---
 
