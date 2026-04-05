@@ -1,8 +1,10 @@
 # WILDER COSMOS RUNTIME — IMPLEMENTATION PLAN (v0.1.1)
 
+> **Mirrored Plan:** This is a summary mirror of [docs/implementation/PLAN.md](docs/implementation/PLAN.md). For detailed implementation workpackages, chapter descriptions, and task-level breakdown, see the implementation plan.
+
 *Derived from the frozen REQUIREMENTS.md and SPECIFICATION-NIM.md.*
 *Each chapter maps to one or more SPEC sections.*
-*Implementation details live in `src/implement/IMPLEMENTATION-DETAILS.md`.*
+*Implementation details live in `docs/implementation/IMPLEMENTATION-DETAILS.md`.*
 
 ---
 
@@ -32,6 +34,54 @@ The following priority sequence governs near-term implementation. Items marked
 | **P3A** | **Ch 20** — Runtime Start Coordinator | `cosmos.exe`/`cosmos` startup coordinator, flag/switch parser, optional attached console launch, coordinator tests | Ch 10, Ch 11, Host Hardening |
 | **P3** | **Ch 99** — Test Harness & CI Gating | Harness completion, core tests required for merges, CI workflow | All P0–P2 tests passing |
 | **P4** | **Ch 14** — Security & Performance | Microbenchmarks for prefilter hot path, perception filtering, startup time; iterate on results | Ch 10 (full startup) |
+
+---
+
+## Phase X — DRY Wants/Provides, Capability Discovery, Multi-Module Provides (Nim-first)
+
+**Status:** 🚧 In Progress
+**SPEC:** `docs/implementation/SPECIFICATION.md` §1-§7, `docs/implementation/SPECIFICATION-NIM.md`
+
+### Ordered Tasks
+
+1. Add canonical capability graph types and deterministic graph build API in `src/runtime/capabilities.nim`.
+2. Extend capability issue taxonomy with implementation-binding failures and startup fatal-gate classification.
+3. Add module binding descriptors and validation logic for one-to-one declared-provide-to-implementation mapping.
+4. Add graph projection/export surfaces for lifecycle diagnostics and CLI discovery.
+5. Update `cosmos capabilities` to report Things, provides, wants, bindings, and resolution status from one graph snapshot.
+6. Update `cosmos concept resolve` to show explicit want-to-provide mappings and unresolved causes.
+7. Extend Concept derivation path to populate registry records from Nim-first boundary declarations.
+8. Add tests for DRY wants/provides, ambiguous/missing/incompatible capability failures, and module binding errors.
+9. Add tests for CLI output determinism and exit code contracts for `capabilities` and `concept resolve`.
+10. Wire startup gate integration so fatal capability resolution halts before module execution.
+
+### Dependencies
+
+- Existing capability resolver in `src/runtime/capabilities.nim`.
+- Coordinator CLI command router in `src/cosmos_main.nim`.
+- Concept registry surfaces in `src/runtime/concepts.nim`.
+- Startup lifecycle gate behavior from Chapter 10 hardening.
+
+### Outputs
+
+- Updated capability runtime with graph snapshot and module binding validation.
+- Updated coordinator CLI outputs for capability discovery and concept resolution.
+- Updated Concept derivation and registry population for Nim-first boundary declarations.
+- New/updated tests in:
+      - `tests/capabilities_test.nim`
+      - `tests/coordinator_test.nim`
+      - Concept derivation coverage (`tests/concept_registry_test.nim` and follow-on tests as needed).
+
+### Acceptance Criteria
+
+- `PROVIDES` are declared once at provider boundary and not duplicated by consumers.
+- Wants resolve by reference (`Thing.provide` or whole-Thing) without signature duplication.
+- Capability graph includes all Things/provides/wants/signatures/module bindings.
+- Fatal capability issues halt startup before module execution.
+- Multi-module binding errors are detected: missing implementation, undeclared implementation, and implementation conflicts.
+- `cosmos capabilities` lists graph inventory and resolution status deterministically.
+- `cosmos concept resolve` shows resolved and unresolved mappings deterministically.
+- Nim-first boundary declarations are sufficient to populate Concept registry capability entries.
 
 ---
 
@@ -905,9 +955,10 @@ coordinator CLI integration, and passing IPC/coordinator test suites.
 
 - Coordinator IPC module with request validation and method dispatch.
 - Deterministic IPC response and event envelope builders.
+- Localhost TCP JSON-lines transport helpers for request/response/event exchange.
 - Subscription and push-event handling for runtime events.
 - Notification stream formatter for line-oriented console output.
-- `cosmos ipc request` and `cosmos ipc endpoint` CLI command paths.
+- `cosmos ipc request`, `cosmos ipc endpoint`, and `cosmos ipc serve` CLI command paths.
 - `cosmos notify format` CLI command path.
 - Unit/CLI tests for schema validation, method behavior, and formatting contract.
 
@@ -920,6 +971,7 @@ XC.4. Implement subscription management and push-event queue behavior.
 XC.5. Implement notification line formatter and append helper.
 XC.6. Wire `cosmos ipc request`, `cosmos ipc endpoint`, and
       `cosmos notify format` commands in coordinator CLI.
+XC.6A. Add localhost TCP serving and request routing (`ipc serve`, `ipc request --tcp`).
 XC.7. Add dedicated coordinator IPC tests and coordinator CLI command tests.
 XC.8. Update compliance matrix and changelog with verification evidence.
 
@@ -931,6 +983,25 @@ XC.8. Update compliance matrix and changelog with verification evidence.
 - Notification formatter emits `[time] [level] [component] message` output.
 - CLI command surfaces pass deterministic contract tests.
 
+## Chapter 20C — Runtime Messaging Strategy
+
+**SPEC:** §19D Phase XC — Runtime Messaging Strategy Specification
+**REQ:** Project Phase: Phase XC — Coordinator IPC and Console Notification Stream
+**Status:** ✅ COMPLETE (implementation surface present in coordinator IPC module and coordinator CLI)
+
+### Deliverables
+
+- Coordinator IPC transport and schema module in `src/runtime/coordinator_ipc.nim`.
+- Coordinator CLI integration in `src/cosmos_main.nim` for `ipc request`, `ipc endpoint`, `ipc serve`, and `notify format`.
+- Dedicated IPC unit coverage in `tests/coordinator_ipc_test.nim`.
+- Coordinator CLI contract coverage in `tests/coordinator_test.nim`.
+
+### Acceptance
+
+- Primary channel: structured request/response/event envelopes over localhost TCP.
+- Secondary channel: human-readable notification lines without IPC schema leakage.
+- Deterministic request handling and event emission for equal input/state.
+
 ---
 
 ## Phase XD — Encrypted Triumvirate RECORD
@@ -938,8 +1009,8 @@ XC.8. Update compliance matrix and changelog with verification evidence.
 **SPEC:** §19E Phase XD — Encrypted Triumvirate RECORD Specification
 **Goal:** Implement deterministic encrypted RECORD entries with metadata-only
 reconciliation support for sovereign copy comparison.
-**Status:** 🟡 IN PROGRESS — requirements/spec coverage is now added; encrypted
-entry primitives and tests are being implemented.
+**Status:** ✅ VERIFIED — deterministic encrypted entry primitives,
+metadata-only chain validation, and triumvirate comparison are implemented and tested.
 
 ### Dependencies
 
@@ -1159,9 +1230,41 @@ supports flags and switches, and optionally launches an attached console.
 - Startup errors provide `haltedAt`, `reason`, and `recoveryGuidance`.
 - Coordinator behavior does not regress current console entrypoint semantics.
 
-
 ---
-*&copy; 2026 Wilder. All rights reserved.*\
-*Contact: teamwilder@wildercode.org*\
-*Licensed under the Wilder Foundation License 1.0.*\
+
+## Phase Rollout Summary
+
+The following phases are scheduled for implementation in dependency order. See `docs/implementation/PLAN.md` for full task breakdown and acceptance criteria.
+
+### Phase X — Installer, Build, Release, and Concept System
+**Status:** 🚧 IN PROGRESS | **Prerequisite:** Ch 12, Ch 19A, Ch 20B
+
+Extends packaging and release foundation with runtime-home ownership, concept registry, semantic versioning, and expanded build matrix (6 targets: Windows/macOS/Linux × x64/ARM64).
+
+### Phase XA — DRY Wants/Provides and Capability Discovery
+**Status:** 🚧 IN PROGRESS | **Prerequisite:** Phase X
+
+Implements declarative capability graphs resolved deterministically at startup with signature validation and conflict detection.
+
+### Phase XB — Dynamic Semantic Scanner and Relationship Extraction  
+**Status:** 🚧 IN PROGRESS | **Prerequisite:** Phase XA
+
+Builds deterministic semantic scanning for symbol/import extraction and Concept contract inference without mutation or policy enforcement.
+
+### Phase XC — Coordinator IPC and Console Notification Stream
+**Status:** 🚧 IN PROGRESS | **Prerequisite:** Phase XA, Ch 2B
+
+Layers two-channel communication (structured IPC for tools, notification stream for human logs) on messaging system foundation.
+
+### Phase XD — Encrypted Triumvirate RECORD
+**Status:** ✅ IMPLEMENTED | **Prerequisite:** Ch 3, serialization
+
+Implements deterministic encrypted RECORD persistence with triumvirate sovereign copies and metadata-only reconciliation.
+
+**Completed:** record encryption module, reconciliation logic, persistence integration, comprehensive test coverage.
+
+### Phase XE — Humane Offline Licensing
+**Status:** 🚧 IN PROGRESS | **Prerequisite:** Phase X, installer
+
+Implements offline-first license generation, validation, and deactivation with optional transparency email, three-year liberation timer, and zero telemetry.
 *See LICENSE for details.*

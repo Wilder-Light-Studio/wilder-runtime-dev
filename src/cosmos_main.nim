@@ -44,8 +44,9 @@ const
     "\n" &
     "Subcommands:\n" &
     "  capabilities\n" &
-    "  ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]...\n" &
+    "  ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]... [--tcp] [--host <host>] [--port <N>]\n" &
     "  ipc endpoint [--host <host>] [--port <N>]\n" &
+    "  ipc serve [--host <host>] [--port <N>] [--max-requests <N>]\n" &
     "  notify format --time <iso> --level <level> --component <component> --message <text>\n" &
     "  scan [path] [--json]\n" &
     "  capability conflicts [path]\n" &
@@ -77,18 +78,22 @@ const
     "[--transport <json|protobuf>] [--no-template]"
   CapabilitiesHelpText* =
     "Usage: cosmos capabilities [--want <Thing|Thing.provide>] [--expect-signature <sig>] " &
-    "[--provide <Thing.provide:signature>]..."
+    "[--provide <Thing.provide:signature>] " &
+    "[--bind <Thing.provide:moduleType:moduleRef:entrypoint:abiVersion>]..."
   ConceptResolveHelpText* =
     "Usage: cosmos concept resolve --want <Thing|Thing.provide> [--expect-signature <sig>] " &
-    "--provide <Thing.provide:signature>..."
+    "--provide <Thing.provide:signature> " &
+    "[--bind <Thing.provide:moduleType:moduleRef:entrypoint:abiVersion>]..."
   ScanHelpText* =
     "Usage: cosmos scan [path] [--json]"
   CapabilityConflictsHelpText* =
     "Usage: cosmos capability conflicts [path]"
   IpcRequestHelpText* =
-    "Usage: cosmos ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]..."
+    "Usage: cosmos ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]... [--tcp] [--host <host>] [--port <N>]"
   IpcEndpointHelpText* =
     "Usage: cosmos ipc endpoint [--host <host>] [--port <N>]"
+  IpcServeHelpText* =
+    "Usage: cosmos ipc serve [--host <host>] [--port <N>] [--max-requests <N>]"
   NotifyFormatHelpText* =
     "Usage: cosmos notify format --time <iso> --level <level> --component <component> --message <text>"
 
@@ -114,13 +119,38 @@ proc parseProvideArg(raw: string): ProvideDeclaration =
     signature: signature
   )
 
+# Flow: Parse Thing.provide:moduleType:moduleRef:entrypoint:abiVersion into one module binding declaration.
+proc parseBindingArg(raw: string): ModuleBindingDeclaration =
+  let trimmed = raw.strip
+  let fields = trimmed.split(':')
+  if fields.len != 5:
+    raise newException(ValueError,
+      "capabilities: --bind must be Thing.provide:moduleType:moduleRef:entrypoint:abiVersion")
+
+  let parsed = parseWantReference(fields[0].strip)
+  if parsed.isWholeThing:
+    raise newException(ValueError,
+      "capabilities: --bind requires Thing.provide form")
+
+  ModuleBindingDeclaration(
+    provideKey: parsed.thingName & "." & parsed.provideName,
+    moduleType: fields[1].strip,
+    moduleRef: fields[2].strip,
+    entrypoint: fields[3].strip,
+    abiVersion: fields[4].strip
+  )
+
 # Flow: Parse declaration arguments shared by capabilities and concept resolve commands.
 proc parseResolutionArgs(args: seq[string],
-                        requireWant: bool): tuple[provides: seq[ProvideDeclaration],
-                                                   wants: seq[WantDeclaration]] =
+                        requireWant: bool): tuple[
+                          provides: seq[ProvideDeclaration],
+                          wants: seq[WantDeclaration],
+                          bindings: seq[ModuleBindingDeclaration]
+                        ] =
   var wantRef = ""
   var expectedSignature = ""
   var provides: seq[ProvideDeclaration] = @[]
+  var bindings: seq[ModuleBindingDeclaration] = @[]
   var i = 0
   while i < args.len:
     case args[i]
@@ -142,6 +172,12 @@ proc parseResolutionArgs(args: seq[string],
           "capabilities: --provide requires a value")
       provides.add(parseProvideArg(args[i + 1]))
       i += 2
+    of "--bind":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "capabilities: --bind requires a value")
+      bindings.add(parseBindingArg(args[i + 1]))
+      i += 2
     of "--help", "-h":
       raise newException(ValueError,
         "capabilities: help-requested")
@@ -160,7 +196,7 @@ proc parseResolutionArgs(args: seq[string],
       reference: wantRef,
       expectedSignature: expectedSignature
     ))
-  (provides, wants)
+  (provides, wants, bindings)
 
 # Flow: Convert CLI mode shorthand to config override values.
 proc normalizeCoordinatorMode(raw: string): string =
@@ -332,12 +368,22 @@ proc runCapabilitiesCommand(args: seq[string]): tuple[exitCode: int, lines: seq[
     return (0, @[CapabilitiesHelpText])
   try:
     let parsed = parseResolutionArgs(args, requireWant = false)
-    let resolution = resolveCapabilities(parsed.provides, parsed.wants)
+    let graph = buildCapabilityGraph(
+      parsed.provides,
+      parsed.wants,
+      parsed.bindings,
+      enforceBindingCoverage = parsed.bindings.len > 0
+    )
+    let resolution = graph.resolution
     var lines = @[
+      "things: " & $graph.things.len,
       "providers: " & $parsed.provides.len,
       "wants: " & $parsed.wants.len,
+      "signatures: " & $graph.signatures.len,
+      "moduleBindings: " & $parsed.bindings.len,
       "bindings: " & $resolution.bindings.len,
-      "issues: " & $resolution.issues.len
+      "issues: " & $resolution.issues.len,
+      "startupEligible: " & $graph.startupEligible
     ]
     for issue in resolution.issues:
       lines.add("issue: " & $issue.kind & " " & issue.reference)
@@ -353,10 +399,14 @@ proc runConceptResolveCommand(args: seq[string]): tuple[exitCode: int, lines: se
     return (0, @[ConceptResolveHelpText])
   try:
     let parsed = parseResolutionArgs(args, requireWant = true)
-    let resolution = resolveCapabilities(parsed.provides, parsed.wants)
+    let resolution = resolveCapabilities(
+      parsed.provides,
+      parsed.wants,
+      parsed.bindings,
+      enforceBindingCoverage = parsed.bindings.len > 0
+    )
     for issue in resolution.issues:
-      if issue.kind in [cikMissingProviderThing, cikMissingProvide,
-                        cikProviderConflict, cikSignatureMismatch]:
+      if issueIsFatal(issue):
         return (2, @["resolve: unresolved - " & issue.detail, ConceptResolveHelpText])
     if resolution.bindings.len == 0:
       return (2, @["resolve: unresolved - no binding produced", ConceptResolveHelpText])
@@ -423,12 +473,12 @@ proc runCapabilityConflictsCommand(args: seq[string]): tuple[exitCode: int, line
 # Flow: Execute IPC request/endpoint command set for deterministic schema contracts.
 proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
   if args.len == 0 or args[0] == "--help" or args[0] == "-h":
-    return (0, @[IpcRequestHelpText, IpcEndpointHelpText])
+    return (0, @[IpcRequestHelpText, IpcEndpointHelpText, IpcServeHelpText])
 
   case args[0]
   of "endpoint":
-    var host = "127.0.0.1"
-    var port = 7700
+    var host = IpcDefaultHost
+    var port = IpcDefaultPort
     var i = 1
     while i < args.len:
       case args[i]
@@ -454,11 +504,56 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
     except ValueError as err:
       return (2, @[err.msg, IpcEndpointHelpText])
 
+  of "serve":
+    var host = IpcDefaultHost
+    var port = IpcDefaultPort
+    var maxRequests = 0
+    var i = 1
+    while i < args.len:
+      case args[i]
+      of "--help", "-h":
+        return (0, @[IpcServeHelpText])
+      of "--host":
+        if i + 1 >= args.len:
+          return (2, @["ipc serve: --host requires a value", IpcServeHelpText])
+        host = args[i + 1]
+        i += 2
+      of "--port":
+        if i + 1 >= args.len:
+          return (2, @["ipc serve: --port requires a value", IpcServeHelpText])
+        try:
+          port = parseInt(args[i + 1])
+        except ValueError:
+          return (2, @["ipc serve: --port must be an integer", IpcServeHelpText])
+        i += 2
+      of "--max-requests":
+        if i + 1 >= args.len:
+          return (2, @["ipc serve: --max-requests requires a value", IpcServeHelpText])
+        try:
+          maxRequests = parseInt(args[i + 1])
+        except ValueError:
+          return (2, @["ipc serve: --max-requests must be an integer", IpcServeHelpText])
+        i += 2
+      else:
+        return (2, @["ipc serve: unknown argument '" & args[i] & "'", IpcServeHelpText])
+
+    try:
+      let session = newIpcSession()
+      let handled = serveIpcTcp(session, host, port, maxRequests)
+      return (0, @["ipc serve: handled " & $handled & " request(s)"])
+    except ValueError as err:
+      return (2, @[err.msg, IpcServeHelpText])
+    except CatchableError as err:
+      return (1, @["ipc serve: failed - " & err.msg])
+
   of "request":
     var requestId = "cli-1"
     var requestMethod = ""
     var params = %*{}
     var subscribeEvents: seq[string] = @[]
+    var useTcp = false
+    var host = IpcDefaultHost
+    var port = IpcDefaultPort
     var i = 1
     while i < args.len:
       case args[i]
@@ -490,11 +585,58 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
           return (2, @["ipc request: --subscribe requires an event key", IpcRequestHelpText])
         subscribeEvents.add(args[i + 1])
         i += 2
+      of "--tcp":
+        useTcp = true
+        i += 1
+      of "--host":
+        if i + 1 >= args.len:
+          return (2, @["ipc request: --host requires a value", IpcRequestHelpText])
+        host = args[i + 1]
+        i += 2
+      of "--port":
+        if i + 1 >= args.len:
+          return (2, @["ipc request: --port requires a value", IpcRequestHelpText])
+        try:
+          port = parseInt(args[i + 1])
+        except ValueError:
+          return (2, @["ipc request: --port must be an integer", IpcRequestHelpText])
+        i += 2
       else:
         return (2, @["ipc request: unknown argument '" & args[i] & "'", IpcRequestHelpText])
 
     if requestMethod.strip.len == 0:
       return (2, @["ipc request: --method is required", IpcRequestHelpText])
+
+    let requestNode = %*{
+      "id": requestId,
+      "method": requestMethod,
+      "params": params
+    }
+
+    if useTcp:
+      try:
+        if subscribeEvents.len > 0:
+          let subscribeFrames = sendIpcTcpRequest(host, port, %*{
+            "id": "cli-subscribe",
+            "method": "subscribe",
+            "params": {
+              "events": subscribeEvents
+            }
+          })
+          if subscribeFrames.len > 0 and subscribeFrames[0].hasKey("error"):
+            return (2, @[subscribeFrames[0].pretty])
+        let frames = sendIpcTcpRequest(host, port, requestNode)
+        if frames.len == 0:
+          return (2, @["ipc request: no response from server", IpcRequestHelpText])
+        var lines: seq[string] = @[]
+        for frame in frames:
+          lines.add(frame.pretty)
+        let exitCode = if frames[0].hasKey("error"): 2 else: 0
+        return (exitCode, lines)
+      except ValueError as err:
+        return (2, @[err.msg, IpcRequestHelpText])
+      except CatchableError as err:
+        return (1, @["ipc request: transport failure - " & err.msg])
 
     var session = newIpcSession()
     if subscribeEvents.len > 0:
@@ -505,20 +647,15 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
           "events": subscribeEvents
         }
       })
-
-    let response = handleRequest(session, %*{
-      "id": requestId,
-      "method": requestMethod,
-      "params": params
-    })
-    var lines = @[response.pretty]
-    for eventNode in drainPushEvents(session):
-      lines.add(eventNode.pretty)
-    let exitCode = if response.hasKey("error"): 2 else: 0
+    let frames = dispatchRequest(session, requestNode)
+    var lines: seq[string] = @[]
+    for frame in frames:
+      lines.add(frame.pretty)
+    let exitCode = if frames[0].hasKey("error"): 2 else: 0
     return (exitCode, lines)
 
   else:
-    return (2, @["ipc: expected 'request' or 'endpoint'", IpcRequestHelpText, IpcEndpointHelpText])
+    return (2, @["ipc: expected 'request', 'endpoint', or 'serve'", IpcRequestHelpText, IpcEndpointHelpText, IpcServeHelpText])
 
 # Flow: Execute human-readable notification formatter command.
 proc runNotifyCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =

@@ -193,13 +193,18 @@ suite "capabilities subcommand":
     let (code, lines) = runCoordinatorMain(@[
       "capabilities",
       "--provide", "Lexicons.get:(string)->string",
+      "--bind", "Lexicons.get:nim:src/runtime/lexicons.nim:registerLexicons:cap-abi-v1",
       "--want", "Lexicons.get",
       "--expect-signature", "(string)->string"
     ])
     check code == 0
+    check lines.anyIt("things: 2" in it)
     check lines.anyIt("providers: 1" in it)
     check lines.anyIt("wants: 1" in it)
+    check lines.anyIt("signatures: 1" in it)
+    check lines.anyIt("moduleBindings: 1" in it)
     check lines.anyIt("bindings: 1" in it)
+    check lines.anyIt("startupEligible: true" in it)
     check lines.anyIt("providers:" in it)
     check lines.anyIt("bindings:" in it)
     check lines.anyIt("issues:" in it)
@@ -220,7 +225,8 @@ suite "concept resolve subcommand":
       "concept", "resolve",
       "--want", "Lexicons.get",
       "--expect-signature", "(string)->string",
-      "--provide", "Lexicons.get:(string)->string"
+      "--provide", "Lexicons.get:(string)->string",
+      "--bind", "Lexicons.get:nim:src/runtime/lexicons.nim:registerLexicons:cap-abi-v1"
     ])
     check code == 0
     check lines.anyIt("resolve: ok" in it)
@@ -272,6 +278,11 @@ suite "capability conflicts subcommand":
     check lines.anyIt("duplicate@" in it)
 
 suite "ipc subcommand":
+  test "ipc command help includes serve contract":
+    let (code, lines) = runCoordinatorMain(@["ipc", "--help"])
+    check code == 0
+    check lines.anyIt("ipc serve" in it)
+
   test "ipc endpoint returns validated localhost URI":
     let (code, lines) = runCoordinatorMain(@["ipc", "endpoint", "--port", "7788"])
     check code == 0
@@ -303,6 +314,13 @@ suite "ipc subcommand":
     ])
     check code != 0
     check "\"method_not_found\"" in lines[0]
+
+  test "ipc request rejects non-integer tcp port":
+    let (code, lines) = runCoordinatorMain(@[
+      "ipc", "request", "--method", "inspect", "--tcp", "--port", "nope"
+    ])
+    check code != 0
+    check lines.anyIt("--port must be an integer" in it)
 
 suite "notify subcommand":
   test "notify format emits line oriented output":

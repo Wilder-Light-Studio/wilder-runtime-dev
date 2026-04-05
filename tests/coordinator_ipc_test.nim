@@ -75,6 +75,26 @@ suite "coordinator IPC subscriptions and notifications":
     check line == "[2026-04-05T10:00:00Z] [INFO] [runtime] started"
     check line.contains("[INFO]")
 
+  test "dispatch request returns response and queued event frames":
+    let session = newIpcSession()
+    discard handleRequest(session, %*{
+      "id": "sub",
+      "method": "subscribe",
+      "params": {"events": ["runtime.paused"]}
+    })
+    let frames = dispatchRequest(session, %*{"id": "1", "method": "pause", "params": {}})
+    check frames.len == 2
+    check frames[0].hasKey("result")
+    check frames[1]["event"].getStr() == "runtime.paused"
+
+  test "dispatch request line rejects malformed JSON with invalid_request":
+    let session = newIpcSession()
+    let lines = dispatchRequestLine(session, "{not-json")
+    check lines.len == 1
+    let response = parseJson(lines[0])
+    check response.hasKey("error")
+    check response["error"]["code"].getStr() == "invalid_request"
+
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
 # Contact: teamwilder@wildercode.org

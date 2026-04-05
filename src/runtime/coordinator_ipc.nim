@@ -10,7 +10,7 @@
 # Flow: validate request -> dispatch method -> build response -> queue subscribed events.
 
 import json
-import std/[strutils, algorithm, sets]
+import std/[strutils, algorithm, sets, net]
 
 const
   IpcVersion* = "ipc-v1"
@@ -30,6 +30,10 @@ type
     subscriptions*: HashSet[string]
     pushQueue*: seq[JsonNode]
     notificationLines*: seq[string]
+
+const
+  IpcDefaultHost* = "127.0.0.1"
+  IpcDefaultPort* = 7700
 
 # Flow: Build deterministic default IPC state used by CLI simulation and tests.
 proc defaultIpcServerState*(): IpcServerState =
@@ -57,7 +61,7 @@ proc isLocalhostHost*(host: string): bool =
   host.toLowerAscii.strip in ["127.0.0.1", "localhost", "::1"]
 
 # Flow: Build validated coordinator IPC localhost endpoint URI.
-proc ipcEndpointUri*(host: string = "127.0.0.1", port: int = 7700): string =
+proc ipcEndpointUri*(host: string = IpcDefaultHost, port: int = IpcDefaultPort): string =
   let normalizedHost = host.strip
   if normalizedHost.len == 0:
     raise newException(ValueError,
@@ -162,6 +166,8 @@ proc inspectPayload(session: IpcSession): JsonNode =
     "tick": session.state.tick
   }
 
+proc drainPushEvents*(session: IpcSession): seq[JsonNode]
+
 # Flow: Handle one request envelope and return deterministic response envelope.
 proc handleRequest*(session: IpcSession, request: JsonNode): JsonNode =
   try:
@@ -214,6 +220,76 @@ proc handleRequest*(session: IpcSession, request: JsonNode): JsonNode =
         "ipc: unsupported method '" & parsed.requestMethod & "'")
   except ValueError as err:
     return errorResponse("unknown", "invalid_request", err.msg)
+
+# Flow: Dispatch one request into a response followed by queued push events.
+proc dispatchRequest*(session: IpcSession, request: JsonNode): seq[JsonNode] =
+  let response = handleRequest(session, request)
+  result = @[response]
+  for eventNode in drainPushEvents(session):
+    result.add(eventNode)
+
+# Flow: Parse one JSON request line and return JSON response/event lines.
+proc dispatchRequestLine*(session: IpcSession, line: string): seq[string] =
+  let payload = line.strip
+  if payload.len == 0:
+    return @[$errorResponse("unknown", "invalid_request", "ipc: request frame must not be empty")]
+
+  try:
+    let request = parseJson(payload)
+    for node in dispatchRequest(session, request):
+      result.add($node)
+  except JsonParsingError as err:
+    result = @[$errorResponse("unknown", "invalid_request", "ipc: invalid JSON - " & err.msg)]
+
+# Flow: Serve localhost TCP JSON-lines requests with one session for deterministic state.
+proc serveIpcTcp*(session: IpcSession,
+                  host: string = IpcDefaultHost,
+                  port: int = IpcDefaultPort,
+                  maxRequests: int = 0): int =
+  ## maxRequests == 0 means serve until process termination.
+  discard ipcEndpointUri(host, port)
+  if maxRequests < 0:
+    raise newException(ValueError,
+      "ipc: maxRequests must be >= 0")
+
+  var server = newSocket()
+  try:
+    server.setSockOpt(OptReuseAddr, true)
+    server.bindAddr(Port(port), "127.0.0.1")
+    server.listen()
+
+    while maxRequests == 0 or result < maxRequests:
+      var client: Socket
+      server.accept(client)
+      try:
+        let requestLine = client.recvLine()
+        for outputLine in dispatchRequestLine(session, requestLine):
+          client.send(outputLine & "\n")
+      finally:
+        client.close()
+      inc result
+  finally:
+    server.close()
+
+# Flow: Send one request to localhost TCP JSON-lines endpoint and read all frames.
+proc sendIpcTcpRequest*(host: string,
+                        port: int,
+                        request: JsonNode): seq[JsonNode] =
+  discard ipcEndpointUri(host, port)
+  var client = newSocket()
+  try:
+    client.connect("127.0.0.1", Port(port))
+    client.send($request & "\n")
+    while true:
+      let line = client.recvLine()
+      if line.len == 0:
+        break
+      let trimmed = line.strip
+      if trimmed.len == 0:
+        continue
+      result.add(parseJson(trimmed))
+  finally:
+    client.close()
 
 # Flow: Return queued push events and clear queue in one deterministic operation.
 proc drainPushEvents*(session: IpcSession): seq[JsonNode] =

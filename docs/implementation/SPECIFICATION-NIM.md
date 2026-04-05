@@ -1195,6 +1195,8 @@ Minimum required tests:
 
 - Transport endpoint must resolve to localhost TCP URI form:
   - `tcp://127.0.0.1:<port>`
+- Runtime transport for this phase is newline-delimited JSON frames over TCP localhost
+  (JSON-lines request/response/event exchange).
 - Endpoint validation must reject non-localhost hostnames for this phase.
 - Port validation must enforce `[1, 65535]`.
 
@@ -1257,27 +1259,54 @@ Method semantics:
 
 ### 19D.7 CLI Contract
 
-`cosmos ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]...`:
+`cosmos ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]... [--tcp] [--host <host>] [--port <N>]`:
 - validates request schema
-- routes to coordinator IPC handler
+- routes to coordinator IPC handler (in-memory by default)
+- when `--tcp` is present, sends request to localhost TCP endpoint and returns returned
+  response/event frames
 - emits deterministic JSON response line
 - emits queued event lines when subscriptions match
 
 `cosmos ipc endpoint [--host <host>] [--port <N>]`:
 - emits validated localhost endpoint URI
 
+`cosmos ipc serve [--host <host>] [--port <N>] [--max-requests <N>]`:
+- hosts TCP JSON-lines coordinator IPC endpoint on localhost
+- serves deterministic request/response/event frames against one bounded session
+- supports finite serving window when `--max-requests` is provided
+
 `cosmos notify format --time <iso> --level <level> --component <component> --message <text>`:
 - emits one formatted notification line
 
-### 19D.8 Testability Contract
+### 19D.8 Coordinator and CLI Integration Points
+
+- Coordinator IPC request state and schema dispatch live in `src/runtime/coordinator_ipc.nim`.
+- Runtime coordinator CLI integration lives in `src/cosmos_main.nim` under `ipc` and `notify`
+  command branches.
+- IPC transport and console notification stream must remain independent surfaces:
+  - IPC channel is machine-oriented (`request`/`response`/`event` JSON envelopes)
+  - notification channel is operator-oriented (`[time] [level] [component] message`)
+- No coordinator CLI path may require console output parsing to execute IPC methods.
+
+### 19D.9 GUI Migration Notes
+
+- GUI tools should treat IPC as newline-delimited JSON envelopes over localhost TCP.
+- GUI clients must ignore unknown keys for forward compatibility and gate behavior on
+  `version`.
+- GUI clients should consume response frame first, then zero-or-more event frames.
+- GUI tools should not parse notification lines as IPC data; notification stream is
+  intentionally human-readable and lossy by design.
+
+### 19D.10 Testability Contract
 
 Minimum required tests:
 - request schema validation failures
 - required method behavior (`pause`, `resume`, `step`, `snapshot`, `inspect`)
 - deterministic endpoint URI and localhost guard
+- TCP JSON-lines frame validation and deterministic envelope parsing
 - subscription push behavior for wildcard and direct event keys
 - notification formatting contract and level normalization
-- coordinator CLI coverage for `ipc request`, `ipc endpoint`, `notify format`
+- coordinator CLI coverage for `ipc request`, `ipc endpoint`, `ipc serve`, `notify format`
 
 ---
 
@@ -1337,6 +1366,90 @@ Minimum required tests:
 - encrypt/decrypt round-trip with JSON payload
 - metadata-only chain pass/fail cases
 - non-decrypting reconciliation behavior over malformed encrypted payload text
+
+---
+
+# 19F. Phase XE — Humane Offline Licensing Specification
+
+**REQ:** Project Phase: Phase XE — Humane Offline Licensing
+
+**Source:** License generation, validation, and runtime integration behavior.
+
+### 19F.1 License Generation Contract
+
+License generation must:
+- Operate fully offline (zero network activity).
+- Accept input: system identifier (deterministic from OS + hardware identifiers), license duration (days), optional transparency email.
+- Output: license file with fields:
+  - `systemId`: hash of system identifiers
+  - `generatedAt`: ISO 8601 timestamp
+  - `expiresAt`: ISO 8601 expiration timestamp (generatedAt + duration)
+  - `signature`: HMAC-SHA256 self-signature over all fields except signature
+  - `version`: license file schema version
+- Deterministic: identical inputs produce identical license files (including timestamp if input timestamp is fixed).
+- Human-readable: license file format is plain text, not binary.
+
+### 19F.2 License Validation Contract
+
+License validation must:
+- Perform only local file operations (no network activity).
+- Check file existence at `~/.wilder/cosmos/config/license.txt` (OS-appropriate equivalent).
+- Verify signature using stored systemId and local hardware identifiers.
+- Compare `expiresAt` timestamp against current time (must be future time).
+- Return structured result: `valid | expired | invalid_signature | not_found`.
+- Never initiate outbound network calls during validation.
+
+### 19F.3 Optional Email Transparency Requirements
+
+- Email submission for license generation is purely optional and never mandatory.
+- Email opt-in/opt-out state is stored locally only (`~/.wilder/cosmos/config/license_prefs.txt` or equivalent).
+- Email opt status (enabled/disabled) must have zero functional impact on licensing or runtime.
+- If email is enabled and user chooses to submit, email content must be user-visible before transmission.
+- Email delivery failures (network unavailable, server error) must not affect license validity or block runtime startup.
+- Opt-in/opt-out status persistence must be resilient to concurrent access (use lock-free append or atomic write).
+
+### 19F.4 Deactivation Contract
+
+- Deactivation is an explicit user action via CLI: `cosmos license deactivate`.
+- Deactivation removes the license file but does not modify any runtime state or behavior.
+- Deactivated runtime continues to operate fully (no functionality degradation).
+- Deactivation is purely administrative record-keeping, not a licensing enforcement mechanism.
+
+### 19F.5 Three-Year Liberation Timer Requirements
+
+- After three years of no license refresh, installed runtime requires zero licensing checks.
+- No network calls are attempted to check license status during the liberation window.
+- Expiration timestamp in license file is the authoritative source of validity.
+- If license file exists but timestamp cannot be parsed, validation fails safely (structured error returned).
+
+### 19F.6 CLI License Commands Contract
+
+CLI must provide:
+
+- `cosmos license show` — display license file version, system identifier, expiration timestamp, and email opt status (if configured).
+- `cosmos license validate` — check license validity and return structured validation result.
+- `cosmos license deactivate` — remove license file and print confirmation.
+
+### 19F.7 Installer and Concept Integration
+
+- Concept registration and visibility must not depend on licensing state.
+- Installer can provide license activation as optional first-run step.
+- Installer must not require licensing before runtime execution.
+- Startup must not block if license file missing (startup fails silently or with optional warning, but continues).
+
+### 19F.8 Testability Contract
+
+Minimum required tests:
+- offline license generation determinism (identical inputs produce identical files)
+- license validation success for valid unexpired license
+- license validation failure for expired license
+- license validation failure for corrupted signature
+- license validation success for absent license file (no error, proceeds)
+- email opt-in/opt-out behavior: no functional difference in licensing when enabled/disabled
+- deactivation removes license file; runtime continues unaffected
+- repeated `cosmos license validate` calls produce identical results (no state mutation)
+- no network calls during license generation or validation (verify via mock network)
+- liberation timer: after fabricating a 3-year-old license file, validation continues to work
 
 ---
 

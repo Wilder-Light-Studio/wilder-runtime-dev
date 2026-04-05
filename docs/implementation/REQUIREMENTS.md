@@ -21,7 +21,7 @@ Specifications (how each requirement is made true) live in `docs/implementation/
 - **Wire (pattern)**: optional designer-level containment over Wave propagation.
 - **Channel (pattern)**: optional designer-level tag on Waves and filter on Perceptions.
 - **Concept (pattern)**: immutable declarative template used inside Worlds.
-- **Schema / RECORD type (pattern)**: structural declarations used inside Worlds.
+- **Schema / RECORD type (pattern)**: structural declarations used inside Things/Worlds
 - **Schema version**: integer version for persisted status and migration decisions.
 - **Epoch**: deterministic frame-order counter used for sequencing and replay.
 - **Reconciliation**: deterministic rebuild or repair process across persistence layers.
@@ -802,6 +802,89 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 
 ---
 
+## Phase X Requirements — DRY Wants/Provides, Capability Discovery, Multi-Module Provides (Nim-first)
+
+### DRY Wants/Provides (No Double Entry)
+
+- A Thing's `PROVIDES` contract must be declared exactly once in a canonical boundary declaration.
+- Consumer Things must not re-declare provider signatures in `WANTS` declarations.
+- `WANTS` declarations must reference capabilities using one of:
+  - `ThingName.provideName`
+  - whole-Thing reference: `ThingName`
+- `WANTS` declarations must not require signature duplication in consumer declarations.
+- Capability resolution must use provider Thing name, provide name, and provider-declared signature as the canonical triple.
+- Resolution must fail fast and produce structured diagnostics when:
+  - provider Thing does not exist,
+  - provide does not exist,
+  - signatures are incompatible,
+  - multiple providers conflict for one capability key.
+
+### Capability Discovery (Wave Availability)
+
+- Startup must construct a deterministic global capability graph before module execution.
+- The capability graph must include:
+  - all discovered Things,
+  - all declared provides,
+  - all declared wants,
+  - all capability signatures,
+  - all module bindings mapped to provides.
+- The capability graph must be exposed to:
+  - lifecycle surfaces,
+  - coordinator CLI (`cosmos capabilities`),
+  - Concept registry inspection and resolution surfaces.
+- Capability discovery must detect and report:
+  - missing capabilities,
+  - ambiguous capability providers,
+  - incompatible signatures,
+  - orphaned provides with no resolved consumer.
+- Startup must halt before entering running state when fatal capability resolution fails.
+
+### Multi-Module Provides (Nim and External Runtimes)
+
+- A Thing may declare provides in one module and implement them in another module.
+- Implementation modules may target Nim modules, Python modules, Rust crates, Node packages, or system binaries.
+- The provide boundary must live in one canonical SEM/Nim boundary declaration source.
+- Implementation modules must register provide implementations through one stable runtime contract:
+  - ABI registration proc,
+  - stable descriptor record,
+  - or equivalent runtime descriptor payload.
+- Startup must bind implementation modules to declared provides before capability resolution is finalized.
+- Startup must emit structured errors and halt when:
+  - a declared provide has no implementation binding,
+  - an implementation is registered for an undeclared provide,
+  - multiple implementations claim the same declared provide.
+
+### Nim-first Boundary Rules (SEM Not Required)
+
+- All boundary declarations must be representable in Nim while SEM remains optional.
+- Provide declarations must be stored in either:
+  - a Nim boundary file,
+  - or a manually authored Concept declaration file.
+- Wants references in Nim-first mode must use:
+  - `ThingName.provideName`,
+  - or whole-Thing reference `ThingName`.
+- The Concept Derivation Engine must:
+  - extract provides from Nim boundary declarations,
+  - extract wants from Nim boundary declarations,
+  - validate provider signatures and wants compatibility,
+  - populate and refresh the Concept registry with resolved capability metadata.
+
+### Phase X CLI Requirements
+
+- `cosmos capabilities` must list:
+  - all Things,
+  - all provides,
+  - all wants,
+  - capability resolution status and issue counts.
+- `cosmos concept resolve` must show:
+  - mapping of wants to provider capabilities,
+  - missing mappings,
+  - ambiguous mappings,
+  - signature mismatch diagnostics.
+- Both commands must be deterministic for equivalent inputs and emit stable, parseable line-oriented output.
+
+---
+
 ## Taxonomy Requirements
 
 The project source structure must include:
@@ -1380,6 +1463,7 @@ All checks should run in local development and CI.
   channel for GUI tools, dashboards, and REPL clients.
 - IPC transport contract for this phase is localhost TCP endpoint semantics represented
   as `tcp://127.0.0.1:<port>`.
+- IPC frame transport must use newline-delimited JSON messages over localhost TCP.
 - IPC request schema must support:
   - `request { id, method, params }`
   - `response { id, result | error }`
@@ -1424,7 +1508,19 @@ All checks should run in local development and CI.
 - CLI must provide `cosmos ipc request` for deterministic IPC request simulation and
   schema validation.
 - CLI must provide `cosmos ipc endpoint` for resolved localhost transport URI output.
+- CLI must provide `cosmos ipc serve` for localhost TCP coordinator IPC hosting.
+- CLI `cosmos ipc request` must support TCP mode so external tools can target an active
+  coordinator endpoint explicitly.
 - CLI must provide `cosmos notify format` for console notification line generation.
+
+#### Coordinator and Tooling Integration Requirements
+
+- Coordinator IPC schema validation, dispatch, and transport helpers must live in a
+  dedicated coordinator IPC module and remain independent from console rendering.
+- Coordinator CLI must route IPC and notification operations through explicit command
+  branches; no implicit defaults may alter IPC request payloads.
+- GUI tools and REPLs must treat notification stream as non-authoritative diagnostics;
+  truth-bearing control/state exchange must use coordinator IPC envelopes only.
 
 ### Project Phase: Phase XD — Encrypted Triumvirate RECORD
 
@@ -1461,6 +1557,62 @@ All checks should run in local development and CI.
 - Tests must verify deterministic ciphertext generation for repeated identical inputs.
 - Tests must verify metadata-only chain validation behavior.
 - Tests must verify invalid previous-hash or sequence metadata is rejected.
+
+### Project Phase: Phase XE — Humane Offline Licensing
+
+#### Licensing Philosophy Requirements
+
+- Licensing must be humane, transparent, and offline-first.
+- No telemetry, tracking, or coercive network behavior.
+- Licenses must be locally generatable from offline-capable tools.
+- Optional email transparency opt-in must not affect functionality or be forced.
+- Deactivation must be explicit user action and must not require network access.
+- Three-year liberation timer: after three years offline, installed software remains fully functional without license checks.
+
+#### Local License Generation Requirements
+
+- License generation must operate fully offline without network access.
+- Licenses must be deterministic for a given input (system identifier, expiration). 
+- License file format must be stable, verifiable, and human-readable for diagnostic purposes.
+- License validity checks must perform only local file verification (signature validation, expiration timestamp).
+- License checks must never initiate outbound network activity.
+
+#### Optional Transparency Email Requirements
+
+- Email submission for license generation is optional and never mandatory.
+- Email submission (if chosen) must not affect license validity, functionality, or behavior.
+- Opt-in/opt-out status must be stored locally only and never transmitted.
+- Email content must be visible to the user before submission and user must approve.
+- Email delivery failures must not affect licensing or runtime behavior.
+
+#### Deactivation Requirements
+
+- Deactivation must be an explicit user action (`cosmos license deactivate`).
+- Deactivation removes local license file but does not halt runtime functionality.
+- Deactivated runtime continues to operate fully; deactivation is purely administrative.
+- No periodic re-check behavior; license validity is checked at startup only.
+
+#### Offline Fallback and Liberation Timer Requirements
+
+- After three years since last online license refresh, installed runtime remains fully functional.
+- No network calls are attempted during the liberation window.
+- Expiration timestamp is local-only and part of license file; no centralized enforcement.
+
+#### Installer and Build Integration Requirements
+
+- Concept registration and visibility must not depend on licensing state.
+- License file location: `~/.wilder/cosmos/config/license.txt` (or Windows equivalent).
+- Installer must provide clear license install/activation workflow as part of first-run experience.
+- Installer must not require licensing before runtime execution.
+- CLI must provide `cosmos license show`, `cosmos license validate`, `cosmos license deactivate`.
+
+#### Testability Requirements
+
+- Tests must verify offline license generation determinism.
+- Tests must verify optional email opt-in behavior (enabled/disabled) has zero impact on licensing.
+- Tests must verify deactivation behavior removes license file but does not halt runtime.
+- Tests must verify no network calls are attempted in license validation path.
+- Tests must verify liberation timer expiry behavior (after 3 years, no license checks required).
 
 ---
 
