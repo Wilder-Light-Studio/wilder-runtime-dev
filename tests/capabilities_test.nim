@@ -123,6 +123,84 @@ suite "want reference parser":
     expect(ValueError):
       discard parseWantReference("Store.")
 
+suite "capability graph and module bindings":
+  test "capability graph includes things signatures and startup eligibility":
+    let provides = @[
+      ProvideDeclaration(thingName: "Lexicons", provideName: "get", signature: "(string)->string")
+    ]
+    let wants = @[
+      WantDeclaration(consumerThing: "Parser", reference: "Lexicons.get", expectedSignature: "")
+    ]
+    let bindings = @[
+      ModuleBindingDeclaration(
+        provideKey: "Lexicons.get",
+        moduleType: "nim",
+        moduleRef: "src/runtime/lexicons.nim",
+        entrypoint: "registerLexicons",
+        abiVersion: "cap-abi-v1"
+      )
+    ]
+
+    let graph = buildCapabilityGraph(provides, wants, bindings, enforceBindingCoverage = true)
+    check graph.things == @["Lexicons", "Parser"]
+    check graph.signatures == @["(string)->string"]
+    check graph.moduleBindings.len == 1
+    check graph.startupEligible
+
+  test "missing implementation is fatal when enforcement enabled":
+    let provides = @[
+      ProvideDeclaration(thingName: "Lexicons", provideName: "get", signature: "(string)->string")
+    ]
+    let resolution = resolveCapabilities(
+      provides,
+      @[],
+      @[],
+      enforceBindingCoverage = true
+    )
+    check resolution.issues.anyIt(it.kind == cikMissingImplementation)
+    expect(ValueError):
+      assertFatalFree(resolution)
+
+  test "undeclared implementation is fatal":
+    let bindings = @[
+      ModuleBindingDeclaration(
+        provideKey: "GhostThing.ping",
+        moduleType: "binary",
+        moduleRef: "ghost.exe",
+        entrypoint: "main",
+        abiVersion: "cap-abi-v1"
+      )
+    ]
+    let resolution = resolveCapabilities(@[], @[], bindings)
+    check resolution.issues.anyIt(it.kind == cikUndeclaredProvideImplementation)
+    expect(ValueError):
+      assertFatalFree(resolution)
+
+  test "duplicate implementation bindings are fatal":
+    let provides = @[
+      ProvideDeclaration(thingName: "Lexicons", provideName: "get", signature: "(string)->string")
+    ]
+    let bindings = @[
+      ModuleBindingDeclaration(
+        provideKey: "Lexicons.get",
+        moduleType: "nim",
+        moduleRef: "src/runtime/lexicons_a.nim",
+        entrypoint: "registerA",
+        abiVersion: "cap-abi-v1"
+      ),
+      ModuleBindingDeclaration(
+        provideKey: "Lexicons.get",
+        moduleType: "python",
+        moduleRef: "lexicons.py",
+        entrypoint: "register_b",
+        abiVersion: "cap-abi-v1"
+      )
+    ]
+    let resolution = resolveCapabilities(provides, @[], bindings)
+    check resolution.issues.anyIt(it.kind == cikImplementationConflict)
+    expect(ValueError):
+      assertFatalFree(resolution)
+
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
 # Contact: teamwilder@wildercode.org

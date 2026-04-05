@@ -15,6 +15,9 @@ type
     cikProviderConflict
     cikSignatureMismatch
     cikOrphanedProvide
+    cikMissingImplementation
+    cikUndeclaredProvideImplementation
+    cikImplementationConflict
 
   ProvideDeclaration* = object
     thingName*: string
@@ -25,6 +28,13 @@ type
     consumerThing*: string
     reference*: string
     expectedSignature*: string
+
+  ModuleBindingDeclaration* = object
+    provideKey*: string
+    moduleType*: string
+    moduleRef*: string
+    entrypoint*: string
+    abiVersion*: string
 
   CapabilityBinding* = object
     consumerThing*: string
@@ -42,6 +52,15 @@ type
   CapabilityResolution* = object
     bindings*: seq[CapabilityBinding]
     issues*: seq[CapabilityIssue]
+
+  CapabilityGraph* = object
+    things*: seq[string]
+    provides*: seq[ProvideDeclaration]
+    wants*: seq[WantDeclaration]
+    signatures*: seq[string]
+    moduleBindings*: seq[ModuleBindingDeclaration]
+    resolution*: CapabilityResolution
+    startupEligible*: bool
 
 # Flow: Build a stable provider key from thing and provide name.
 proc providerKey(thingName: string, provideName: string): string =
@@ -65,9 +84,96 @@ proc parseWantReference*(reference: string): tuple[thingName: string,
       "capabilities: want reference must be Thing or Thing.provide")
   (thingName, provideName, false)
 
+# Flow: Determine if one capability issue should halt startup.
+proc issueIsFatal*(issue: CapabilityIssue): bool =
+  issue.kind in [
+    cikMissingProviderThing,
+    cikMissingProvide,
+    cikProviderConflict,
+    cikSignatureMismatch,
+    cikMissingImplementation,
+    cikUndeclaredProvideImplementation,
+    cikImplementationConflict
+  ]
+
+# Flow: Validate declaration-to-implementation bindings with deterministic issue order.
+proc validateModuleBindings(providersByKey: Table[string, seq[ProvideDeclaration]],
+                            moduleBindings: seq[ModuleBindingDeclaration],
+                            enforceBindingCoverage: bool): seq[CapabilityIssue] =
+  var sortedBindings = moduleBindings
+  sortedBindings.sort(proc(a, b: ModuleBindingDeclaration): int =
+    let byKey = system.cmp(a.provideKey, b.provideKey)
+    if byKey != 0:
+      return byKey
+    let byType = system.cmp(a.moduleType, b.moduleType)
+    if byType != 0:
+      return byType
+    let byRef = system.cmp(a.moduleRef, b.moduleRef)
+    if byRef != 0:
+      return byRef
+    let byEntrypoint = system.cmp(a.entrypoint, b.entrypoint)
+    if byEntrypoint != 0:
+      return byEntrypoint
+    system.cmp(a.abiVersion, b.abiVersion)
+  )
+
+  var bindingsByKey = initTable[string, seq[ModuleBindingDeclaration]]()
+  for binding in sortedBindings:
+    let key = binding.provideKey.strip
+    let moduleType = binding.moduleType.strip
+    let moduleRef = binding.moduleRef.strip
+    let entrypoint = binding.entrypoint.strip
+    let abiVersion = binding.abiVersion.strip
+    if key.len == 0 or moduleType.len == 0 or moduleRef.len == 0 or
+        entrypoint.len == 0 or abiVersion.len == 0:
+      raise newException(ValueError,
+        "capabilities: module binding requires non-empty provideKey/moduleType/moduleRef/entrypoint/abiVersion")
+
+    if not providersByKey.hasKey(key):
+      result.add(CapabilityIssue(
+        kind: cikUndeclaredProvideImplementation,
+        consumerThing: "",
+        reference: key,
+        detail: "implementation binding exists for undeclared provide " & key
+      ))
+      continue
+
+    bindingsByKey.mgetOrPut(key, @[]).add(ModuleBindingDeclaration(
+      provideKey: key,
+      moduleType: moduleType,
+      moduleRef: moduleRef,
+      entrypoint: entrypoint,
+      abiVersion: abiVersion
+    ))
+
+  for key, bindings in bindingsByKey.pairs:
+    if bindings.len > 1:
+      result.add(CapabilityIssue(
+        kind: cikImplementationConflict,
+        consumerThing: "",
+        reference: key,
+        detail: "multiple implementation bindings found for " & key
+      ))
+
+  if enforceBindingCoverage:
+    var keys: seq[string] = @[]
+    for key, _ in providersByKey.pairs:
+      keys.add(key)
+    keys.sort(system.cmp[string])
+    for key in keys:
+      if not bindingsByKey.hasKey(key):
+        result.add(CapabilityIssue(
+          kind: cikMissingImplementation,
+          consumerThing: "",
+          reference: key,
+          detail: "declared provide has no implementation binding: " & key
+        ))
+
 # Flow: Resolve wants to provider declarations with deterministic issue reporting.
 proc resolveCapabilities*(provides: seq[ProvideDeclaration],
-                          wants: seq[WantDeclaration]): CapabilityResolution =
+                          wants: seq[WantDeclaration],
+                          moduleBindings: seq[ModuleBindingDeclaration] = @[],
+                          enforceBindingCoverage: bool = false): CapabilityResolution =
   var providersByThing = initTable[string, seq[ProvideDeclaration]]()
   var providersByKey = initTable[string, seq[ProvideDeclaration]]()
 
@@ -180,11 +286,64 @@ proc resolveCapabilities*(provides: seq[ProvideDeclaration],
         detail: "declared provide has no resolved consumers"
       ))
 
+  result.issues.add(validateModuleBindings(
+    providersByKey,
+    moduleBindings,
+    enforceBindingCoverage
+  ))
+
+# Flow: Build one immutable capability graph snapshot for discovery surfaces.
+proc buildCapabilityGraph*(provides: seq[ProvideDeclaration],
+                           wants: seq[WantDeclaration],
+                           moduleBindings: seq[ModuleBindingDeclaration] = @[],
+                           enforceBindingCoverage: bool = false): CapabilityGraph =
+  result.provides = provides
+  result.wants = wants
+  result.moduleBindings = moduleBindings
+  result.resolution = resolveCapabilities(
+    provides,
+    wants,
+    moduleBindings,
+    enforceBindingCoverage
+  )
+
+  var thingNames = initTable[string, bool]()
+  var signatures = initTable[string, bool]()
+
+  for provide in provides:
+    let thingName = provide.thingName.strip
+    let signature = provide.signature.strip
+    if thingName.len > 0:
+      thingNames[thingName] = true
+    if signature.len > 0:
+      signatures[signature] = true
+
+  for want in wants:
+    let consumerThing = want.consumerThing.strip
+    if consumerThing.len > 0:
+      thingNames[consumerThing] = true
+    let parsed = parseWantReference(want.reference)
+    if parsed.thingName.len > 0:
+      thingNames[parsed.thingName] = true
+
+  for thingName, _ in thingNames.pairs:
+    result.things.add(thingName)
+  result.things.sort(system.cmp[string])
+
+  for signature, _ in signatures.pairs:
+    result.signatures.add(signature)
+  result.signatures.sort(system.cmp[string])
+
+  result.startupEligible = true
+  for issue in result.resolution.issues:
+    if issueIsFatal(issue):
+      result.startupEligible = false
+      break
+
 # Flow: Raise on first fatal capability issue for startup gate behavior.
 proc assertFatalFree*(resolution: CapabilityResolution) =
   for issue in resolution.issues:
-    if issue.kind in [cikMissingProviderThing, cikMissingProvide,
-                      cikProviderConflict, cikSignatureMismatch]:
+    if issueIsFatal(issue):
       raise newException(ValueError,
         "capabilities: " & issue.detail & " (reference=" & issue.reference & ")")
 
