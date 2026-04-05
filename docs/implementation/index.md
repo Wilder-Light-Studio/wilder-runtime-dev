@@ -10,6 +10,9 @@ What this is. This page is the landing page for the internal, project-facing doc
 - `SPECIFICATION-NIM.md`
   Implementation-oriented specification for how requirements are realized.
 
+- `SPECIFICATION.md`
+  Phase-specific executable specs, including Phase X capability contracts and Phase XE licensing addendum.
+
 - `PLAN.md`
   Chapter-by-chapter execution order, deliverables, and acceptance criteria.
 
@@ -28,6 +31,7 @@ What this is. This page is the landing page for the internal, project-facing doc
 - `docs/prompts/pending/semantic-scanning-parser.md` (Phase XB source prompt)
 - `docs/prompts/pending/cli-messaging-phase.md` (Phase XC source prompt)
 - `docs/prompts/pending/encrypted-runtime-serialization-plan.md` (Phase XD source prompt)
+- `docs/prompts/complete/licenseing-flow-via-email.md` (Phase XE source prompt)
 - `PHASE-2-PLAN.md`
 - `COSMOS_UNINTEGRATED_TERMS.md`
 - `README.md`
@@ -45,8 +49,9 @@ What this is. This page is the landing page for the internal, project-facing doc
 
 1. `REQUIREMENTS.md`
 2. `SPECIFICATION-NIM.md`
-3. `PLAN.md`
-4. Relevant chapter folder
+3. `SPECIFICATION.md`
+4. `PLAN.md`
+5. Relevant chapter folder
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

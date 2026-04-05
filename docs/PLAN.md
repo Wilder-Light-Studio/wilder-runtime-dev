@@ -32,6 +32,9 @@ The following priority sequence governs near-term implementation. Items marked
 | **P2** | **Ch 10** — Startup Sequence | Prefilter activation gate, reconciliation enforcement before ingress, startup tests | Ch 2C, Ch 3 |
 | **P2A** | **Host Hardening Extension** | FileBridge durability, lifecycle guidance, config overrides, host observability, console CLI entrypoint, hardening test gate | Ch 2, Ch 3, Ch 10, Ch 11 |
 | **P3A** | **Ch 20** — Runtime Start Coordinator | `cosmos.exe`/`cosmos` startup coordinator, flag/switch parser, optional attached console launch, coordinator tests | Ch 10, Ch 11, Host Hardening |
+| **P3B** | **Ch 20B** — Runtime Entrypoint CLI Interface | Coordinator launch options model, parse/validate matrix, watch-mode constraints, structured failure output contract, operator usage coverage | Ch 20, Ch 10, Host Hardening |
+| **P3C** | **Phase X** — Installer, Build, Release, and Concept System | Runtime-home resolver, concept registry, concept CLI, startapp scaffold, expanded release matrix, version registry | Ch 12, Ch 19A, Ch 20B |
+| **P3D** | **Phase XE** — Humane Offline Licensing | Licensing requirements/spec alignment, offline-first local licensing module, optional transparency email workflow, liberation-timer deactivation gate, deterministic tests | Ch 19A, Ch 20B, Ch 99 |
 | **P3** | **Ch 99** — Test Harness & CI Gating | Harness completion, core tests required for merges, CI workflow | All P0–P2 tests passing |
 | **P4** | **Ch 14** — Security & Performance | Microbenchmarks for prefilter hot path, perception filtering, startup time; iterate on results | Ch 10 (full startup) |
 
@@ -85,6 +88,55 @@ The following priority sequence governs near-term implementation. Items marked
 
 ---
 
+## Phase XE — Humane Offline Licensing (Offline-first, Humane, Propagation-safe)
+
+**Status:** 🚧 Planned
+**Spec anchor:** `docs/implementation/REQUIREMENTS.md` (licensing requirements), `docs/implementation/SPECIFICATION-NIM.md` §19F, `docs/implementation/SPECIFICATION.md` §8
+
+### Ordered Tasks (Strict Sequence)
+
+1. Update `docs/implementation/REQUIREMENTS.md` with canonical licensing philosophy and constraints:
+      - duty-to-pay with compassionate hardship path,
+      - offline-first and no-telemetry/no-tracking/no-network-call guarantees,
+      - local license generation rules,
+      - optional one-time transparency email policy,
+      - license-check deactivation rules,
+      - three-year liberation timer behavior,
+      - integration with Wilder License text,
+      - explicit non-responsibilities and propagation-safe guarantees.
+2. Update `docs/implementation/SPECIFICATION.md` and `docs/implementation/SPECIFICATION-NIM.md` to implement those requirements exactly.
+3. Reconcile this plan section with frozen requirements/spec text and ensure task ordering remains mechanically executable.
+4. Add licensing domain module(s) in `src/runtime/` for deterministic local license generation, validation, and deactivation-state evaluation.
+5. Add licensing flow integration in runtime entrypoints (`src/cosmos_main.nim`, `src/console_main.nim`, and/or `src/runtime/lifecycle.nim`) so behavior is fully offline-first and never network-dependent.
+6. Add optional transparency-email invocation support through explicit user action only (no background calls), with templates/assets stored in repo paths.
+7. Add installer/release integration checks in `scripts/` to ensure licensing artifacts and liberation-timer metadata are present and deterministic for each release build.
+8. Add tests under `tests/` for paid and complimentary local generation, invalid license handling, deactivation semantics, liberation timer expiry, optional-email no-op behavior on decline, and no-network guarantees.
+9. Update compliance and docs artifacts (`docs/implementation/COMPLIANCE-MATRIX.md`, `docs/index.md`, `docs/public/`) to reflect licensing guarantees without telemetry responsibilities.
+
+### Dependencies
+
+- Chapter 19A installer/release tooling and artifact manifests.
+- Chapter 20B runtime entrypoint and startup contract.
+- Chapter 99 test and CI gate infrastructure.
+
+### Outputs
+
+- Updated requirements and specification sections covering licensing end-to-end.
+- Deterministic offline licensing runtime module(s) and startup integration.
+- Optional transparency-email workflow with explicit user control.
+- Test coverage and compliance/docs updates for licensing guarantees.
+
+### Acceptance Criteria
+
+- Licensing operates offline-first with no telemetry/tracking/network dependency.
+- Local license generation supports duty-to-pay and compassionate complimentary path.
+- Valid local license presence deactivates licensing checks for that version.
+- Three-year liberation timer permanently deactivates licensing enforcement for the version.
+- Declining optional transparency email has zero functional impact.
+- Requirements, specification, plan, and implementation remain contradiction-free.
+
+---
+
 ## Minimal Acceptance Checklist
 
 All items below must be satisfied before broad implementation (Ch 4+) begins.
@@ -125,7 +177,7 @@ All items below must be satisfied before broad implementation (Ch 4+) begins.
 ## Host Hardening Extension
 
 This extension captures post-baseline hardening work for the host/runtime surface.
-Normative behavior lives in `docs/REQUIREMENTS.md` and `docs/SPECIFICATION-NIM.md`.
+Normative behavior lives in `docs/implementation/REQUIREMENTS.md` and `docs/implementation/SPECIFICATION-NIM.md`.
 This section records Phase 2 hardening closure and remaining operational follow-ups.
 
 **Status:** ✅ Implementation complete across HH-1 through HH-4, with HH-5 closure checks integrated into normal verification.
@@ -1264,7 +1316,7 @@ Implements deterministic encrypted RECORD persistence with triumvirate sovereign
 **Completed:** record encryption module, reconciliation logic, persistence integration, comprehensive test coverage.
 
 ### Phase XE — Humane Offline Licensing
-**Status:** 🚧 IN PROGRESS | **Prerequisite:** Phase X, installer
+**Status:** 🚧 PLANNED | **Prerequisite:** Phase X, installer
 
-Implements offline-first license generation, validation, and deactivation with optional transparency email, three-year liberation timer, and zero telemetry.
+Implements humane offline-first local licensing with duty-to-pay plus compassionate complimentary path, optional one-time transparency email, valid-license enforcement deactivation, and a three-year version liberation timer.
 *See LICENSE for details.*

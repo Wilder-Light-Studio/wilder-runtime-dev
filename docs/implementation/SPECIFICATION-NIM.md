@@ -1375,81 +1375,89 @@ Minimum required tests:
 
 **Source:** License generation, validation, and runtime integration behavior.
 
-### 19F.1 License Generation Contract
+### 19F.1 Installer and First-Run Flow Contract
+
+Installer and first-run behavior must:
+- remain fully functional without any network dependency;
+- present Wilder License agreement as an explicit local step before local license generation;
+- provide clear paid and complimentary local licensing options without coercion;
+- treat optional transparency email as a separate opt-in action;
+- never block runtime startup when a legitimate local licensing path is selected.
+
+### 19F.2 Local License Generation Contract
 
 License generation must:
-- Operate fully offline (zero network activity).
-- Accept input: system identifier (deterministic from OS + hardware identifiers), license duration (days), optional transparency email.
-- Output: license file with fields:
-  - `systemId`: hash of system identifiers
-  - `generatedAt`: ISO 8601 timestamp
-  - `expiresAt`: ISO 8601 expiration timestamp (generatedAt + duration)
-  - `signature`: HMAC-SHA256 self-signature over all fields except signature
-  - `version`: license file schema version
-- Deterministic: identical inputs produce identical license files (including timestamp if input timestamp is fixed).
-- Human-readable: license file format is plain text, not binary.
+- operate fully offline (zero network activity);
+- accept deterministic local inputs: runtime version, local identity fingerprint, license mode (`paid` or `complimentary`), and generation timestamp;
+- produce a stable, human-readable local file at `~/.wilder/cosmos/config/license.txt` (or OS-equivalent path);
+- include verification fields signed by deterministic local signing rules;
+- generate identical output for identical input fields.
 
-### 19F.2 License Validation Contract
+### 19F.3 Local License File Structure Contract
 
-License validation must:
-- Perform only local file operations (no network activity).
-- Check file existence at `~/.wilder/cosmos/config/license.txt` (OS-appropriate equivalent).
-- Verify signature using stored systemId and local hardware identifiers.
-- Compare `expiresAt` timestamp against current time (must be future time).
-- Return structured result: `valid | expired | invalid_signature | not_found`.
-- Never initiate outbound network calls during validation.
+The local license file must include at least:
+- `schemaVersion`
+- `runtimeVersion`
+- `licenseMode` (`paid` or `complimentary`)
+- `generatedAt` (ISO 8601)
+- `identityFingerprint`
+- `agreementRef` (Wilder License reference id)
+- `signature`
 
-### 19F.3 Optional Email Transparency Requirements
+Validation must check structural completeness, signature correctness, and version compatibility using only local data.
 
-- Email submission for license generation is purely optional and never mandatory.
-- Email opt-in/opt-out state is stored locally only (`~/.wilder/cosmos/config/license_prefs.txt` or equivalent).
-- Email opt status (enabled/disabled) must have zero functional impact on licensing or runtime.
-- If email is enabled and user chooses to submit, email content must be user-visible before transmission.
-- Email delivery failures (network unavailable, server error) must not affect license validity or block runtime startup.
-- Opt-in/opt-out status persistence must be resilient to concurrent access (use lock-free append or atomic write).
+### 19F.4 Optional One-Time Transparency Email Contract
 
-### 19F.4 Deactivation Contract
+Transparency email behavior must:
+- be optional, one-time, user-initiated, and editable before send;
+- never run automatically in background logic;
+- have zero effect on license validity, startup eligibility, or runtime behavior when declined;
+- expose template content to the user before invocation;
+- treat send failures as non-fatal with no licensing side effects.
 
-- Deactivation is an explicit user action via CLI: `cosmos license deactivate`.
-- Deactivation removes the license file but does not modify any runtime state or behavior.
-- Deactivated runtime continues to operate fully (no functionality degradation).
-- Deactivation is purely administrative record-keeping, not a licensing enforcement mechanism.
+### 19F.5 Licensing Deactivation Contract
 
-### 19F.5 Three-Year Liberation Timer Requirements
+Deactivation behavior must enforce:
+- when a valid local license is present for a given runtime version, enforcement checks for that version deactivate;
+- no periodic renewal checks, remote revalidation, or background license polling;
+- optional `cosmos license deactivate` remains local-only and administrative.
 
-- After three years of no license refresh, installed runtime requires zero licensing checks.
-- No network calls are attempted to check license status during the liberation window.
-- Expiration timestamp in license file is the authoritative source of validity.
-- If license file exists but timestamp cannot be parsed, validation fails safely (structured error returned).
+### 19F.6 Three-Year Liberation Timer Contract
 
-### 19F.6 CLI License Commands Contract
+Liberation behavior must enforce:
+- each runtime version carries a built-in three-year liberation timer from release date metadata;
+- once timer expiry is reached, licensing enforcement for that version permanently deactivates;
+- liberation transition is deterministic and local-only;
+- no network calls are attempted before, during, or after liberation transition;
+- liberation metadata is recorded for release/compliance traceability.
+
+### 19F.7 Deterministic Errors and Runtime Integration Contract
+
+Runtime integration must:
+- evaluate licensing state deterministically at startup (before optional user-facing notices);
+- return structured local-only states such as `licensed`, `unlicensed`, `liberated`, and `invalid_local_license`;
+- keep concept registration and capability discovery independent of licensing state;
+- never emit sensitive identity details in logs.
+
+### 19F.8 CLI Contract
 
 CLI must provide:
+- `cosmos license generate` for deterministic offline local license creation;
+- `cosmos license show` for local artifact inspection;
+- `cosmos license validate` for local deterministic validation;
+- `cosmos license deactivate` for local administrative deactivation;
+- deterministic exit codes and structured error messages for invalid local files.
 
-- `cosmos license show` — display license file version, system identifier, expiration timestamp, and email opt status (if configured).
-- `cosmos license validate` — check license validity and return structured validation result.
-- `cosmos license deactivate` — remove license file and print confirmation.
-
-### 19F.7 Installer and Concept Integration
-
-- Concept registration and visibility must not depend on licensing state.
-- Installer can provide license activation as optional first-run step.
-- Installer must not require licensing before runtime execution.
-- Startup must not block if license file missing (startup fails silently or with optional warning, but continues).
-
-### 19F.8 Testability Contract
+### 19F.9 Testability Contract
 
 Minimum required tests:
-- offline license generation determinism (identical inputs produce identical files)
-- license validation success for valid unexpired license
-- license validation failure for expired license
-- license validation failure for corrupted signature
-- license validation success for absent license file (no error, proceeds)
-- email opt-in/opt-out behavior: no functional difference in licensing when enabled/disabled
-- deactivation removes license file; runtime continues unaffected
-- repeated `cosmos license validate` calls produce identical results (no state mutation)
-- no network calls during license generation or validation (verify via mock network)
-- liberation timer: after fabricating a 3-year-old license file, validation continues to work
+- deterministic offline local license generation for identical inputs;
+- valid paid and complimentary license generation and validation;
+- invalid or tampered local license detection;
+- no-network guarantees for generation, validation, deactivation, and liberation paths;
+- optional transparency email decline and send-failure no-op behavior;
+- valid local license deactivates enforcement checks for matching version;
+- liberation timer expiry permanently deactivates licensing enforcement for the version.
 
 ---
 
