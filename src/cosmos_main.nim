@@ -8,6 +8,7 @@
 
 import std/[os, strutils, options]
 import runtime/config
+import runtime/capabilities
 import runtime/startapp
 
 type
@@ -40,6 +41,8 @@ const
     "Wilder Cosmos Runtime -- launch and coordinate a Cosmos instance\n" &
     "\n" &
     "Subcommands:\n" &
+    "  capabilities\n" &
+    "  concept resolve --want <Thing|Thing.provide> [--expect-signature <sig>] --provide <Thing.provide:signature>...\n" &
     "  startapp [path] [--name <name>] [--mode <dev|debug|prod>] [--transport <json|protobuf>] [--no-template]\n" &
     "\n" &
     "Usage:\n" &
@@ -65,6 +68,82 @@ const
   StartAppHelpText* =
     "Usage: cosmos startapp [path] [--name <name>] [--mode <dev|debug|prod>] " &
     "[--transport <json|protobuf>] [--no-template]"
+  CapabilitiesHelpText* =
+    "Usage: cosmos capabilities [--want <Thing|Thing.provide>] [--expect-signature <sig>] " &
+    "[--provide <Thing.provide:signature>]..."
+  ConceptResolveHelpText* =
+    "Usage: cosmos concept resolve --want <Thing|Thing.provide> [--expect-signature <sig>] " &
+    "--provide <Thing.provide:signature>..."
+
+# Flow: Parse Thing.provide:signature into one provider declaration.
+proc parseProvideArg(raw: string): ProvideDeclaration =
+  let trimmed = raw.strip
+  let colon = trimmed.find(':')
+  if colon < 0:
+    raise newException(ValueError,
+      "capabilities: --provide must be Thing.provide:signature")
+  let capabilityRef = trimmed[0 ..< colon].strip
+  let signature = trimmed[colon + 1 .. ^1].strip
+  if signature.len == 0:
+    raise newException(ValueError,
+      "capabilities: --provide signature must not be empty")
+  let parsed = parseWantReference(capabilityRef)
+  if parsed.isWholeThing:
+    raise newException(ValueError,
+      "capabilities: --provide requires Thing.provide form")
+  ProvideDeclaration(
+    thingName: parsed.thingName,
+    provideName: parsed.provideName,
+    signature: signature
+  )
+
+# Flow: Parse declaration arguments shared by capabilities and concept resolve commands.
+proc parseResolutionArgs(args: seq[string],
+                        requireWant: bool): tuple[provides: seq[ProvideDeclaration],
+                                                   wants: seq[WantDeclaration]] =
+  var wantRef = ""
+  var expectedSignature = ""
+  var provides: seq[ProvideDeclaration] = @[]
+  var i = 0
+  while i < args.len:
+    case args[i]
+    of "--want":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "capabilities: --want requires a value")
+      wantRef = args[i + 1]
+      i += 2
+    of "--expect-signature":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "capabilities: --expect-signature requires a value")
+      expectedSignature = args[i + 1]
+      i += 2
+    of "--provide":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "capabilities: --provide requires a value")
+      provides.add(parseProvideArg(args[i + 1]))
+      i += 2
+    of "--help", "-h":
+      raise newException(ValueError,
+        "capabilities: help-requested")
+    else:
+      raise newException(ValueError,
+        "capabilities: unknown argument '" & args[i] & "'")
+
+  if requireWant and wantRef.len == 0:
+    raise newException(ValueError,
+      "capabilities: --want is required")
+
+  var wants: seq[WantDeclaration] = @[]
+  if wantRef.len > 0:
+    wants.add(WantDeclaration(
+      consumerThing: "cli",
+      reference: wantRef,
+      expectedSignature: expectedSignature
+    ))
+  (provides, wants)
 
 # Flow: Convert CLI mode shorthand to config override values.
 proc normalizeCoordinatorMode(raw: string): string =
@@ -230,8 +309,58 @@ proc runStartAppCommand(args: seq[string]): tuple[exitCode: int, lines: seq[stri
   except CatchableError as err:
     return (1, @["startapp: failed - " & err.msg])
 
+# Flow: Execute capabilities subcommand with deterministic summary output.
+proc runCapabilitiesCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 1 and (args[0] == "--help" or args[0] == "-h"):
+    return (0, @[CapabilitiesHelpText])
+  try:
+    let parsed = parseResolutionArgs(args, requireWant = false)
+    let resolution = resolveCapabilities(parsed.provides, parsed.wants)
+    var lines = @[
+      "providers: " & $parsed.provides.len,
+      "wants: " & $parsed.wants.len,
+      "bindings: " & $resolution.bindings.len,
+      "issues: " & $resolution.issues.len
+    ]
+    for issue in resolution.issues:
+      lines.add("issue: " & $issue.kind & " " & issue.reference)
+    return (0, lines)
+  except ValueError as err:
+    if err.msg == "capabilities: help-requested":
+      return (0, @[CapabilitiesHelpText])
+    return (2, @[err.msg, CapabilitiesHelpText])
+
+# Flow: Execute concept resolve subcommand for a single want mapping inspection.
+proc runConceptResolveCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 1 and (args[0] == "--help" or args[0] == "-h"):
+    return (0, @[ConceptResolveHelpText])
+  try:
+    let parsed = parseResolutionArgs(args, requireWant = true)
+    let resolution = resolveCapabilities(parsed.provides, parsed.wants)
+    for issue in resolution.issues:
+      if issue.kind in [cikMissingProviderThing, cikMissingProvide,
+                        cikProviderConflict, cikSignatureMismatch]:
+        return (2, @["resolve: unresolved - " & issue.detail, ConceptResolveHelpText])
+    if resolution.bindings.len == 0:
+      return (2, @["resolve: unresolved - no binding produced", ConceptResolveHelpText])
+
+    var lines = @["resolve: ok", "bindings: " & $resolution.bindings.len]
+    for binding in resolution.bindings:
+      lines.add("binding: " & binding.reference & " -> " &
+        binding.providerThing & "." & binding.provideName &
+        " [" & binding.signature & "]")
+    return (0, lines)
+  except ValueError as err:
+    if err.msg == "capabilities: help-requested":
+      return (0, @[ConceptResolveHelpText])
+    return (2, @[err.msg, ConceptResolveHelpText])
+
 # Flow: Run coordinator launch orchestration and return exit code plus output lines.
 proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len > 0 and args[0] == "capabilities":
+    return runCapabilitiesCommand(args[1 .. ^1])
+  if args.len > 1 and args[0] == "concept" and args[1] == "resolve":
+    return runConceptResolveCommand(args[2 .. ^1])
   if args.len > 0 and args[0] == "startapp":
     return runStartAppCommand(args[1 .. ^1])
   try:

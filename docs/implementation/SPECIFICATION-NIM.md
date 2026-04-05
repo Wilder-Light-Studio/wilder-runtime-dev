@@ -999,6 +999,194 @@ Required concept commands:
 
 ---
 
+# 19B. Phase XA — DRY Wants/Provides and Capability Discovery Specification
+
+**REQ:** Project Phase: Phase XA — DRY Wants/Provides and Capability Discovery
+
+### 19B.1 Capability Identity and Declaration Contract
+
+- Canonical capability key format is `<ThingName>.<provideName>`.
+- Provider-side declaration is authoritative for signature shape.
+- Consumer-side wants must not redefine provider signature as canonical truth.
+- Want references must support:
+  - exact capability reference: `<ThingName>.<provideName>`
+  - whole-Thing reference: `<ThingName>`
+
+### 19B.2 Capability Graph Data Contract
+
+Runtime must construct an in-memory capability graph with deterministic ordering.
+
+Required nodes and edges:
+- Thing node
+- provide node (owned by one Thing)
+- want node (owned by one Thing)
+- binding edge from provide node to implementation module binding
+- resolution edge from want node to provide node when resolved
+
+Required fields per provide node:
+- `thingName`
+- `provideName`
+- `signature`
+- `moduleBinding`
+
+Required fields per want node:
+- `consumerThing`
+- `reference`
+- `expectedSignature` (optional)
+
+### 19B.3 Resolution Algorithm Contract
+
+Resolution must execute before ingress opens.
+
+Algorithm steps (deterministic):
+1. Normalize and sort all provider declarations by `(thingName, provideName, signature)`.
+2. Index providers by Thing and by full capability key.
+3. Normalize wants in declaration order, then process deterministically.
+4. For exact capability wants:
+   - if provider Thing is missing: `missing-provider-thing`
+   - if provide is missing on existing Thing: `missing-provide`
+   - if more than one provider candidate exists for same key: `provider-conflict`
+   - if expected signature exists and differs from provider signature:
+     `signature-mismatch`
+   - otherwise resolve to single provider.
+5. For whole-Thing wants:
+   - if Thing missing: `missing-provider-thing`
+   - otherwise resolve to all provides for that Thing in deterministic order.
+6. Emit unresolved errors and halt startup when any fatal issue exists.
+
+Fatal issues:
+- `missing-provider-thing`
+- `missing-provide`
+- `provider-conflict`
+- `signature-mismatch`
+
+Non-fatal issue:
+- `orphaned-provide` (for visibility and cleanup guidance)
+
+### 19B.4 Startup Gate Contract
+
+- Capability resolution must run after configuration load and before ingress open.
+- Runtime startup must halt on any fatal capability issue.
+- Halt output must include deterministic issue kind, reference, and guidance text.
+
+### 19B.5 Module Binding Contract
+
+- Implementation bindings are validated against canonical declared provides.
+- Undeclared implementation exports are rejected.
+- Declared provides without bindings are rejected.
+- Multiple implementation bindings targeting one declared provide are rejected.
+
+### 19B.6 CLI Contract
+
+`cosmos capabilities`:
+- returns deterministic capability view for Things/provides/wants.
+- includes resolution status and unresolved issue classes.
+- must be parseable by tooling and readable by operators.
+
+`cosmos concept resolve`:
+- returns explicit mapping from one want reference to resolved provider(s).
+- on unresolved mapping returns structured failure including issue class.
+
+### 19B.7 Testability Contract
+
+Minimum required test classes:
+- provider uniqueness conflict detection
+- missing provider Thing detection
+- missing provide detection
+- signature mismatch detection
+- whole-Thing deterministic expansion
+- deterministic output across repeated runs
+
+---
+
+# 19C. Phase XB — Dynamic Semantic Scanner and Relationship Extraction Specification
+
+**REQ:** Project Phase: Phase XB — Dynamic Semantic Scanner and Relationship Extraction
+
+### 19C.1 Scanner API Contract
+
+Scanner API must expose deterministic pure-introspection operations:
+
+- `scanPath(root: string): seq[Thing]`
+- `scanThingsJson(root: string): JsonNode`
+- `findCapabilityConflicts(things: seq[Thing]): seq[string]`
+
+API failure behavior:
+- invalid root path: structured error
+- unreadable file: diagnostic record, continue scan
+
+### 19C.2 Scanning Pipeline Contract
+
+Pipeline stages (deterministic):
+1. discover candidate files in lexicographic order
+2. parse file structure (imports, declarations, annotations, comments)
+3. infer relationship sets
+4. emit Thing objects with relationship metadata
+5. run cross-Thing conflict detection
+
+Scanner candidate set for this phase:
+- `.nim` source files under the target root
+
+### 19C.3 Inference Engine Contract
+
+Inference rules:
+- `import` statements -> `needs`
+- `@provides("...")` or detected declarations -> `provides`
+- `@wants("...")` -> `wants`
+- duplicate provide keys -> `conflicts`
+- import edge `A imports B` -> `A after B`, `B before A`
+
+All inferred lists must be sorted and deduplicated.
+
+### 19C.4 Thing Output Schema Contract
+
+Each scanner-emitted Thing must include metadata keys:
+- `scannerVersion`
+- `sourcePath`
+- `needs`
+- `wants`
+- `provides`
+- `conflicts`
+- `before`
+- `after`
+
+Thing identity contract:
+- `thing.id` must be stable for identical `sourcePath`.
+- `thing.id` format for this phase: `scan:<normalized-relative-path>`.
+
+### 19C.5 VFS and Translator Integration Contract
+
+- Scanner metadata must be serializable through existing Thing JSON serialization.
+- Scanner JSON output must be consumable by VFS exposure and translator tooling as
+  read-only derived state.
+
+### 19C.6 Safety and Determinism Contract
+
+- Scanner must not execute scanned files.
+- Scanner must not write to scanned files.
+- Scanning the same tree twice without changes must yield byte-equivalent JSON output.
+
+### 19C.7 CLI Contract
+
+`cosmos scan [path] [--json]`:
+- scans target path (default current directory)
+- outputs deterministic summary or JSON payload
+
+`cosmos capability conflicts [path]`:
+- scans target path
+- returns deterministic conflict list
+
+### 19C.8 Testability Contract
+
+Minimum required tests:
+- import -> needs inference
+- declaration/annotation -> provides inference
+- duplicate provides -> conflict detection
+- deterministic repeated scan output
+- CLI command behavior and argument validation
+
+---
+
 # 21. Runtime Configuration Specification
 
 **REQ:** Runtime Configuration Requirements

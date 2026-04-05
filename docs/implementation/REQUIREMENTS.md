@@ -1271,6 +1271,107 @@ All checks should run in local development and CI.
 - Version registry metadata stored under `~/.wilder/cosmos/registry/` must be sufficient
   to determine installed version, channel, and latest-known available update status.
 
+### Project Phase: Phase XA — DRY Wants/Provides and Capability Discovery
+
+#### DRY Wants/Provides Requirements
+
+- A Thing capability declaration must be authored exactly once at the provider boundary.
+- Consumer declarations must not duplicate provider signatures.
+- Wants must reference capabilities by either:
+  - `ThingName.provideName`
+  - whole-Thing reference `ThingName`
+- Wants may include an expected signature hint, but the canonical signature remains the
+  provider-side declaration.
+- Runtime capability resolution must use provider identity, provide name, and provider
+  signature as the canonical tuple.
+
+#### Capability Graph Requirements
+
+- Runtime startup must build a global capability graph before ingress opens.
+- The graph must include Things, provides, wants, signatures, and module bindings.
+- The graph must be deterministic for identical inputs.
+- Capability graph resolution failures must block startup.
+- Failure classes must include, at minimum:
+  - missing provider Thing
+  - missing provide on existing Thing
+  - signature mismatch between wanted and provider signature
+  - provider conflict for the same `Thing.provide` identity
+  - orphaned provide with no consumers (warning-level, not startup-fatal)
+
+#### Multi-Module Provide Binding Requirements
+
+- A Thing may declare provides in one module and bind implementations from another module.
+- The declared boundary surface remains canonical and singular.
+- Startup binding must reject:
+  - undeclared implementation exports
+  - declared provides without implementations
+  - ambiguous multiple implementations for one declared provide
+
+#### Nim-First Boundary Requirements
+
+- Until SEM boundaries are fully available, provide/want declarations must be
+  representable in Nim structures.
+- The concept derivation path must be able to extract provides and wants from Nim-first
+  boundaries.
+
+#### Capability CLI Requirements
+
+- CLI must provide `cosmos capabilities` for deterministic capability visibility.
+- `cosmos capabilities` output must include:
+  - Things
+  - provides
+  - wants
+  - resolution status
+- CLI must provide `cosmos concept resolve` for explicit want-to-provide mapping
+  introspection, including missing or ambiguous mappings.
+
+### Project Phase: Phase XB — Dynamic Semantic Scanner and Relationship Extraction
+
+#### Scanner Responsibilities Requirements
+
+- Runtime tooling must provide a deterministic scanner utility that inspects files,
+  modules, and directories without mutating source content.
+- Scanner output must be introspection-only and must not enforce runtime policy directly.
+- Scanner must extract structural elements, including at minimum:
+  - imports
+  - declared procedures/functions
+  - scanner annotations and structured comments for wants/provides
+
+#### Relationship Inference Requirements
+
+- Scanner inference must emit relationship classes:
+  - needs
+  - wants
+  - provides
+  - conflicts
+  - before/after
+- Imports must infer `needs` relationships.
+- Provide annotations or declarations must infer `provides` relationships.
+- Want annotations must infer `wants` relationships.
+- Duplicate provide keys from distinct scanned Things must infer `conflicts`.
+- Import direction must infer `before/after` ordering hints.
+
+#### Output Integration Requirements
+
+- Scanner output must be representable as canonical Thing objects.
+- Scanner-produced Thing objects must include source-path metadata and inferred
+  relationships.
+- Scanner output must be deterministic for identical filesystem input.
+
+#### Safety and Non-Responsibilities Requirements
+
+- Scanner must not execute scanned code.
+- Scanner must not modify files.
+- Scanner must not auto-resolve or rewrite capability declarations.
+- Scanner failures for unreadable or malformed files must be reported as structured
+  diagnostics while continuing best-effort scanning of other files.
+
+#### Scanner CLI Requirements
+
+- CLI must provide `cosmos scan` to run semantic scanning on a target path.
+- CLI must provide `cosmos capability conflicts` to report inferred capability conflicts
+  from scanner output.
+
 ---
 
 ## Archive Completeness Requirements

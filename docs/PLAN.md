@@ -795,6 +795,95 @@ manifest emission, and release-channel publishing foundations.
 
 ---
 
+## Phase XA — DRY Wants/Provides and Capability Discovery
+
+**SPEC:** §19B Phase XA — DRY Wants/Provides and Capability Discovery Specification
+**Goal:** Implement deterministic capability discovery and resolution with DRY provider
+boundaries, startup-gated failure behavior, and CLI visibility for capability mapping.
+**Status:** 🚧 IN PROGRESS — normative requirements and specification added; runtime
+resolver implementation and tests are beginning.
+
+### Dependencies
+
+- Ch 5 interrogative manifest model for PROVIDES/WANTS surface semantics.
+- Ch 10 lifecycle gate ordering for pre-ingress capability resolution.
+- Ch 12 module system for implementation binding metadata.
+- Phase X concept CLI routing surface for command expansion through `cosmos.exe`.
+
+### Outputs
+
+- Capability graph resolver with deterministic provider and want resolution.
+- Structured capability issue model (missing provider/provide, conflict, signature mismatch,
+      orphaned provide).
+- `cosmos capabilities` CLI surface.
+- Initial `cosmos concept resolve` mapping-introspection CLI surface.
+- Edge-case test coverage for fatal resolution failures and deterministic behavior.
+
+### Tasks
+
+XA.1. Add runtime capability model and resolver module with deterministic ordering.
+XA.2. Add startup-gate integration points for pre-ingress capability validation.
+XA.3. Add CLI command `cosmos capabilities` with deterministic output contract.
+XA.4. Add CLI command `cosmos concept resolve` for explicit mapping introspection.
+XA.5. Add tests for missing provider Thing, missing provide, provider conflict,
+      signature mismatch, and deterministic whole-Thing expansion.
+XA.6. Update compliance matrix and implementation docs references after verification.
+
+### Acceptance
+
+- Capability keys resolve deterministically for repeated runs with identical declarations.
+- Fatal capability issues halt startup before ingress opens.
+- Whole-Thing wants expand deterministically and without duplicated bindings.
+- `cosmos capabilities` shows Things, provides, wants, and resolution status.
+- `cosmos concept resolve` reports explicit mappings and unresolved causes.
+- Edge-case tests cover all fatal issue classes and pass in CI.
+
+---
+
+## Phase XB — Dynamic Semantic Scanner and Relationship Extraction
+
+**SPEC:** §19C Phase XB — Dynamic Semantic Scanner and Relationship Extraction Specification
+**Goal:** Implement deterministic codebase scanning that emits canonical Thing objects
+with inferred needs/wants/provides/conflicts/before/after metadata and CLI inspection.
+**Status:** 🚧 IN PROGRESS — normative requirements/specification updates are in;
+scanner module, CLI integration, and test coverage are being implemented.
+
+### Dependencies
+
+- Ch 4 ontology primitives for Thing object integration.
+- Ch 5 interrogative and capability semantics for relationship vocabulary.
+- Ch 20B CLI entrypoint routing for scan/conflict commands.
+- Phase XA capability naming conventions for inferred provide conflict keys.
+
+### Outputs
+
+- Deterministic scanner module for `.nim` trees.
+- Inference engine for needs/wants/provides/conflicts/before/after.
+- Canonical Thing-based scanner output.
+- `cosmos scan` CLI command.
+- `cosmos capability conflicts` CLI command.
+- Scanner unit and CLI tests for deterministic behavior and edge conditions.
+
+### Tasks
+
+XB.1. Implement scanner file discovery and deterministic parsing pipeline.
+XB.2. Implement relationship inference and Thing metadata emission.
+XB.3. Implement duplicate provide conflict detection across scanned Things.
+XB.4. Add `cosmos scan` command with summary and JSON output modes.
+XB.5. Add `cosmos capability conflicts` command.
+XB.6. Add scanner tests for inference, conflicts, and deterministic output.
+XB.7. Update compliance matrix and changelog after test verification.
+
+### Acceptance
+
+- Scanner produces stable ordered outputs for repeated scans of unchanged inputs.
+- Scanner emits Thing objects with required relationship metadata fields.
+- Duplicate provide declarations are surfaced as deterministic conflict entries.
+- `cosmos scan` and `cosmos capability conflicts` commands pass CLI contract tests.
+- Scanner tests pass in local verification workflow.
+
+---
+
 ## Dependency Graph
 
 ```

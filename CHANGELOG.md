@@ -29,6 +29,14 @@ Highlights so far:
 - `cosmos startapp` now creates a deterministic starter scaffold with
 	`cosmos.toml`, `src/`, and build-manifest generation.
 
+- Phase XA work has started for DRY wants/provides and capability discovery,
+	including new normative requirements/specification coverage, mirrored plan
+	entries, and initial runtime resolver plus edge-case tests.
+- Startup now enforces a pre-ingress capability validation gate that halts on
+	fatal capability resolution issues and logs deterministic validation outcomes.
+- Coordinator CLI now supports data-driven `cosmos capabilities` output and
+	`cosmos concept resolve` mapping introspection.
+
 - Runtime API foundations are in place, including typed runtime state, module
 	context, status schema, and reconciliation result structures.
 - Validation boundaries are implemented with fail-fast helper procedures for

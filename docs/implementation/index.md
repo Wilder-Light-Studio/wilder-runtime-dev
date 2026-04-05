@@ -24,6 +24,7 @@ What this is. This page is the landing page for the internal, project-facing doc
 - `COMPLIANCE-MATRIX.md`
 - `COMMENT_STYLE.md`
 - `MODULES.md`
+- `docs/prompts/pending/deps-and-references.md` (Phase XA source prompt)
 - `PHASE-2-PLAN.md`
 - `COSMOS_UNINTEGRATED_TERMS.md`
 - `README.md`

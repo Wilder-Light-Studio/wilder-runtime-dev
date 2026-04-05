@@ -71,6 +71,17 @@ For active development work:
 3. Follow `DEVELOPMENT-GUIDELINES.md`.
 4. Review the matching chapter materials under `docs/implementation/`.
 
+## Active Workstream Note
+
+Phase XA (DRY Wants/Provides and Capability Discovery) is now active. During this
+workstream, keep capability requirements, specification algorithms, plan tasks, and
+test evidence synchronized in this order:
+
+1. `REQUIREMENTS.md`
+2. `SPECIFICATION-NIM.md`
+3. `PLAN.md`
+4. `COMPLIANCE-MATRIX.md`
+
 ---
 *&copy; 2026 Wilder. All rights reserved.*\
 *Contact: teamwilder@wildercode.org*\

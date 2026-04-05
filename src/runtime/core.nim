@@ -27,6 +27,7 @@ import persistence
 import prefilter_table_generated
 import api
 import observability
+import capabilities
 
 const
   ShutdownSnapshotSigningKey = "runtime-shutdown-signing-key"
@@ -359,13 +360,52 @@ proc stepOpenIngress*(lc: RuntimeLifecycle) =
     "startup step reached: ingress open")
   lc.bannerLine("  ingress:  open")
 
+# Flow: Execute procedure with deterministic validation and bounded side effects.
+proc stepValidateCapabilities*(lc: RuntimeLifecycle,
+                              provides: seq[ProvideDeclaration],
+                              wants: seq[WantDeclaration]) =
+  ## Pre-ingress capability gate.  Fatal resolution issues halt startup.
+  if lc.step != lcFramesRunning:
+    lc.haltStartup(
+      "lifecycle: capability validation called out of order (at " & $lc.step & ")",
+      lcRunning,
+      "Initialize frame-processing subsystems before validating capability bindings."
+    )
+
+  let resolution = resolveCapabilities(provides, wants)
+  var fatalCount = 0
+  var warningCount = 0
+  for issue in resolution.issues:
+    if issue.kind in [cikMissingProviderThing, cikMissingProvide,
+                      cikProviderConflict, cikSignatureMismatch]:
+      inc fatalCount
+    else:
+      inc warningCount
+
+  if fatalCount > 0:
+    lc.recordEvent(evError, lcFramesRunning,
+      "capability validation failed; fatalIssues=" & $fatalCount)
+    lc.haltStartup(
+      "lifecycle: capability validation failed — startup halted",
+      lcRunning,
+      "Resolve missing providers, conflicts, and signature mismatches before opening ingress."
+    )
+
+  lc.recordEvent(evStartupStep, lcFramesRunning,
+    "capability validation passed; bindings=" & $resolution.bindings.len &
+    ", warnings=" & $warningCount)
+  lc.bannerLine("  capabilities: bindings=" & $resolution.bindings.len &
+                ", warnings=" & $warningCount)
+
 # ── Composite startup ─────────────────────────────────────────────────────────
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc startup*(lc: RuntimeLifecycle,
               configPath: string = "config/runtime.json",
               moduleNames: seq[string] = @[],
-              configOverrides: RuntimeConfigOverrides = RuntimeConfigOverrides()) =
+              configOverrides: RuntimeConfigOverrides = RuntimeConfigOverrides(),
+              capabilityProvides: seq[ProvideDeclaration] = @[],
+              capabilityWants: seq[WantDeclaration] = @[]) =
   ## Full deterministic startup sequence (9 steps).
   ## Halts with a StartupError if any step fails.
   ## Simile: a pre-flight checklist — every box must be ticked or the plane stays grounded.
@@ -379,6 +419,7 @@ proc startup*(lc: RuntimeLifecycle,
   lc.stepActivatePrefilter()
   lc.stepLoadModules(moduleNames)
   lc.stepInitFrames()
+  lc.stepValidateCapabilities(capabilityProvides, capabilityWants)
   lc.stepOpenIngress()
   lc.bannerLine("=== startup complete ===")
 

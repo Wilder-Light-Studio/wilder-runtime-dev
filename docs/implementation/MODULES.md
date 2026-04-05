@@ -91,6 +91,15 @@ stronger stability and lifecycle expectations that come with that position.
 Native modules may keep their manifest absent until a derived manifest view is needed.
 External wrappers require a handwritten manifest from the start.
 
+## Capability Boundary Note (Phase XA)
+
+For DRY wants/provides behavior:
+
+- Provider signatures belong to provider boundaries and are declared once.
+- Consumers reference providers by `Thing.provide` or whole `Thing` wants.
+- Consumer declarations may hint expected signatures for validation, but do not become
+  canonical provider declarations.
+
 ## Examples
 
 - `src/runtime_modules/file-backend`

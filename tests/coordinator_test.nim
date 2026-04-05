@@ -188,6 +188,59 @@ suite "startapp subcommand":
     let (code, _) = runCoordinatorMain(@["startapp", targetDir])
     check code != 0
 
+suite "capabilities subcommand":
+  test "capabilities returns deterministic summary output":
+    let (code, lines) = runCoordinatorMain(@[
+      "capabilities",
+      "--provide", "Lexicons.get:(string)->string",
+      "--want", "Lexicons.get",
+      "--expect-signature", "(string)->string"
+    ])
+    check code == 0
+    check lines.anyIt("providers: 1" in it)
+    check lines.anyIt("wants: 1" in it)
+    check lines.anyIt("bindings: 1" in it)
+    check lines.anyIt("providers:" in it)
+    check lines.anyIt("bindings:" in it)
+    check lines.anyIt("issues:" in it)
+
+  test "capabilities help exits zero":
+    let (code, lines) = runCoordinatorMain(@["capabilities", "--help"])
+    check code == 0
+    check lines.anyIt("Usage: cosmos capabilities" in it)
+
+  test "capabilities rejects unknown args":
+    let (code, lines) = runCoordinatorMain(@["capabilities", "--bad"])
+    check code != 0
+    check lines.anyIt("unknown argument" in it)
+
+suite "concept resolve subcommand":
+  test "concept resolve returns mapping for resolved want":
+    let (code, lines) = runCoordinatorMain(@[
+      "concept", "resolve",
+      "--want", "Lexicons.get",
+      "--expect-signature", "(string)->string",
+      "--provide", "Lexicons.get:(string)->string"
+    ])
+    check code == 0
+    check lines.anyIt("resolve: ok" in it)
+    check lines.anyIt("binding:" in it)
+
+  test "concept resolve fails on unresolved mapping":
+    let (code, lines) = runCoordinatorMain(@[
+      "concept", "resolve",
+      "--want", "Lexicons.get"
+    ])
+    check code != 0
+    check lines.anyIt("unresolved" in it)
+
+  test "concept resolve help exits zero":
+    let (code, lines) = runCoordinatorMain(@[
+      "concept", "resolve", "--help"
+    ])
+    check code == 0
+    check lines.anyIt("Usage: cosmos concept resolve" in it)
+
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
 # Contact: teamwilder@wildercode.org

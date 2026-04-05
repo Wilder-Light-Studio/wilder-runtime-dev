@@ -20,6 +20,7 @@
 import unittest
 import std/strutils
 import ../src/runtime/core
+import ../src/runtime/capabilities
 
 # ── helper ──────────────────────────────────────────────────────────────────
 
@@ -171,9 +172,38 @@ suite "step 9 — ingress gate":
     lc.stepActivatePrefilter()
     lc.stepLoadModules(@[])
     lc.stepInitFrames()
+    lc.stepValidateCapabilities(@[], @[])
     lc.stepOpenIngress()
     check lc.flags.ingressOpen
     check lc.step == lcRunning
+
+suite "capability gate":
+  test "capability validation passes with empty declarations":
+    let lc = configuredLc()
+    lc.stepInitPersistence()
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+    lc.stepMigrate()
+    lc.stepActivatePrefilter()
+    lc.stepLoadModules(@[])
+    lc.stepInitFrames()
+    lc.stepValidateCapabilities(@[], @[])
+    check lc.step == lcFramesRunning
+
+  test "capability validation halts on missing provider":
+    let lc = configuredLc()
+    lc.stepInitPersistence()
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+    lc.stepMigrate()
+    lc.stepActivatePrefilter()
+    lc.stepLoadModules(@[])
+    lc.stepInitFrames()
+    expect(StartupError):
+      lc.stepValidateCapabilities(
+        @[],
+        @[WantDeclaration(consumerThing: "Parser", reference: "Lexicons.get")]
+      )
 
 # ── full startup / shutdown ───────────────────────────────────────────────────
 
@@ -196,6 +226,7 @@ suite "full startup and shutdown":
     lc.stepActivatePrefilter()
     lc.stepLoadModules(@[])
     lc.stepInitFrames()
+    lc.stepValidateCapabilities(@[], @[])
     lc.stepOpenIngress()
     check lc.step == lcRunning
     shutdown(lc)

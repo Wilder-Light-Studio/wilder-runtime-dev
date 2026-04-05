@@ -22,6 +22,7 @@ import harness
 import ../src/runtime/core
 import ../src/runtime/config
 import ../src/runtime/observability
+import ../src/runtime/capabilities
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ suite "integration — full startup and shutdown":
     startup(lc, cfgPath, @[])
     shutdown(lc)
 
-    check lc.eventSink.countEvents(evStartupStep) == 9
+    check lc.eventSink.countEvents(evStartupStep) == 10
     check lc.eventSink.countEvents(evReconcilePass) == 1
     check lc.eventSink.countEvents(evMigrate) == 1
     check lc.eventSink.countEvents(evPrefilterActivated) == 1
@@ -203,8 +204,44 @@ suite "integration — failure-path invariants":
     check lc.step == lcModulesLoaded
     lc.stepInitFrames()
     check lc.step == lcFramesRunning
+    lc.stepValidateCapabilities(@[], @[])
     lc.stepOpenIngress()
     check lc.step == lcRunning
+
+  test "startup halts on fatal capability issue before ingress":
+    setupTest("integration_capability_halt")
+    let cfgPath = writeDevConfig(testTmpDir)
+    let lc = newRuntimeLifecycle()
+    try:
+      startup(
+        lc,
+        cfgPath,
+        @[],
+        RuntimeConfigOverrides(),
+        @[],
+        @[WantDeclaration(consumerThing: "Parser", reference: "Lexicons.get")]
+      )
+      check false
+    except StartupError as err:
+      check err.haltedAt == lcRunning
+    check not lc.flags.ingressOpen
+    teardownTest()
+
+  test "startup continues with orphaned capability warnings only":
+    setupTest("integration_capability_warning")
+    let cfgPath = writeDevConfig(testTmpDir)
+    let lc = newRuntimeLifecycle()
+    startup(
+      lc,
+      cfgPath,
+      @[],
+      RuntimeConfigOverrides(),
+      @[ProvideDeclaration(thingName: "Telemetry", provideName: "publish", signature: "(json)->bool")],
+      @[]
+    )
+    check lc.step == lcRunning
+    check lc.flags.ingressOpen
+    teardownTest()
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
