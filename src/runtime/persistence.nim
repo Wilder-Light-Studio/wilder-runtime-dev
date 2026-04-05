@@ -20,12 +20,14 @@
 import std/[json, tables, strutils, times, os, sequtils, algorithm, monotimes]
 import validation
 import api
+import encrypted_record
 
 const
   RuntimeLayer* = "runtime"
   ModulesLayer* = "modules"
   TxlogLayer* = "txlog"
   SnapshotsLayer* = "snapshots"
+  RecordsLayer* = "records"
   StreamChunkSize* = 64 * 1024
 
 type
@@ -49,6 +51,7 @@ type
     modulesLayer*: Table[string, JsonNode]
     txlogLayer*: Table[string, JsonNode]
     snapshotsLayer*: Table[string, JsonNode]
+    recordsLayer*: Table[string, JsonNode]
 
   FileBridge* = ref object of PersistenceBridge
     ## File-backed bridge used by runtime.
@@ -60,7 +63,7 @@ proc validateEnvelope*(env: JsonNode)
 # Flow: Normalize and validate layer name for safety.
 proc normalizeLayer(layer: string): string =
   result = layer.toLowerAscii.strip
-  if result notin [RuntimeLayer, ModulesLayer, TxlogLayer, SnapshotsLayer]:
+  if result notin [RuntimeLayer, ModulesLayer, TxlogLayer, SnapshotsLayer, RecordsLayer]:
     raise newException(PersistenceError,
       "persistence: unsupported layer '" & layer & "'")
 
@@ -119,6 +122,8 @@ proc layerDir(basePath, layer: string): string =
     result = stateRoot / "txlog"
   of SnapshotsLayer:
     result = stateRoot / "snapshots"
+  of RecordsLayer:
+    result = stateRoot / "records"
   else:
     raise newException(PersistenceError, "persistence: unsupported layer")
 
@@ -268,6 +273,7 @@ proc stageSnapshotState(bridge: FileBridge,
   createDir(stageStateRoot / "modules")
   createDir(stageStateRoot / "txlog")
   createDir(stageStateRoot / "snapshots")
+  createDir(stageStateRoot / "records")
   var stageBridge = FileBridge(
     epoch: bridge.epoch,
     schemaVersion: bridge.schemaVersion,
@@ -299,6 +305,10 @@ proc stageSnapshotState(bridge: FileBridge,
         let snapshotPath = snapshotPathForEpoch(stageBridge,
           env["epoch"].getInt().int64)
         atomicWriteFile(snapshotPath, stored.pretty)
+      of RecordsLayer:
+        let recordPath = layerDir(stageBridge.basePath, RecordsLayer) /
+          (sanitizeKey(parts.key) & ".json")
+        atomicWriteFile(recordPath, env.pretty)
       else:
         raise newException(PersistenceError,
           "persistence: unsupported layer in staged snapshot")
@@ -338,6 +348,7 @@ proc ensureFileBridgeLayout(bridge: FileBridge) =
   createDir(stateRoot / "modules")
   createDir(stateRoot / "txlog")
   createDir(stateRoot / "snapshots")
+  createDir(stateRoot / "records")
 
 # Flow: Create timestamped envelope wrapping payload with checksum.
 proc envelopeFor(bridge: PersistenceBridge,
@@ -430,7 +441,8 @@ proc newInMemoryBridge*(schemaVersion: int = 1,
     runtimeLayer: initTable[string, JsonNode](),
     modulesLayer: initTable[string, JsonNode](),
     txlogLayer: initTable[string, JsonNode](),
-    snapshotsLayer: initTable[string, JsonNode]()
+    snapshotsLayer: initTable[string, JsonNode](),
+    recordsLayer: initTable[string, JsonNode]()
   )
 
 # Flow: Create and initialize new file-backed persistence bridge.
@@ -470,6 +482,8 @@ method persistEnvelope*(bridge: InMemoryBridge,
     bridge.txlogLayer[key] = cloneJson(env)
   of SnapshotsLayer:
     bridge.snapshotsLayer[key] = cloneJson(env)
+  of RecordsLayer:
+    bridge.recordsLayer[key] = cloneJson(env)
   else:
     raise newException(PersistenceError,
       "persistence: unsupported in-memory layer")
@@ -494,6 +508,10 @@ method loadEnvelope*(bridge: InMemoryBridge,
     if key notin bridge.snapshotsLayer:
       raise newException(PersistenceError, "persistence: key not found")
     result = cloneJson(bridge.snapshotsLayer[key])
+  of RecordsLayer:
+    if key notin bridge.recordsLayer:
+      raise newException(PersistenceError, "persistence: key not found")
+    result = cloneJson(bridge.recordsLayer[key])
   else:
     raise newException(PersistenceError,
       "persistence: unsupported in-memory layer")
@@ -509,6 +527,8 @@ method deleteLayer*(bridge: InMemoryBridge,
     bridge.txlogLayer.clear()
   of SnapshotsLayer:
     bridge.snapshotsLayer.clear()
+  of RecordsLayer:
+    bridge.recordsLayer.clear()
   else:
     raise newException(PersistenceError,
       "persistence: unsupported in-memory layer")
@@ -528,6 +548,9 @@ method listLayerKeys*(bridge: InMemoryBridge,
   of SnapshotsLayer:
     for k in bridge.snapshotsLayer.keys:
       result.add(k)
+  of RecordsLayer:
+    for k in bridge.recordsLayer.keys:
+      result.add(k)
   else:
     raise newException(PersistenceError,
       "persistence: unsupported in-memory layer")
@@ -543,6 +566,8 @@ method snapshotAll*(bridge: InMemoryBridge): Table[string, JsonNode] =
     result[composeKey(TxlogLayer, k)] = cloneJson(v)
   for k, v in bridge.snapshotsLayer.pairs:
     result[composeKey(SnapshotsLayer, k)] = cloneJson(v)
+  for k, v in bridge.recordsLayer.pairs:
+    result[composeKey(RecordsLayer, k)] = cloneJson(v)
 
 method restoreSnapshot*(bridge: InMemoryBridge,
     snapshot: Table[string, JsonNode]) =
@@ -550,6 +575,7 @@ method restoreSnapshot*(bridge: InMemoryBridge,
   bridge.modulesLayer.clear()
   bridge.txlogLayer.clear()
   bridge.snapshotsLayer.clear()
+  bridge.recordsLayer.clear()
   for k, v in snapshot.pairs:
     let parts = splitKey(k)
     case normalizeLayer(parts.layer)
@@ -561,6 +587,8 @@ method restoreSnapshot*(bridge: InMemoryBridge,
       bridge.txlogLayer[parts.key] = cloneJson(v)
     of SnapshotsLayer:
       bridge.snapshotsLayer[parts.key] = cloneJson(v)
+    of RecordsLayer:
+      bridge.recordsLayer[parts.key] = cloneJson(v)
     else:
       raise newException(PersistenceError,
         "persistence: unsupported in-memory layer")
@@ -579,6 +607,8 @@ proc filePathFor(bridge: FileBridge,
     result = layerDir(bridge.basePath, RuntimeLayer) / "runtime.json"
   of ModulesLayer:
     result = layerDir(bridge.basePath, ModulesLayer) / (safe & ".json")
+  of RecordsLayer:
+    result = layerDir(bridge.basePath, RecordsLayer) / (safe & ".json")
   of TxlogLayer:
     result = txlogPathForEpoch(bridge, bridge.epoch)
   of SnapshotsLayer:
@@ -665,7 +695,7 @@ method snapshotAll*(bridge: FileBridge): Table[string, JsonNode] =
     let runtimeEnv = bridge.loadEnvelope(RuntimeLayer, "runtime")
     result[composeKey(RuntimeLayer, "runtime")] = cloneJson(runtimeEnv)
 
-  for layer in [ModulesLayer, TxlogLayer, SnapshotsLayer]:
+  for layer in [ModulesLayer, TxlogLayer, SnapshotsLayer, RecordsLayer]:
     for key in bridge.listLayerKeys(layer):
       let loadedEnv = bridge.loadEnvelope(layer, key)
       result[composeKey(layer, key)] = cloneJson(loadedEnv)

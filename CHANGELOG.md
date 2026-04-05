@@ -47,7 +47,7 @@ Highlights so far:
 - Console notification stream formatting is now available via
 	`cosmos notify format`, and Phase XC evidence is verified in
 	`coordinator_ipc_test` and coordinator CLI contracts.
-- Phase XD encrypted RECORD work is now in progress with deterministic
+- Phase XD encrypted RECORD work is now verified with deterministic
 	entry encryption/decryption primitives, structural metadata chain
 	validation, and passing `encrypted_record_test` coverage.
 
