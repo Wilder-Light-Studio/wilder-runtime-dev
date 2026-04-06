@@ -22,7 +22,7 @@
 ##   shutdown(st)
 
 import json
-import std/[strutils, algorithm, tables]
+import std/[strutils, algorithm, tables, os]
 import config
 import persistence
 import prefilter_table_generated
@@ -31,7 +31,7 @@ import observability
 import capabilities
 
 const
-  ShutdownSnapshotSigningKey = "runtime-shutdown-signing-key"
+  DefaultShutdownSnapshotSigningKey = "runtime-shutdown-signing-key"
 
 # ── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,6 +113,20 @@ proc haltStartup(lc: RuntimeLifecycle,
 proc bannerLine(lc: RuntimeLifecycle, line: string) =
   # Flow: Append a line to the startup banner buffer.
   lc.bannerLines.add(line)
+
+# Flow: Resolve shutdown snapshot key from environment or runtime identity.
+proc resolveShutdownSnapshotSigningKey(lc: RuntimeLifecycle): string =
+  if existsEnv("COSMOS_SHUTDOWN_SNAPSHOT_SIGNING_KEY"):
+    let envKey = getEnv("COSMOS_SHUTDOWN_SNAPSHOT_SIGNING_KEY").strip
+    if envKey.len > 0:
+      return envKey
+
+  # Derive a per-runtime fallback key so binaries do not share one global literal.
+  if lc.cfg.endpoint.strip.len > 0 and lc.cfg.port > 0:
+    return lc.cfg.endpoint & ":" & $lc.cfg.port & ":" &
+      $ord(lc.cfg.mode) & ":" & $ord(lc.cfg.encryptionMode)
+
+  DefaultShutdownSnapshotSigningKey
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc printBanner*(lc: RuntimeLifecycle) =
@@ -504,7 +518,8 @@ proc shutdown*(lc: RuntimeLifecycle) =
   # Step 3 — Export snapshot.
   if lc.bridge != nil:
     try:
-      discard exportSnapshot(lc.bridge, "shutdown-snapshot", ShutdownSnapshotSigningKey)
+      let signingKey = resolveShutdownSnapshotSigningKey(lc)
+      discard exportSnapshot(lc.bridge, "shutdown-snapshot", signingKey)
     except CatchableError:
       lc.recordEvent(evError, lcShuttingDown,
         "shutdown snapshot export failed: " & getCurrentExceptionMsg())
@@ -521,7 +536,7 @@ proc shutdown*(lc: RuntimeLifecycle) =
 # Flow: Thin shims kept for backward compatibility with existing call-sites.
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
-proc startup*() {.deprecated: "Use startup(lc, configPath, moduleNames) instead".} =
+proc startup*() {.deprecated: "Use startup(lc, configPath, moduleNames) with an explicit config path; zero-arg uses CWD-relative config/runtime.json".} =
   ## Zero-argument shim: creates a temporary lifecycle and runs full startup.
   ## Prefer the two-argument form for real use.
   let lc = newRuntimeLifecycle()

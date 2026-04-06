@@ -27,14 +27,7 @@ suite "encrypted RECORD deterministic behavior":
   test "decrypt round-trip restores original payload":
     let payload = %*{"event": "snapshot", "revision": 3}
     let entry = buildEncryptedRecordEntry(payload, "k-2", 1, "snapshot", "anon-b", "")
-    let restored = decryptDeterministicPayload(
-      entry.encryptedPayload,
-      "k-2",
-      entry.sequence,
-      entry.entryType,
-      entry.authorId,
-      entry.previousHash
-    )
+    let restored = verifyAndDecryptRecordEntry(entry, "k-2")
     check restored == payload
 
   test "clear mode stores plaintext deterministically":

@@ -23,6 +23,7 @@ type
     previousHash*: string
     encryptedPayload*: string
     encryptedPayloadHash*: string
+    payloadAuthTag*: string  ## HMAC-SHA256(keyMaterial, ciphertext || associated_data)
 
 # Flow: Convert string into byte sequence.
 proc toBytes(raw: string): seq[byte] =
@@ -61,15 +62,66 @@ proc hexToBytes(raw: string): seq[byte] =
         "encrypted_record: invalid hex input")
     i = i + 2
 
+# Flow: Encode a string with a length prefix to prevent delimiter-injection in hash preimages.
+proc lenPrefixed(s: string): string =
+  $s.len & ":" & s
+
+# Flow: Compute HMAC-SHA256 over a message with the given key (RFC 2104).
+proc hmacSha256(key: seq[byte], message: seq[byte]): string =
+  ## Authenticated MAC binding key, message, and associated context.
+  ## Simile: A wax seal that is unique to both the sender and the letter.
+  const blockSize = 64
+  # Normalize key: hash if longer than the SHA256 block size.
+  var keyBlock = newSeq[byte](blockSize)
+  if key.len > blockSize:
+    let hashed = hexToBytes(computeSha256(key))
+    for i in 0 ..< hashed.len:
+      keyBlock[i] = hashed[i]
+  else:
+    for i in 0 ..< key.len:
+      keyBlock[i] = key[i]
+  # Build inner/outer XOR pads.
+  var innerKey = newSeq[byte](blockSize)
+  var outerKey = newSeq[byte](blockSize)
+  for i in 0 ..< blockSize:
+    innerKey[i] = keyBlock[i] xor 0x36'u8
+    outerKey[i] = keyBlock[i] xor 0x5c'u8
+  # Inner hash: SHA256(innerKey || message)
+  let innerMsg = innerKey & message
+  let innerHash = hexToBytes(computeSha256(innerMsg))
+  # Outer hash: SHA256(outerKey || innerHash)
+  let outerMsg = outerKey & innerHash
+  computeSha256(outerMsg)
+
 # Flow: Derive deterministic nonce from key material and entry identity tuple.
 proc deriveNonce(keyMaterial: string,
                  sequence: int,
                  entryType: string,
                  authorId: string,
                  previousHash: string): string =
+  # Length-prefix all variable-length fields to prevent delimiter-injection
+  # collisions where different field combinations yield the same preimage.
   computeSha256(toBytes(
-    keyMaterial & "|" & $sequence & "|" & entryType & "|" & authorId & "|" & previousHash
+    lenPrefixed(keyMaterial) & "|" & $sequence & "|" &
+    lenPrefixed(entryType) & "|" & lenPrefixed(authorId) & "|" &
+    lenPrefixed(previousHash)
   ))
+
+# Flow: Compute HMAC-SHA256 over ciphertext and associated entry metadata.
+proc computePayloadAuthTag(keyMaterial: string,
+                           ciphertextHex: string,
+                           sequence: int,
+                           entryType: string,
+                           authorId: string,
+                           previousHash: string): string =
+  ## Bind the ciphertext to its metadata so that bit-flipping attacks on the
+  ## ciphertext, or swapping metadata between entries, both fail verification.
+  let assocData = toBytes(
+    $sequence & "|" & lenPrefixed(entryType) & "|" &
+    lenPrefixed(authorId) & "|" & lenPrefixed(previousHash)
+  )
+  let message = toBytes(ciphertextHex) & assocData
+  hmacSha256(toBytes(keyMaterial), message)
 
 # Flow: Build deterministic keystream with SHA256 counter expansion.
 proc deterministicKeystream(keyMaterial: string,
@@ -122,6 +174,40 @@ proc decryptDeterministicPayload*(encryptedPayload: string,
     raise newException(ValueError,
       "encrypted_record: decrypted payload is not valid JSON")
 
+# Flow: Verify HMAC auth tag then decrypt — the safe public decryption API.
+proc verifyAndDecryptRecordEntry*(entry: EncryptedRecordEntry,
+                                   keyMaterial: string): JsonNode =
+  ## Authenticate the ciphertext before decrypting.  Raises ValueError if the
+  ## auth tag is absent or does not match — indicating tampering or corruption.
+  ## Simile: Breaking the wax seal before reading the letter — if it is broken,
+  ##   the letter has been opened.
+  if keyMaterial.strip.len == 0:
+    raise newException(ValueError,
+      "encrypted_record: key material is required for verification")
+  if entry.payloadAuthTag.len == 0:
+    raise newException(ValueError,
+      "encrypted_record: auth tag is absent; entry may be tampered with " &
+      "or was built before authentication was introduced")
+  let expectedTag = computePayloadAuthTag(
+    keyMaterial,
+    entry.encryptedPayload,
+    entry.sequence,
+    entry.entryType,
+    entry.authorId,
+    entry.previousHash
+  )
+  if expectedTag != entry.payloadAuthTag:
+    raise newException(ValueError,
+      "encrypted_record: auth tag mismatch — ciphertext or metadata has been tampered with")
+  decryptDeterministicPayload(
+    entry.encryptedPayload,
+    keyMaterial,
+    entry.sequence,
+    entry.entryType,
+    entry.authorId,
+    entry.previousHash
+  )
+
 # Flow: Build deterministic encrypted RECORD entry with structural metadata.
 proc buildEncryptedRecordEntry*(payload: JsonNode,
                                 keyMaterial: string,
@@ -146,13 +232,17 @@ proc buildEncryptedRecordEntry*(payload: JsonNode,
     authorId,
     previousHash
   )
+  let authTag = computePayloadAuthTag(
+    keyMaterial, encryptedPayload, sequence, entryType, authorId, previousHash
+  )
   EncryptedRecordEntry(
     entryType: entryType,
     authorId: authorId,
     sequence: sequence,
     previousHash: previousHash,
     encryptedPayload: encryptedPayload,
-    encryptedPayloadHash: computeSha256(toBytes(encryptedPayload))
+    encryptedPayloadHash: computeSha256(toBytes(encryptedPayload)),
+    payloadAuthTag: authTag
   )
 
 # Flow: Validate chain metadata only (without payload decrypt).
@@ -199,7 +289,8 @@ proc encryptedRecordToJson*(entry: EncryptedRecordEntry): JsonNode =
     "sequence": entry.sequence,
     "previousHash": entry.previousHash,
     "encryptedPayload": entry.encryptedPayload,
-    "encryptedPayloadHash": entry.encryptedPayloadHash
+    "encryptedPayloadHash": entry.encryptedPayloadHash,
+    "payloadAuthTag": entry.payloadAuthTag
   }
 
 # Flow: Convert deterministic JSON object back into typed encrypted record entry.
@@ -222,7 +313,11 @@ proc encryptedRecordFromJson*(node: JsonNode): EncryptedRecordEntry =
     sequence: node["sequence"].getInt(),
     previousHash: node["previousHash"].getStr(),
     encryptedPayload: node["encryptedPayload"].getStr(),
-    encryptedPayloadHash: node["encryptedPayloadHash"].getStr()
+    encryptedPayloadHash: node["encryptedPayloadHash"].getStr(),
+    payloadAuthTag: if node.hasKey("payloadAuthTag") and
+                       node["payloadAuthTag"].kind == JString:
+                     node["payloadAuthTag"].getStr()
+                   else: ""  # absent in records predating authentication
   )
 
 # Flow: Build a record entry according to the selected encryption mode.
@@ -266,14 +361,7 @@ proc restoreRecordPayloadForMode*(entry: EncryptedRecordEntry,
     except JsonParsingError:
       raise newException(ValueError,
         "encrypted_record: clear-mode payload is not valid JSON")
-  result = decryptDeterministicPayload(
-    entry.encryptedPayload,
-    keyMaterial,
-    entry.sequence,
-    entry.entryType,
-    entry.authorId,
-    entry.previousHash
-  )
+  result = verifyAndDecryptRecordEntry(entry, keyMaterial)
 
 # Flow: Build one operator-facing summary that respects the selected encryption mode.
 proc summarizeRecordEntryForMode*(entry: EncryptedRecordEntry,

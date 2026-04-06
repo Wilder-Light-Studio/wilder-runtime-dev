@@ -157,18 +157,31 @@ proc canonicalTypeVector*(args: seq[ArgumentRule]): seq[string] =
   for arg in args:
     result.add(arg.name & ":" & primitiveTypeName(arg.expectedType))
 
+# Flow: Encode a string with a length prefix to prevent delimiter injection.
+proc lenPrefixed(s: string): string =
+  $s.len & ":" & s
+
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc deriveSignatureDigest*(namespaceId, symbolId: string,
     arity: int,
     contractVersion: int,
     typeVector: seq[string]): string =
-  let preimage = namespaceId.toLowerAscii.strip & "|" &
-    symbolId.toLowerAscii.strip & "|" & $arity & "|" &
-    $contractVersion & "|" & typeVector.join(",").toLowerAscii
+  # Length-prefix all variable-length fields so that different field combinations
+  # cannot produce the same preimage (prevents delimiter-injection collisions).
+  let nsNorm = namespaceId.toLowerAscii.strip
+  let symNorm = symbolId.toLowerAscii.strip
+  let tvStr = typeVector.join(",").toLowerAscii
+  let preimage = lenPrefixed(nsNorm) & "|" &
+    lenPrefixed(symNorm) & "|" & $arity & "|" &
+    $contractVersion & "|" & lenPrefixed(tvStr)
   result = computeSha256(toBytes(preimage))[0 .. 31]
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc buildValidationMask*(arg: ArgumentRule): ValidationMask =
+  if arg.fields.len > 64:
+    raise newException(ValueError,
+      "buildValidationMask: ArgumentRule has " & $arg.fields.len &
+      " fields; maximum is 64. Reduce field count or split into nested rules.")
   var requiredBits: uint64 = 0'u64
   var typeBits: uint64 = 0'u64
   var cardinalityBits: uint64 = 0'u64

@@ -149,10 +149,10 @@ proc promoteMode*(b: InstanceBoundary,
   true
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
-proc validateRuntimeMode*(modeStr: string): bool =
-  ## Verify that the mode string is a known, non-default value.
-  ## Production config must not accidentally run in development mode.
-  ## This does not change anything; it only asserts correctness.
+proc isKnownRuntimeMode*(modeStr: string): bool =
+  ## Return true if the mode string is a known runtime mode value.
+  ## This does NOT enforce production-safety; it only checks that the string
+  ## is a recognized value.  Use config validation to enforce mode constraints.
   modeStr.toLowerAscii in ["development", "debug", "production"]
 
 # ── Channel Isolation ─────────────────────────────────────────────────────────

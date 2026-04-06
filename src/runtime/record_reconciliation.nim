@@ -68,7 +68,7 @@ proc reconcileTriumvirate*(copy1, copy2, copy3: seq[JsonNode]): ReconciliationRe
             raise newException(ReconciliationError, "previous hash chain broken at sequence " & $seq)
       
       validCopyCount += 1
-    except:
+    except CatchableError:
       copyErrors[idx] = getCurrentExceptionMsg()
       result.brokenKeys.add("copy_" & $idx)
   

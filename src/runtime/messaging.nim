@@ -49,6 +49,8 @@ proc dispatchEnvelope*(env: MessageEnvelope,
   discard validateStructure(envJson, @["id", "type", "version", "timestamp", "payload"])
 
   if cfg.mode == rmDebug:
+    # SECURITY: safeLog explicitly excludes the payload field.  Do not add
+    # "payload" here — even in debug mode, full payloads must not be logged.
     let safeLog = %*{"id": env.id, "type": env.`type`, "version": env.version, "timestamp": env.timestamp}
     logger("dispatchEnvelope(debug): " & $safeLog)
 

@@ -9,6 +9,9 @@
 import json
 import std/[os, strutils]
 
+const
+  MaxStartAppNameLength = 64
+
 type
   StartAppOptions* = object
     targetDir*: string
@@ -40,6 +43,19 @@ proc normalizeStartAppTransport*(raw: string): string =
   else:
     raise newException(ValueError,
       "startapp: transport must be one of json|protobuf")
+
+# Flow: Validate app name content before rendering into generated source/templates.
+proc validateStartAppName(name: string) =
+  if name.len == 0:
+    raise newException(ValueError,
+      "startapp: app name must not be empty")
+  if name.len > MaxStartAppNameLength:
+    raise newException(ValueError,
+      "startapp: app name must be <= " & $MaxStartAppNameLength & " characters")
+  for ch in name:
+    if ch notin {'a'..'z', 'A'..'Z', '0'..'9', '_', '-', ' ', '.'}:
+      raise newException(ValueError,
+        "startapp: app name contains invalid character '" & $ch & "'")
 
 # Flow: Build the canonical cosmos.toml payload for one starter app.
 proc renderCosmosToml(opts: StartAppOptions): string =
@@ -91,6 +107,7 @@ proc scaffoldApp*(opts: StartAppOptions): seq[string] =
   var normalized = opts
   if normalized.appName.strip.len == 0:
     normalized.appName = defaultAppName(targetDir)
+  validateStartAppName(normalized.appName)
   normalized.mode = normalizeStartAppMode(normalized.mode)
   normalized.transport = normalizeStartAppTransport(normalized.transport)
 

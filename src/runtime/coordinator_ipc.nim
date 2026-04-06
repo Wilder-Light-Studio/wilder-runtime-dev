@@ -247,6 +247,9 @@ proc serveIpcTcp*(session: IpcSession,
                   port: int = IpcDefaultPort,
                   maxRequests: int = 0): int =
   ## maxRequests == 0 means serve until process termination.
+  ## SECURITY: ipcEndpointUri validates that host is localhost-only.  The socket
+  ## bind below is also pinned to "127.0.0.1" — keep it that way; never replace
+  ## with "" or "0.0.0.0" which would expose the IPC port to all interfaces.
   discard ipcEndpointUri(host, port)
   if maxRequests < 0:
     raise newException(ValueError,

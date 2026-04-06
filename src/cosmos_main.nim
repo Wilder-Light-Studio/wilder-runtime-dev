@@ -6,12 +6,14 @@
 # Memory note: keep orchestration thin; do not duplicate config or lifecycle logic.
 # Flow: parse args -> resolve console mode -> validate -> load config -> emit startup report.
 
-import std/[os, strutils, options, json]
+import std/[os, strutils, options, json, times]
 import runtime/config
 import runtime/capabilities
+import runtime/concepts
 import runtime/coordinator_ipc
 import runtime/scanner
 import runtime/startapp
+import cosmos/thing/thing
 
 type
   CoordinatorConsoleMode* = enum
@@ -53,6 +55,10 @@ const
     "  scan [path] [--json]\n" &
     "  capability conflicts [path]\n" &
     "  concept resolve --want <Thing|Thing.provide> [--expect-signature <sig>] --provide <Thing.provide:signature>...\n" &
+    "  concept show --file <path> [--source-kind programmatic|manual] [--derived-from <str>]\n" &
+    "  concept validate --file <path>\n" &
+    "  concept export --file <path> [--source-kind programmatic|manual] [--derived-from <str>]\n" &
+    "  concept registry [--file <path>]... | concept registry inspect --id <id> [--file <path>]...\n" &
     "  startapp [path] [--name <name>] [--mode <dev|debug|prod>] [--transport <json|protobuf>] [--no-template]\n" &
     "\n" &
     "Usage:\n" &
@@ -99,6 +105,15 @@ const
     "Usage: cosmos ipc serve [--host <host>] [--port <N>] [--max-requests <N>]"
   NotifyFormatHelpText* =
     "Usage: cosmos notify format --time <iso> --level <level> --component <component> --message <text>"
+  ConceptShowHelpText* =
+    "Usage: cosmos concept show --file <path> [--source-kind programmatic|manual] [--derived-from <str>]"
+  ConceptValidateHelpText* =
+    "Usage: cosmos concept validate --file <path>"
+  ConceptExportHelpText* =
+    "Usage: cosmos concept export --file <path> [--source-kind programmatic|manual] [--derived-from <str>]"
+  ConceptRegistryHelpText* =
+    "Usage: cosmos concept registry [--file <path>]... | " &
+    "cosmos concept registry inspect --id <id> [--file <path>]..."
 
 # Flow: Parse Thing.provide:signature into one provider declaration.
 proc parseProvideArg(raw: string): ProvideDeclaration =
@@ -211,6 +226,27 @@ proc normalizeCoordinatorMode(raw: string): string =
     raise newException(ValueError,
       "cosmos: --mode must be one of dev|debug|prod")
 
+# Flow: Parse and normalize encryption mode to canonical config text.
+proc normalizeCoordinatorEncryptionMode(raw: string): string =
+  encryptionModeName(parseEncryptionMode(raw))
+
+# Flow: Guard accidental root-level traversal for CLI filesystem arguments.
+proc rejectFilesystemRoot(path: string, flagName: string) =
+  let normalized = absolutePath(path.strip)
+  if normalized.len == 0:
+    raise newException(ValueError,
+      flagName & ": path must not be empty")
+  if parentDir(normalized) == normalized:
+    raise newException(ValueError,
+      flagName & ": refusing filesystem root path '" & normalized & "'")
+
+var cliRequestCounter = 0
+
+# Flow: Generate a per-invocation request id for CLI IPC frames.
+proc nextCliRequestId(): string =
+  inc cliRequestCounter
+  "cli-" & $int(epochTime() * 1000) & "-" & $cliRequestCounter
+
 # Flow: Parse command-line arguments into structured coordinator launch options.
 proc parseCoordinatorOptions*(args: seq[string]): CoordinatorLaunchOptions =
   # Pre-scan: --help/-h is sovereign; if present, return immediately.
@@ -238,7 +274,7 @@ proc parseCoordinatorOptions*(args: seq[string]): CoordinatorLaunchOptions =
       if i + 1 >= args.len:
         raise newException(ValueError,
           "cosmos: --encryption-mode requires a value")
-      result.encryptionMode = some(args[i + 1].toLowerAscii.strip)
+      result.encryptionMode = some(normalizeCoordinatorEncryptionMode(args[i + 1]))
       i += 2
     of "--console":
       if i + 1 >= args.len:
@@ -436,6 +472,234 @@ proc runConceptResolveCommand(args: seq[string]): tuple[exitCode: int, lines: se
       return (0, @[ConceptResolveHelpText])
     return (2, @[err.msg, ConceptResolveHelpText])
 
+# Flow: Parse a concept JSON file into a Concept object.
+proc loadConceptFromFile(path: string): Concept =
+  rejectFilesystemRoot(path, "concept: --file")
+  if not fileExists(path):
+    raise newException(ValueError,
+      "concept: file not found: '" & path & "'")
+  let raw = readFile(path)
+  let node = parseJson(raw)
+  if node.kind != JObject:
+    raise newException(ValueError,
+      "concept: file must contain a JSON object")
+  let id = node{"id"}.getStr("").strip
+  if id.len == 0:
+    raise newException(ValueError,
+      "concept: 'id' field must not be empty")
+  let whyNode      = if node.hasKey("why"):      node["why"]      else: %*{}
+  let whatNode     = if node.hasKey("what"):     node["what"]     else: %*{}
+  let howNode      = if node.hasKey("how"):      node["how"]      else: %*{}
+  let whereNode    = if node.hasKey("where"):    node["where"]    else: %*{}
+  let whenNode     = if node.hasKey("when"):     node["when"]     else: %*{}
+  let withNode     = if node.hasKey("with"):     node["with"]     else: %*{}
+  let manifestNode = if node.hasKey("manifest"): node["manifest"] else: %*{}
+  createConcept(id, whatNode, whyNode, howNode, whereNode, whenNode, withNode, manifestNode)
+
+# Flow: Map CLI source kind string to ConceptSourceKind enum.
+proc normalizeConceptSourceKind(raw: string): ConceptSourceKind =
+  case raw.strip.toLowerAscii
+  of "", "manual":
+    cskManual
+  of "programmatic", "code":
+    cskProgrammatic
+  else:
+    raise newException(ValueError,
+      "concept: --source-kind must be programmatic or manual, got '" & raw & "'")
+
+# Flow: Execute concept validate CLI command.
+proc runConceptValidateCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 0 or (args.len == 1 and (args[0] == "--help" or args[0] == "-h")):
+    return (0, @[ConceptValidateHelpText])
+  var filePath = ""
+  var i = 0
+  while i < args.len:
+    case args[i]
+    of "--help", "-h":
+      return (0, @[ConceptValidateHelpText])
+    of "--file":
+      if i + 1 >= args.len:
+        return (2, @["concept validate: --file requires a path", ConceptValidateHelpText])
+      filePath = args[i + 1]
+      i += 2
+    else:
+      return (2, @["concept validate: unknown argument '" & args[i] & "'", ConceptValidateHelpText])
+  if filePath.len == 0:
+    return (2, @["concept validate: --file is required", ConceptValidateHelpText])
+  try:
+    let c = loadConceptFromFile(filePath)
+    validateConcept(c)
+    return (0, @["validate: ok", "concept: " & c.id])
+  except ValueError as err:
+    return (2, @["validate: error - " & err.msg])
+  except JsonParsingError as err:
+    return (2, @["validate: error - invalid JSON: " & err.msg])
+
+# Flow: Execute concept show CLI command.
+proc runConceptShowCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 0 or (args.len == 1 and (args[0] == "--help" or args[0] == "-h")):
+    return (0, @[ConceptShowHelpText])
+  var filePath = ""
+  var sourceKindRaw = "manual"
+  var derivedFrom = ""
+  var i = 0
+  while i < args.len:
+    case args[i]
+    of "--help", "-h":
+      return (0, @[ConceptShowHelpText])
+    of "--file":
+      if i + 1 >= args.len:
+        return (2, @["concept show: --file requires a path", ConceptShowHelpText])
+      filePath = args[i + 1]
+      i += 2
+    of "--source-kind":
+      if i + 1 >= args.len:
+        return (2, @["concept show: --source-kind requires a value", ConceptShowHelpText])
+      sourceKindRaw = args[i + 1]
+      i += 2
+    of "--derived-from":
+      if i + 1 >= args.len:
+        return (2, @["concept show: --derived-from requires a value", ConceptShowHelpText])
+      derivedFrom = args[i + 1]
+      i += 2
+    else:
+      return (2, @["concept show: unknown argument '" & args[i] & "'", ConceptShowHelpText])
+  if filePath.len == 0:
+    return (2, @["concept show: --file is required", ConceptShowHelpText])
+  try:
+    let c = loadConceptFromFile(filePath)
+    validateConcept(c)
+    let sourceKind = normalizeConceptSourceKind(sourceKindRaw)
+    let sourceLabel = if sourceKind == cskProgrammatic: "programmatic" else: "manual"
+    return (0, @[
+      "concept: " & c.id,
+      "source: " & sourceLabel,
+      "derived-from: " & (if derivedFrom.len > 0: derivedFrom else: "(not set)"),
+      "valid: true"
+    ])
+  except ValueError as err:
+    return (2, @["concept show: error - " & err.msg, ConceptShowHelpText])
+  except JsonParsingError as err:
+    return (2, @["concept show: error - invalid JSON: " & err.msg, ConceptShowHelpText])
+
+# Flow: Execute concept export CLI command.
+proc runConceptExportCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 0 or (args.len == 1 and (args[0] == "--help" or args[0] == "-h")):
+    return (0, @[ConceptExportHelpText])
+  var filePath = ""
+  var sourceKindRaw = "manual"
+  var dfRaw = "manual-file"
+  var i = 0
+  while i < args.len:
+    case args[i]
+    of "--help", "-h":
+      return (0, @[ConceptExportHelpText])
+    of "--file":
+      if i + 1 >= args.len:
+        return (2, @["concept export: --file requires a path", ConceptExportHelpText])
+      filePath = args[i + 1]
+      i += 2
+    of "--source-kind":
+      if i + 1 >= args.len:
+        return (2, @["concept export: --source-kind requires a value", ConceptExportHelpText])
+      sourceKindRaw = args[i + 1]
+      i += 2
+    of "--derived-from":
+      if i + 1 >= args.len:
+        return (2, @["concept export: --derived-from requires a value", ConceptExportHelpText])
+      dfRaw = args[i + 1]
+      i += 2
+    else:
+      return (2, @["concept export: unknown argument '" & args[i] & "'", ConceptExportHelpText])
+  if filePath.len == 0:
+    return (2, @["concept export: --file is required", ConceptExportHelpText])
+  try:
+    let c = loadConceptFromFile(filePath)
+    validateConcept(c)
+    let sourceKind = normalizeConceptSourceKind(sourceKindRaw)
+    let reg = newConceptRegistry()
+    case sourceKind
+    of cskProgrammatic:
+      registerProgrammaticConcept(reg, c, derivedFrom = dfRaw)
+    of cskManual:
+      registerManualConcept(reg, c, derivedFrom = dfRaw)
+    let exported = exportEffectiveConcept(reg, c.id)
+    return (0, @[exported.pretty])
+  except ValueError as err:
+    return (2, @["concept export: error - " & err.msg, ConceptExportHelpText])
+  except JsonParsingError as err:
+    return (2, @["concept export: error - invalid JSON: " & err.msg, ConceptExportHelpText])
+
+# Flow: Execute concept registry list and inspect commands.
+proc runConceptRegistryCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 0 or (args.len == 1 and (args[0] == "--help" or args[0] == "-h")):
+    return (0, @[ConceptRegistryHelpText])
+  let isInspect = args.len > 0 and args[0] == "inspect"
+  let parseArgs = if isInspect: args[1 .. ^1] else: args
+  var files: seq[string] = @[]
+  var sourceKinds: seq[string] = @[]
+  var derivedFroms: seq[string] = @[]
+  var inspectId = ""
+  var i = 0
+  while i < parseArgs.len:
+    case parseArgs[i]
+    of "--help", "-h":
+      return (0, @[ConceptRegistryHelpText])
+    of "--file":
+      if i + 1 >= parseArgs.len:
+        return (2, @["concept registry: --file requires a path", ConceptRegistryHelpText])
+      files.add(parseArgs[i + 1])
+      sourceKinds.add("manual")
+      derivedFroms.add("manual-file")
+      i += 2
+    of "--source-kind":
+      if i + 1 >= parseArgs.len:
+        return (2, @["concept registry: --source-kind requires a value", ConceptRegistryHelpText])
+      if sourceKinds.len > 0:
+        sourceKinds[^1] = parseArgs[i + 1]
+      i += 2
+    of "--derived-from":
+      if i + 1 >= parseArgs.len:
+        return (2, @["concept registry: --derived-from requires a value", ConceptRegistryHelpText])
+      if derivedFroms.len > 0:
+        derivedFroms[^1] = parseArgs[i + 1]
+      i += 2
+    of "--id":
+      if i + 1 >= parseArgs.len:
+        return (2, @["concept registry: --id requires a value", ConceptRegistryHelpText])
+      inspectId = parseArgs[i + 1]
+      i += 2
+    else:
+      return (2, @["concept registry: unknown argument '" & parseArgs[i] & "'", ConceptRegistryHelpText])
+  try:
+    let reg = newConceptRegistry()
+    for j in 0 ..< files.len:
+      let c = loadConceptFromFile(files[j])
+      validateConcept(c)
+      let sk = normalizeConceptSourceKind(sourceKinds[j])
+      case sk
+      of cskProgrammatic:
+        registerProgrammaticConcept(reg, c, derivedFrom = derivedFroms[j])
+      of cskManual:
+        registerManualConcept(reg, c, derivedFrom = derivedFroms[j])
+    if isInspect:
+      if inspectId.len == 0:
+        return (2, @["concept registry inspect: --id is required", ConceptRegistryHelpText])
+      let record = conceptRegistryRecord(reg, inspectId)
+      return (0, @[record.pretty])
+    let ids = listConceptIds(reg)
+    var lines: seq[string] = @["concepts: " & $ids.len]
+    for id in ids:
+      let rec = conceptRegistryRecord(reg, id)
+      lines.add("concept: " & id & " [" & rec["effectiveSourceKind"].getStr("?") & "]")
+    return (0, lines)
+  except ValueError as err:
+    return (2, @["concept registry: error - " & err.msg, ConceptRegistryHelpText])
+  except KeyError as err:
+    return (2, @["concept registry: not found - " & err.msg, ConceptRegistryHelpText])
+  except JsonParsingError as err:
+    return (2, @["concept registry: invalid JSON - " & err.msg, ConceptRegistryHelpText])
+
 # Flow: Execute semantic scanner subcommand for one target path.
 proc runScanCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
   var target = getCurrentDir()
@@ -455,6 +719,7 @@ proc runScanCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]]
       inc i
 
   try:
+    rejectFilesystemRoot(target, "scan")
     if asJson:
       return (0, @[scanThingsJson(target).pretty])
     let things = scanPath(target)
@@ -561,7 +826,7 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
       return (1, @["ipc serve: failed - " & err.msg])
 
   of "request":
-    var requestId = "cli-1"
+    var requestId = nextCliRequestId()
     var requestMethod = ""
     var params = %*{}
     var subscribeEvents: seq[string] = @[]
@@ -626,12 +891,13 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
       "method": requestMethod,
       "params": params
     }
+    let subscribeRequestId = requestId & "-subscribe"
 
     if useTcp:
       try:
         if subscribeEvents.len > 0:
           let subscribeFrames = sendIpcTcpRequest(host, port, %*{
-            "id": "cli-subscribe",
+            "id": subscribeRequestId,
             "method": "subscribe",
             "params": {
               "events": subscribeEvents
@@ -655,7 +921,7 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
     var session = newIpcSession()
     if subscribeEvents.len > 0:
       discard handleRequest(session, %*{
-        "id": "cli-subscribe",
+        "id": subscribeRequestId,
         "method": "subscribe",
         "params": {
           "events": subscribeEvents
@@ -730,6 +996,14 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
     return runCapabilityConflictsCommand(args[2 .. ^1])
   if args.len > 1 and args[0] == "concept" and args[1] == "resolve":
     return runConceptResolveCommand(args[2 .. ^1])
+  if args.len > 1 and args[0] == "concept" and args[1] == "show":
+    return runConceptShowCommand(args[2 .. ^1])
+  if args.len > 1 and args[0] == "concept" and args[1] == "validate":
+    return runConceptValidateCommand(args[2 .. ^1])
+  if args.len > 1 and args[0] == "concept" and args[1] == "export":
+    return runConceptExportCommand(args[2 .. ^1])
+  if args.len > 1 and args[0] == "concept" and args[1] == "registry":
+    return runConceptRegistryCommand(args[2 .. ^1])
   if args.len > 0 and args[0] == "startapp":
     return runStartAppCommand(args[1 .. ^1])
   try:
@@ -778,7 +1052,6 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
     return (1, @["cosmos: launch failed - " & err.msg])
 
 when isMainModule:
-  import std/os
   let (exitCode, lines) = runCoordinatorMain(commandLineParams())
   for line in lines:
     echo line

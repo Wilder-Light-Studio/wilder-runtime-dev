@@ -158,10 +158,21 @@ proc splitKey(composite: string): tuple[layer: string, key: string] =
   result.key = composite[idx + 1 .. ^1]
 
 # Flow: Remove unsafe path characters from key for file safety.
+const MaxPersistenceKeyLength = 128
+
 proc sanitizeKey(key: string): string =
-  result = key
-  for c in ["/", "\\", ":", "..", " "]:
-    result = result.replace(c, "_")
+  # Allowlist: only [a-zA-Z0-9_\-] are kept; dots are mapped to underscores so
+  # that ".." sequences cannot survive, preventing path traversal by construction.
+  for c in key:
+    case c
+    of 'a'..'z', 'A'..'Z', '0'..'9', '_', '-':
+      result.add(c)
+    of '.':
+      result.add('_')
+    else:
+      discard  # drop all other characters
+  if result.len > MaxPersistenceKeyLength:
+    result = result[0 ..< MaxPersistenceKeyLength]
   if result.len == 0:
     result = "default"
 
