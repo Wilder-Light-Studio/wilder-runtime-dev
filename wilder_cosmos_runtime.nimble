@@ -1,6 +1,6 @@
 #? replace(sub = "\t", by = "  ")
 # Package file for Wilder Cosmos Runtime (Nim)
-version = "0.9.6"
+version = "0.9.9.9"
 author = "wilder"
 description = "Wilder Cosmos Runtime — three-layer persistence, module system, and console."
 license = "Wilder Foundation License 1.0"

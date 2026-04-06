@@ -2,9 +2,9 @@
 
 This file tracks public-facing project milestones for Wilder Cosmos Runtime.
 
-Current development line: `0.9.6`
+Current development line: `0.9.9.9`
 
-Current preview tag: `v0.9.6-wip`
+Current preview tag: `v0.9.9.9-wip`
 
 ## v0.9.6 - In Progress
 
