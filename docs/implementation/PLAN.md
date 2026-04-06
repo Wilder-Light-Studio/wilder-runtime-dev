@@ -41,9 +41,9 @@
 | **HH-5** | Hardening Verification Gate | ✅ Complete | all hardening tests |
 | **Phase VF** | Validation Firewall Vocabulary Refactor | ✅ Complete | requirements/spec/plan/compliance alignment, Chapter 2 reference doc, comment, test text, and test artifact rename updates |
 | **Phase XE** | Humane Offline Licensing | 🚧 Planned | licensing tests, installer-contract checks, doc compliance checks |
-| **Phase XF** | Cosmos Encryption Spectrum | 🚧 Planned | encryption-mode config tests, metadata exposure tests, migration guardrail tests |
+| **Phase XF** | Cosmos Encryption Spectrum | 🚧 In Progress | encryption-mode config, runtime policy layer, RECORD/persistence/snapshot integration, metadata-exposure and migration tests |   
 
-**23 chapters complete; Phase X is in progress; Phase XE and Phase XF are planned; and Phase VF is complete.**
+**23 chapters complete; Phase X and Phase XF are in progress; Phase XE is planned; and Phase VF is complete.**
 
 ---
 
@@ -191,7 +191,7 @@ The following priority sequence governs near-term implementation. Items marked
 
 ## Phase XF — Cosmos Encryption Spectrum
 
-**Status:** 🚧 Planned
+**Status:** 🚧 In Progress
 **Spec anchor:** `docs/implementation/REQUIREMENTS.md` (Phase XF),
 `docs/implementation/SPECIFICATION-NIM.md` §19G and §21,
 `docs/implementation/SPECIFICATION.md` §9
