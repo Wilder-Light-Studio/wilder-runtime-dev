@@ -1,6 +1,9 @@
 # Wilder Cosmos 0.4.0
 # Module name: persistence_record_test
 # Module Path: tests/persistence_record_test.nim
+# Summary: Integration checks for RECORD persistence behavior through runtime persistence layers.
+# Simile: Like a vault audit, it verifies encrypted entries remain intact after storage round-trips.
+# Memory note: RECORD tests should assert deterministic metadata and chain continuity first.
 #
 # Wilder Foundation License 1.0
 # persistence_record_test.nim

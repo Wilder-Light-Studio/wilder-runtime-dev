@@ -59,49 +59,49 @@ suite "coordinator validation failures":
     check lines.anyIt("--config" in it)
 
   test "unknown flag exits non-zero":
-    let (code, lines) = runCoordinatorMain(@["--unknown-flag"])
+    let (code, _) = runCoordinatorMain(@["--unknown-flag"])
     check code != 0
 
   test "bad mode exits non-zero":
-    let (code, lines) = runCoordinatorMain(@["--config", "/x", "--mode", "staging"])
+    let (code, _) = runCoordinatorMain(@["--config", "/x", "--mode", "staging"])
     check code != 0
 
   test "bad encryption mode exits non-zero":
-    let (code, lines) = runCoordinatorMain(@["--config", "/x", "--encryption-mode", "sealed"])
+    let (code, _) = runCoordinatorMain(@["--config", "/x", "--encryption-mode", "sealed"])
     check code != 0
 
   test "daemonize plus explicit console attach exits non-zero":
-    let (code, lines) = runCoordinatorMain(@[
+    let (code, _) = runCoordinatorMain(@[
       "--config", "/x", "--daemonize", "--console", "attach"
     ])
     check code != 0
 
   test "watch plus explicit console detach exits non-zero":
-    let (code, lines) = runCoordinatorMain(@[
+    let (code, _) = runCoordinatorMain(@[
       "--config", "/x", "--watch", "./thing", "--console", "detach"
     ])
     check code != 0
 
   test "watch plus daemonize exits non-zero (resolves to detach, then fails)":
-    let (code, lines) = runCoordinatorMain(@[
+    let (code, _) = runCoordinatorMain(@[
       "--config", "/x", "--watch", "./thing", "--daemonize"
     ])
     check code != 0
 
   test "bad log-level exits non-zero":
-    let (code, lines) = runCoordinatorMain(@["--config", "/x", "--log-level", "verbose"])
+    let (code, _) = runCoordinatorMain(@["--config", "/x", "--log-level", "verbose"])
     check code != 0
 
   test "port zero exits non-zero":
-    let (code, lines) = runCoordinatorMain(@["--config", "/x", "--port", "0"])
+    let (code, _) = runCoordinatorMain(@["--config", "/x", "--port", "0"])
     check code != 0
 
   test "port over range exits non-zero":
-    let (code, lines) = runCoordinatorMain(@["--config", "/x", "--port", "65536"])
+    let (code, _) = runCoordinatorMain(@["--config", "/x", "--port", "65536"])
     check code != 0
 
   test "port non-integer exits non-zero":
-    let (code, lines) = runCoordinatorMain(@["--config", "/x", "--port", "abc"])
+    let (code, _) = runCoordinatorMain(@["--config", "/x", "--port", "abc"])
     check code != 0
 
 # ── help sovereign ────────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ suite "coordinator help":
     check lines.anyIt("cosmos" in it.toLowerAscii)
 
   test "-h exits zero":
-    let (code, lines) = runCoordinatorMain(@["-h"])
+    let (code, _) = runCoordinatorMain(@["-h"])
     check code == 0
 
   test "--help bypasses missing --config (sovereign)":

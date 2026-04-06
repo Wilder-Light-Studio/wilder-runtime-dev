@@ -1,6 +1,9 @@
 # Wilder Cosmos 0.4.0
 # Module name: record_reconciliation
 # Module Path: src/runtime/record_reconciliation.nim
+# Summary: Metadata-only reconciliation for sovereign encrypted RECORD copy sets.
+# Simile: Like a checksum jury, it compares chain evidence across copies without opening payloads.
+# Memory note: reconciliation must stay deterministic and avoid decrypting protected content.
 #
 # Wilder Foundation License 1.0
 # record_reconciliation.nim

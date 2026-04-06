@@ -391,7 +391,7 @@ suite "console cli help flag":
     check lines.anyIt("console_main" in it or "--config" in it)
 
   test "-h exits zero":
-    let (code, lines) = runConsoleMain(@["-h"])
+    let (code, _) = runConsoleMain(@["-h"])
     check code == 0
 
   test "--help bypasses missing --config (sovereign)":

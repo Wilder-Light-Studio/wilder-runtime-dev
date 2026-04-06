@@ -166,6 +166,7 @@ proc inspectPayload(session: IpcSession): JsonNode =
     "tick": session.state.tick
   }
 
+# Flow: Drain and clear queued push events in stable FIFO order.
 proc drainPushEvents*(session: IpcSession): seq[JsonNode]
 
 # Flow: Handle one request envelope and return deterministic response envelope.

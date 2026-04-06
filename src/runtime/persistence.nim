@@ -160,6 +160,7 @@ proc splitKey(composite: string): tuple[layer: string, key: string] =
 # Flow: Remove unsafe path characters from key for file safety.
 const MaxPersistenceKeyLength = 128
 
+# Flow: Normalize persistence keys to a bounded filesystem-safe representation.
 proc sanitizeKey(key: string): string =
   # Allowlist: only [a-zA-Z0-9_\-] are kept; dots are mapped to underscores so
   # that ".." sequences cannot survive, preventing path traversal by construction.
@@ -817,7 +818,9 @@ proc readEnvelope*(bridge: PersistenceBridge,
   result = unwrapEnvelope(env)
 
 # Flow: Forward declarations for transactional helpers used by record migration.
+# Flow: Commit an active transaction and persist staged writes deterministically.
 proc commit*(bridge: PersistenceBridge): bool
+# Flow: Roll back active transaction state to the last checkpoint.
 proc rollback*(bridge: PersistenceBridge)
 
 # Flow: Stage a RECORD write using the selected encryption mode and deterministic metadata.

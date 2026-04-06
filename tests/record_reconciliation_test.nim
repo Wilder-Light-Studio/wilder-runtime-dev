@@ -1,6 +1,9 @@
 # Wilder Cosmos 0.4.0
 # Module name: record_reconciliation_test
 # Module Path: tests/record_reconciliation_test.nim
+# Summary: Test coverage for metadata-only reconciliation outcomes across three RECORD copies.
+# Simile: Like a chain inspector, it catches sequence and hash breaks without touching payload plaintext.
+# Memory note: keep copy fixtures deterministic so status classification remains stable.
 #
 # Wilder Foundation License 1.0
 # record_reconciliation_test.nim

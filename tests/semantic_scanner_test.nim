@@ -12,6 +12,7 @@ import harness
 import ../src/runtime/scanner
 import ../src/cosmos/thing/thing
 
+# Flow: Locate one scanned Thing by normalized relative source path.
 proc findThingByPath(things: seq[Thing], sourcePath: string): int =
   for i, thing in things:
     if thing.metadata["sourcePath"].getStr == sourcePath:

@@ -85,6 +85,9 @@ task verify, "Run compliance and tests":
 	exec "nimble compliance"
 	exec "nimble test"
 
+task cleanExe, "Remove generated .exe artifacts":
+	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean_exes.ps1"
+
 task updateReadme, "Update README with current version from nimble":
 	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-readme-version.ps1"
 
