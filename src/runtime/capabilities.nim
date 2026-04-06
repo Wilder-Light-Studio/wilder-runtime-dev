@@ -298,12 +298,48 @@ proc buildCapabilityGraph*(provides: seq[ProvideDeclaration],
                            moduleBindings: seq[ModuleBindingDeclaration] = @[],
                            enforceBindingCoverage: bool = false): CapabilityGraph =
   result.provides = provides
+  result.provides.sort(proc(a, b: ProvideDeclaration): int =
+    let byThing = system.cmp(a.thingName, b.thingName)
+    if byThing != 0:
+      return byThing
+    let byProvide = system.cmp(a.provideName, b.provideName)
+    if byProvide != 0:
+      return byProvide
+    system.cmp(a.signature, b.signature)
+  )
+
   result.wants = wants
+  result.wants.sort(proc(a, b: WantDeclaration): int =
+    let byConsumer = system.cmp(a.consumerThing, b.consumerThing)
+    if byConsumer != 0:
+      return byConsumer
+    let byReference = system.cmp(a.reference, b.reference)
+    if byReference != 0:
+      return byReference
+    system.cmp(a.expectedSignature, b.expectedSignature)
+  )
+
   result.moduleBindings = moduleBindings
+  result.moduleBindings.sort(proc(a, b: ModuleBindingDeclaration): int =
+    let byKey = system.cmp(a.provideKey, b.provideKey)
+    if byKey != 0:
+      return byKey
+    let byType = system.cmp(a.moduleType, b.moduleType)
+    if byType != 0:
+      return byType
+    let byRef = system.cmp(a.moduleRef, b.moduleRef)
+    if byRef != 0:
+      return byRef
+    let byEntrypoint = system.cmp(a.entrypoint, b.entrypoint)
+    if byEntrypoint != 0:
+      return byEntrypoint
+    system.cmp(a.abiVersion, b.abiVersion)
+  )
+
   result.resolution = resolveCapabilities(
-    provides,
-    wants,
-    moduleBindings,
+    result.provides,
+    result.wants,
+    result.moduleBindings,
     enforceBindingCoverage
   )
 

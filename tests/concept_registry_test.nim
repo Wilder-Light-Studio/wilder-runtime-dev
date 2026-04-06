@@ -8,8 +8,9 @@
 
 import unittest
 import json
-import ../src/runtime/concepts
-import ../src/cosmos/thing/thing
+import runtime/concepts
+import runtime/capabilities
+import cosmos/thing/thing
 
 # Flow: Build canonical Concept fixtures for registry tests.
 proc makeConcept(id: string, whyText: string): Concept =
@@ -63,6 +64,37 @@ suite "concept registry export":
     check record["hasProgrammatic"].getBool
     check record["hasManual"].getBool
     check record["effectiveSourceKind"].getStr == "programmatic"
+
+suite "boundary-derived concepts":
+  test "registerConceptFromBoundaryDeclarations captures provides wants and bindings":
+    let reg = newConceptRegistry()
+    let provides = @[
+      ProvideDeclaration(thingName: "Lexicons", provideName: "get", signature: "(string)->string")
+    ]
+    let wants = @[
+      WantDeclaration(consumerThing: "Parser", reference: "Lexicons.get", expectedSignature: "(string)->string")
+    ]
+    let bindings = @[
+      ModuleBindingDeclaration(
+        provideKey: "Lexicons.get",
+        moduleType: "nim",
+        moduleRef: "src/runtime/lexicons.nim",
+        entrypoint: "registerLexicons",
+        abiVersion: "cap-abi-v1"
+      )
+    ]
+
+    registerConceptFromBoundaryDeclarations(reg, "Lexicons", provides, wants, bindings)
+    let effective = resolveEffectiveConcept(reg, "Lexicons")
+    check effective.sourceKind == cskProgrammatic
+    check effective.conceptDef.howSection["provides"].len == 1
+    check effective.conceptDef.howSection["moduleBindings"].len == 1
+    check effective.conceptDef.manifest.len == 0
+
+  test "boundary derivation rejects empty thing names":
+    let reg = newConceptRegistry()
+    expect(ValueError):
+      registerConceptFromBoundaryDeclarations(reg, "", @[], @[])
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.

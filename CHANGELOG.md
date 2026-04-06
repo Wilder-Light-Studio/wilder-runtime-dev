@@ -50,6 +50,9 @@ Highlights so far:
 - Phase XD encrypted RECORD work is now verified with deterministic
 	encryption/decryption primitives, structural metadata chain
 	validation, and passing `encrypted_record_test` coverage.
+- Phase X completion gate is now closed with startup fatal capability gating,
+	deterministic capability graph inventory output, and Nim-first boundary
+	Concept derivation surfaced in coordinator CLI flows and tests.
 
 - **Security Hardening & Test Coverage (Phase X):**
   - Cryptographic: Added HMAC-SHA256 authentication tags to encrypted RECORD entries; all ciphertexts now integrity-verified before decryption via `verifyAndDecryptRecordEntry()` safe API.

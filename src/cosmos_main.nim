@@ -6,7 +6,7 @@
 # Memory note: keep orchestration thin; do not duplicate config or lifecycle logic.
 # Flow: parse args -> resolve console mode -> validate -> load config -> emit startup report.
 
-import std/[os, strutils, options, json, times]
+import std/[os, strutils, options, json, times, tables, algorithm]
 import runtime/config
 import runtime/capabilities
 import runtime/concepts
@@ -29,6 +29,9 @@ type
     consoleModeExplicit*: bool          ## true if --console was explicitly provided
     watchTarget*: Option[string]
     daemonize*: bool
+    startupProvides*: seq[ProvideDeclaration]
+    startupWants*: seq[WantDeclaration]
+    startupBindings*: seq[ModuleBindingDeclaration]
     wantHelp*: bool
 
   CoordinatorStartupReport* = object
@@ -42,7 +45,11 @@ const
     "Usage: cosmos --config <path> [--mode <dev|debug|prod>] " &
     "[--encryption-mode <clear|standard|private|complete>] " &
     "[--console <auto|attach|detach>] [--watch <path>] [--daemonize] " &
-    "[--log-level <trace|debug|info|warn|error>] [--port <N>] [--help]"
+    "[--log-level <trace|debug|info|warn|error>] [--port <N>] " &
+    "[--capability-provide <Thing.provide:signature>] " &
+    "[--capability-want <Thing|Thing.provide>] " &
+    "[--capability-bind <Thing.provide:moduleType:moduleRef:entrypoint:abiVersion>] " &
+    "[--help]"
   CoordinatorHelpText* =
     "Wilder Cosmos Runtime -- launch and coordinate a Cosmos instance\n" &
     "\n" &
@@ -75,6 +82,9 @@ const
     "  --daemonize                          Run in background/detached mode\n" &
     "  --log-level <level>                  Override log level (trace|debug|info|warn|error)\n" &
     "  --port <N>                           Override port (1-65535)\n" &
+    "  --capability-provide <decl>          Startup capability provide declaration\n" &
+    "  --capability-want <ref>              Startup capability want declaration\n" &
+    "  --capability-bind <decl>             Startup capability implementation binding\n" &
     "  --help, -h                           Print this help text and exit\n" &
     "\n" &
     "Examples:\n" &
@@ -247,6 +257,51 @@ proc nextCliRequestId(): string =
   inc cliRequestCounter
   "cli-" & $int(epochTime() * 1000) & "-" & $cliRequestCounter
 
+# Flow: Parse startup capability want reference for launch-time fatal-gate checks.
+proc parseStartupCapabilityWant(raw: string): WantDeclaration =
+  let trimmed = raw.strip
+  discard parseWantReference(trimmed)
+  WantDeclaration(
+    consumerThing: "startup",
+    reference: trimmed,
+    expectedSignature: ""
+  )
+
+# Flow: Derive one concept registry snapshot from runtime boundary declarations.
+proc buildDerivedConceptRegistry(provides: seq[ProvideDeclaration],
+                                 wants: seq[WantDeclaration],
+                                 bindings: seq[ModuleBindingDeclaration]): ConceptRegistry =
+  result = newConceptRegistry()
+  var seen = initTable[string, bool]()
+
+  for provide in provides:
+    let thing = provide.thingName.strip
+    if thing.len > 0:
+      seen[thing] = true
+
+  for want in wants:
+    let consumer = want.consumerThing.strip
+    if consumer.len > 0 and consumer != "cli" and consumer != "startup":
+      seen[consumer] = true
+    let parsed = parseWantReference(want.reference)
+    if parsed.thingName.len > 0:
+      seen[parsed.thingName] = true
+
+  var thingNames: seq[string] = @[]
+  for thing, _ in seen.pairs:
+    thingNames.add(thing)
+  thingNames.sort(system.cmp[string])
+
+  for thing in thingNames:
+    registerConceptFromBoundaryDeclarations(
+      result,
+      thing,
+      provides,
+      wants,
+      bindings,
+      derivedFrom = "nim-boundary"
+    )
+
 # Flow: Parse command-line arguments into structured coordinator launch options.
 proc parseCoordinatorOptions*(args: seq[string]): CoordinatorLaunchOptions =
   # Pre-scan: --help/-h is sovereign; if present, return immediately.
@@ -298,6 +353,24 @@ proc parseCoordinatorOptions*(args: seq[string]): CoordinatorLaunchOptions =
     of "--daemonize":
       result.daemonize = true
       i += 1
+    of "--capability-provide":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "cosmos: --capability-provide requires a value")
+      result.startupProvides.add(parseProvideArg(args[i + 1]))
+      i += 2
+    of "--capability-want":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "cosmos: --capability-want requires a value")
+      result.startupWants.add(parseStartupCapabilityWant(args[i + 1]))
+      i += 2
+    of "--capability-bind":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "cosmos: --capability-bind requires a value")
+      result.startupBindings.add(parseBindingArg(args[i + 1]))
+      i += 2
     of "--log-level":
       if i + 1 >= args.len:
         raise newException(ValueError,
@@ -435,6 +508,19 @@ proc runCapabilitiesCommand(args: seq[string]): tuple[exitCode: int, lines: seq[
       "issues: " & $resolution.issues.len,
       "startupEligible: " & $graph.startupEligible
     ]
+
+    for thing in graph.things:
+      lines.add("thing: " & thing)
+    for provide in graph.provides:
+      lines.add("provide: " & provide.thingName & "." &
+        provide.provideName & " [" & provide.signature & "]")
+    for want in graph.wants:
+      lines.add("want: " & want.consumerThing & " -> " & want.reference)
+    for binding in graph.moduleBindings:
+      lines.add("moduleBinding: " & binding.provideKey & " -> " &
+        binding.moduleType & ":" & binding.moduleRef & ":" &
+        binding.entrypoint & ":" & binding.abiVersion)
+
     for issue in resolution.issues:
       lines.add("issue: " & $issue.kind & " " & issue.reference)
     return (0, lines)
@@ -455,13 +541,29 @@ proc runConceptResolveCommand(args: seq[string]): tuple[exitCode: int, lines: se
       parsed.bindings,
       enforceBindingCoverage = parsed.bindings.len > 0
     )
+    var fatalIssues: seq[CapabilityIssue] = @[]
     for issue in resolution.issues:
       if issueIsFatal(issue):
-        return (2, @["resolve: unresolved - " & issue.detail, ConceptResolveHelpText])
+        fatalIssues.add(issue)
+
+    if fatalIssues.len > 0:
+      var lines = @["resolve: unresolved"]
+      for issue in fatalIssues:
+        lines.add("cause: " & issue.detail)
+      lines.add(ConceptResolveHelpText)
+      return (2, lines)
+
     if resolution.bindings.len == 0:
       return (2, @["resolve: unresolved - no binding produced", ConceptResolveHelpText])
 
-    var lines = @["resolve: ok", "bindings: " & $resolution.bindings.len]
+    let registry = buildDerivedConceptRegistry(parsed.provides, parsed.wants, parsed.bindings)
+    let conceptIds = listConceptIds(registry)
+
+    var lines = @[
+      "resolve: ok",
+      "bindings: " & $resolution.bindings.len,
+      "concepts-derived: " & $conceptIds.len
+    ]
     for binding in resolution.bindings:
       lines.add("binding: " & binding.reference & " -> " &
         binding.providerThing & "." & binding.provideName &
@@ -1027,6 +1129,16 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
 
     discard loadConfigWithOverrides(opts.configPath, overrides)
 
+    if opts.startupProvides.len > 0 or opts.startupWants.len > 0 or
+        opts.startupBindings.len > 0:
+      let startupResolution = resolveCapabilities(
+        opts.startupProvides,
+        opts.startupWants,
+        opts.startupBindings,
+        enforceBindingCoverage = opts.startupBindings.len > 0
+      )
+      assertFatalFree(startupResolution)
+
     let branchName = case opts.consoleMode
       of ccmDetach: "detach"
       of ccmAttach: "attach"
@@ -1044,7 +1156,8 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
     return (0, @[
       "cosmos: config loaded from " & report.configPath,
       "cosmos: startup branch " & report.consoleBranch,
-      "cosmos: mode " & report.modeResolved
+      "cosmos: mode " & report.modeResolved,
+      "cosmos: capability gate passed"
     ])
   except ValueError as err:
     return (2, @[err.msg, CoordinatorUsageText])

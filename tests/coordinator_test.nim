@@ -179,6 +179,46 @@ suite "coordinator success path":
     check lines.anyIt("attach" in it)
     teardownTest()
 
+  test "startup capability fatal issues halt launch":
+    setupTest("coordinator_startup_capability_gate_fail")
+    let configPath = testTmpDir / "runtime.json"
+    writeFile(configPath, """{
+      "mode": "development",
+      "encryptionMode": "standard",
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+    let (code, lines) = runCoordinatorMain(@[
+      "--config", configPath,
+      "--capability-want", "GhostThing.ping"
+    ])
+    check code != 0
+    check lines.anyIt("provider Thing not found" in it)
+    teardownTest()
+
+  test "startup capability declarations pass when resolvable":
+    setupTest("coordinator_startup_capability_gate_success")
+    let configPath = testTmpDir / "runtime.json"
+    writeFile(configPath, """{
+      "mode": "development",
+      "encryptionMode": "standard",
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+    let (code, lines) = runCoordinatorMain(@[
+      "--config", configPath,
+      "--capability-provide", "Lexicons.get:(string)->string",
+      "--capability-want", "Lexicons.get",
+      "--capability-bind", "Lexicons.get:nim:src/runtime/lexicons.nim:registerLexicons:cap-abi-v1"
+    ])
+    check code == 0
+    check lines.anyIt("capability gate passed" in it)
+    teardownTest()
+
 suite "startapp subcommand":
   test "startapp generates scaffold files":
     setupTest("startapp_generates_scaffold")
@@ -243,6 +283,7 @@ suite "concept resolve subcommand":
     check code == 0
     check lines.anyIt("resolve: ok" in it)
     check lines.anyIt("binding:" in it)
+    check lines.anyIt("concepts-derived:" in it)
 
   test "concept resolve fails on unresolved mapping":
     let (code, lines) = runCoordinatorMain(@[

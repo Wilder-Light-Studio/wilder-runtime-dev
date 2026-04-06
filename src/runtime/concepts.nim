@@ -9,7 +9,8 @@
 import json
 import std/[algorithm, sequtils, tables, strutils]
 import validation
-import ../cosmos/thing/thing
+import capabilities
+import cosmos/thing/thing
 
 type
   ConceptSourceKind* = enum
@@ -177,6 +178,107 @@ proc conceptRegistryRecord*(reg: ConceptRegistry, conceptId: string): JsonNode =
     "derivedFrom": effective.derivedFrom,
     "schemaVersion": effective.schemaVersion
   }
+
+# Flow: Derive and register one programmatic Concept from capability boundaries.
+proc registerConceptFromBoundaryDeclarations*(reg: ConceptRegistry,
+                                              thingName: string,
+                                              provides: seq[ProvideDeclaration],
+                                              wants: seq[WantDeclaration],
+                                              moduleBindings: seq[ModuleBindingDeclaration] = @[],
+                                              schemaVersion: int = 1,
+                                              derivedFrom: string = "nim-boundary") =
+  let normalizedThing = thingName.strip
+  if normalizedThing.len == 0:
+    raise newException(ValueError,
+      "concepts: thingName must not be empty for boundary derivation")
+
+  var provideEntries: seq[JsonNode] = @[]
+  for provide in provides:
+    if provide.thingName.strip == normalizedThing:
+      provideEntries.add(%*{
+        "provide": provide.provideName.strip,
+        "signature": provide.signature.strip
+      })
+
+  var wantEntries: seq[JsonNode] = @[]
+  for want in wants:
+    if want.consumerThing.strip == normalizedThing:
+      wantEntries.add(%*{
+        "reference": want.reference.strip,
+        "expectedSignature": want.expectedSignature.strip
+      })
+
+  var bindingEntries: seq[JsonNode] = @[]
+  let keyPrefix = normalizedThing & "."
+  for binding in moduleBindings:
+    if binding.provideKey.strip.startsWith(keyPrefix):
+      bindingEntries.add(%*{
+        "provideKey": binding.provideKey.strip,
+        "moduleType": binding.moduleType.strip,
+        "moduleRef": binding.moduleRef.strip,
+        "entrypoint": binding.entrypoint.strip,
+        "abiVersion": binding.abiVersion.strip
+      })
+
+  provideEntries.sort(proc(a, b: JsonNode): int =
+    let byProvide = system.cmp(a["provide"].getStr(""), b["provide"].getStr(""))
+    if byProvide != 0:
+      return byProvide
+    system.cmp(a["signature"].getStr(""), b["signature"].getStr(""))
+  )
+
+  wantEntries.sort(proc(a, b: JsonNode): int =
+    let byReference = system.cmp(a["reference"].getStr(""), b["reference"].getStr(""))
+    if byReference != 0:
+      return byReference
+    system.cmp(a["expectedSignature"].getStr(""), b["expectedSignature"].getStr(""))
+  )
+
+  bindingEntries.sort(proc(a, b: JsonNode): int =
+    let byKey = system.cmp(a["provideKey"].getStr(""), b["provideKey"].getStr(""))
+    if byKey != 0:
+      return byKey
+    let byType = system.cmp(a["moduleType"].getStr(""), b["moduleType"].getStr(""))
+    if byType != 0:
+      return byType
+    let byRef = system.cmp(a["moduleRef"].getStr(""), b["moduleRef"].getStr(""))
+    if byRef != 0:
+      return byRef
+    let byEntrypoint = system.cmp(a["entrypoint"].getStr(""), b["entrypoint"].getStr(""))
+    if byEntrypoint != 0:
+      return byEntrypoint
+    system.cmp(a["abiVersion"].getStr(""), b["abiVersion"].getStr(""))
+  )
+
+  let conceptDef = createConcept(
+    normalizedThing,
+    %*{
+      "description": "Capability boundary for " & normalizedThing
+    },
+    %*{
+      "description": "Programmatically derived from Nim-first boundary declarations"
+    },
+    %*{
+      "provides": provideEntries,
+      "wants": wantEntries,
+      "moduleBindings": bindingEntries
+    },
+    %*{
+      "source": "runtime.capability-graph"
+    },
+    %*{
+      "phase": "startup"
+    },
+    %*{
+      "capabilityRefs": wantEntries.mapIt(it["reference"].getStr(""))
+    },
+    %*{}
+  )
+
+  registerProgrammaticConcept(reg,
+    conceptDef,
+    schemaVersion = schemaVersion,
+    derivedFrom = derivedFrom)
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.
