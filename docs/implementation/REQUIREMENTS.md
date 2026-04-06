@@ -109,7 +109,7 @@ vocabulary.
 ### Core Principle Flow Diagram
 
 ```mermaid
-flowchart TD
+graph TD
   A[Occurrence forms in Thing/World] --> B[Wave propagates ambiently]
   B --> C{Perception filter match?}
   C -->|No| D[No local uptake]
@@ -523,7 +523,7 @@ Path reset: /
 ### Runtime Lifecycle Flow Diagram
 
 ```mermaid
-flowchart TD
+graph TD
   A[Load config] --> B[Load envelope]
   B --> C[Reconcile layers]
   C --> D{Reconcile success?}

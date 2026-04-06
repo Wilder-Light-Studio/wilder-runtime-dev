@@ -132,7 +132,7 @@ Use .github/pull_request_template.md for all pull requests and complete every re
 ## Development Flow Diagram
 
 ```mermaid
-flowchart TD
+graph TD
   A[Read requirements] --> B[Update compliance matrix]
   B --> C[Implement code changes]
   C --> D[Update tests]
@@ -158,7 +158,7 @@ Pre-release default:
 ## Requirement-to-Test Update Diagram
 
 ```mermaid
-flowchart LR
+graph LR
   A[Requirement changed] --> B[Matrix row updated]
   B --> C[Test artifact added or updated]
   C --> D[Compliance script passes]

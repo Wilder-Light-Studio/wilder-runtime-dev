@@ -19,7 +19,7 @@ Contact: [teamwilder@wildercode.org](mailto:teamwilder@wildercode.org)
 ## Architecture At A Glance
 
 ```mermaid
-flowchart LR
+graph LR
   A[Config] --> B[Runtime Core]
   B --> C[Validation]
   C --> D[Messaging]

@@ -48,6 +48,7 @@ task testCompile, "Compile-check current test stubs":
 	exec "nim c --compileOnly tests/coordinator_test.nim"
 	exec "nim c --compileOnly tests/runtime_home_test.nim"
 	exec "nim c --compileOnly tests/concept_registry_test.nim"
+
 task test, "Run all tests":
 	exec "nimble testCompile"
 	exec "nim c -r tests/reconciliation_test.nim"
