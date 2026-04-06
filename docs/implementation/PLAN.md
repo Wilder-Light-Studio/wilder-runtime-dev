@@ -40,6 +40,7 @@
 | **HH-4** | Console Entrypoint Hardening | ✅ Complete | console_status_test |
 | **HH-5** | Hardening Verification Gate | ✅ Complete | all hardening tests |
 | **Phase VF** | Validation Firewall Vocabulary Refactor | ✅ Complete | requirements/spec/plan/compliance alignment, Chapter 2 reference doc, comment, test text, and test artifact rename updates |
+| **Phase X (Security)** | Security Hardening & Test Coverage | ✅ Complete | Code injection prevention, path traversal prevention, AEAD auth, IPC security, 16 test cases, all docs synchronized |
 | **Phase XE** | Humane Offline Licensing | 🚧 Planned | licensing tests, installer-contract checks, doc compliance checks |
 | **Phase XF** | Cosmos Encryption Spectrum | 🚧 In Progress | encryption-mode config, runtime policy layer, RECORD/persistence/snapshot integration, metadata-exposure and migration tests |   
 

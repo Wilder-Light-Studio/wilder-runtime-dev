@@ -48,8 +48,20 @@ Highlights so far:
 	`cosmos notify format`, and Phase XC evidence is verified in
 	`coordinator_ipc_test` and coordinator CLI contracts.
 - Phase XD encrypted RECORD work is now verified with deterministic
-	entry encryption/decryption primitives, structural metadata chain
+	encryption/decryption primitives, structural metadata chain
 	validation, and passing `encrypted_record_test` coverage.
+
+- **Security Hardening & Test Coverage (Phase X):**
+  - Cryptographic: Added HMAC-SHA256 authentication tags to encrypted RECORD entries; all ciphertexts now integrity-verified before decryption via `verifyAndDecryptRecordEntry()` safe API.
+  - Injection Prevention: Application names validated against character allowlist `[a-zA-Z0-9_\- .]` (max 64 chars); prevents code injection in scaffold file generation.
+  - Path Safety: Filesystem paths from CLI arguments now reject root paths (preventing traversal); applied to all path-accepting commands (`cosmos scan`, `concept show`, etc.).
+  - IPC Security: Replaced hardcoded request IDs with per-invocation dynamic IDs (format: `cli-<epochMsec>-<counter>`); subscribe requests no longer leak static identity.
+  - Key Material: Shutdown snapshot signing key now environment-driven via `COSMOS_SHUTDOWN_SNAPSHOT_SIGNING_KEY` with config-derived fallback.
+  - Delimiter Injection: Nonce and signature derivation now use length-prefixed encoding, preventing field-boundary attacks.
+  - Key Sanitization: Persistence layer keys now use character-class allowlist and 128-char max length (was denylist approach).
+  - Exception Safety: Removed bare `except:` blocks throughout; all exception handlers now specify `except CatchableError:` or more specific types.
+  - Test Coverage: 3 new test suites with 16 test cases verifying injection prevention, path safety, and dynamic ID generation.
+  - Documentation: REQUIREMENTS.md, SPECIFICATION.md, PLAN.md, and COMPLIANCE-MATRIX.md all updated with security coverage and test mappings.
 
 - Runtime API foundations are in place, including typed runtime state, module
 	context, status schema, and reconciliation result structures.

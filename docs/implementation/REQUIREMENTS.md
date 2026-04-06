@@ -802,6 +802,70 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 
 ---
 
+## Security & Input Validation Requirements
+
+### Input Sanitization & Injection Prevention
+
+#### Application Name Validation
+- Start app names (`cosmos startapp --name <name>`) must be validated against character allowlist: `[a-zA-Z0-9_\- .]` (alphanumeric, underscore, hyphen, space, dot).
+- App names must have maximum length of 64 characters.
+- App names with quotes, newlines, backslashes, or control characters must be rejected with clear error message.
+- Name validation must occur **before** template generation to prevent code injection in scaffold files (TOML, Nim source).
+- Test coverage: `tests/startapp_validation_test.nim` (9 test cases).
+
+#### Persistence Key Sanitization
+- Persistence layer keys must be validated against character allowlist: `[a-zA-Z0-9_\-]` (alphanumeric, underscore, hyphen).
+- Dots (`.`) in keys must be normalized to underscores (`_`).
+- Maximum key length is 128 characters; excess characters are truncated without error.
+- Key sanitization prevents filesystem traversal in file-backed persistence backends.
+
+#### CLI Argument Path Validation
+- Filesystem paths provided via CLI arguments (e.g., `cosmos scan <path>`, `cosmos concept show --file <path>`) must reject filesystem root paths.
+- Root path rejection covers: `C:\` (Windows), `/` (Unix), and any variation (e.g., `C:/`).
+- Root path rejection prevents traversal to unintended filesystem regions.
+- Test coverage: `tests/cosmos_main_path_safety_test.nim` (5 test cases, Windows-specific).
+
+### Ciphertext Integrity & Authentication
+
+#### AEAD Authentication Tags
+- Every encrypted RECORD entry must include an HMAC-SHA256 authentication tag.
+- The auth tag binds ciphertext to entry metadata (`epoch`, `txId`, `checksum`, `schema-version`).
+- Authentication tag must be verified **before** decryption via `verifyAndDecryptRecordEntry` safe API.
+- Verification must use constant-time comparison to prevent timing attacks.
+- Failed verification raises `RecordVerificationError` and halts decryption.
+- Test coverage: implicit in `tests/encrypted_record_test.nim` round-trip verification.
+
+#### Nonce Derivation Security
+- Nonce derivation and signature digest computation must use length-prefixed hash preimages.
+- Length-prefixed encoding prevents delimiter injection attacks (concatenation ambiguity leading to signing one message but verifying another).
+- Format: `<length-as-big-endian-u32><data>` for each field concatenated into the preimage.
+
+### Key Derivation & Configuration
+
+#### Shutdown Snapshot Signing Key
+- Shutdown snapshot signing key must be resolved from environment variable `COSMOS_SHUTDOWN_SNAPSHOT_SIGNING_KEY` if present.
+- If environment variable is missing, key is derived deterministically from runtime config fields: `endpoint`, `port`, `mode`, and `encryption`.
+- Hardcoded fallback keys are forbidden; only environment-driven or config-derived resolution is permitted.
+
+### IPC Request ID Generation
+
+#### Dynamic Per-Invocation Request IDs
+- IPC request IDs must be generated dynamically for each CLI invocation, not hardcoded.
+- Request ID format: `cli-<epochMilliseconds>-<incrementingCounter>` (e.g., `cli-1692374400123-0`).
+- Counter increments per request within the same CLI invocation.
+- Subscribe request IDs are derived by appending `-subscribe` to the base request ID.
+- Hardcoded IDs like `"cli-subscribe"` are forbidden; all IDs must reflect per-invocation uniqueness.
+- Test coverage: `tests/cosmos_main_ipc_id_test.nim` (2 test cases).
+
+### Exception Handling
+
+#### Bare Exception Ban
+- Code must not use bare `except:` blocks (catches OutOfMemoryError, NilAccessDefect, etc.).
+- All exception handlers must specify `except CatchableError:` or more specific exception types.
+- Bare `except:` is only permitted in emergency panic-and-exit contexts (e.g., process crash dump before termination).
+
+---
+
 ## Phase X Requirements — DRY Wants/Provides, Capability Discovery, Multi-Module Provides (Nim-first)
 
 ### DRY Wants/Provides (No Double Entry)

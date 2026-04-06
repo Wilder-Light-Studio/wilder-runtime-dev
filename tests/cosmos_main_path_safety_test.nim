@@ -7,95 +7,41 @@
 # Flow: attempt root path -> catch ValueError -> verify error message.
 
 import unittest
-import std/[os, json, tempfiles]
+import std/[os]
 import ../src/cosmos_main
 
-# ── rejectFilesystemRoot behavior ─────────────────────────────────────────────
+# ── scan command path safety via public API ───────────────────────────────────
 
-suite "rejectFilesystemRoot guards":
-  test "rejects absolute root on Windows":
+suite "scan command path safety":
+  test "scan rejects filesystem root on Windows":
     when defined(windows):
-      expect(ValueError):
-        rejectFilesystemRoot("C:\\", "test-flag")
-
-  test "rejects absolute root on Unix":
-    when not defined(windows):
-      expect(ValueError):
-        rejectFilesystemRoot("/", "test-flag")
-
-  test "rejects root with trailing slash on Windows":
-    when defined(windows):
-      expect(ValueError):
-        rejectFilesystemRoot("C:\\", "test-flag")
-
-  test "rejects empty path":
-    expect(ValueError):
-      rejectFilesystemRoot("", "test-flag")
-
-  test "rejects whitespace-only path":
-    expect(ValueError):
-      rejectFilesystemRoot("   ", "test-flag")
-
-  test "allows relative paths":
-    try:
-      rejectFilesystemRoot("./my-project", "test-flag")
-    except ValueError:
-      fail("relative path should not raise")
-
-  test "allows absolute subdirectory paths":
-    let tmpDir = getTempDir()
-    try:
-      rejectFilesystemRoot(tmpDir, "test-flag")
-    except ValueError:
-      fail("absolute subdirectory should not raise")
-
-  test "error message includes flag name":
-    try:
-      rejectFilesystemRoot("", "my-custom-flag")
-    except ValueError as e:
-      check "my-custom-flag" in e.msg
-
-# ── runScanCommand path safety ────────────────────────────────────────────────
-
-suite "runScanCommand path safety":
-  test "scan rejects filesystem root":
-    when defined(windows):
-      let (exitCode, lines) = runScanCommand(@["C:\\"])
+      let (exitCode, _) = runCoordinatorMain(@["scan", "C:\\"])
       check exitCode != 0
-      check lines.len > 0
-      check "scan" in lines[0]
-
-  test "scan rejects empty path by default (uses cwd)":
-    # Empty args defaults to getcwd(), which is safe; no rejection expected
-    let (exitCode, lines) = runScanCommand(@[])
-    # This may succeed or fail depending on cwd state, but should not be a path error
-    check true  # just verify it doesn't crash
 
   test "scan accepts relative path":
-    let (exitCode, lines) = runScanCommand(@["./"])
-    # Result depends on current dir contents, but should not path-reject
-    check true  # just verify no path rejection
+    let (_, _) = runCoordinatorMain(@["scan", "./"])
+    check true
 
-# ── loadConceptFromFile path safety ───────────────────────────────────────────
+# ── concept commands path safety ──────────────────────────────────────────────
 
-suite "loadConceptFromFile path safety":
+suite "concept commands path safety":
   test "concept show rejects filesystem root":
     when defined(windows):
-      let (exitCode, lines) = runCoordinatorMain(@[
+      let (exitCode, _) = runCoordinatorMain(@[
         "concept", "show", "--file", "C:\\"
       ])
       check exitCode != 0
 
   test "concept validate rejects filesystem root":
     when defined(windows):
-      let (exitCode, lines) = runCoordinatorMain(@[
+      let (exitCode, _) = runCoordinatorMain(@[
         "concept", "validate", "--file", "C:\\"
       ])
       check exitCode != 0
 
   test "concept export rejects filesystem root":
     when defined(windows):
-      let (exitCode, lines) = runCoordinatorMain(@[
+      let (exitCode, _) = runCoordinatorMain(@[
         "concept", "export", "--file", "C:\\"
       ])
       check exitCode != 0

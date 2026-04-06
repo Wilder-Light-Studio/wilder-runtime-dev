@@ -7,14 +7,13 @@
 # Flow: validate allowed chars -> reject disallowed -> enforce length limits -> reject empty.
 
 import unittest
+import std/[os, strutils]
 import ../src/runtime/startapp
 
 # ── validateStartAppName edge cases ───────────────────────────────────────────
 
 suite "startapp name validation":
   test "accepts alphanumeric names":
-    expect(ValueError):
-      discard  # validation is called during scaffoldApp; we test indirectly
     let opts = StartAppOptions(
       targetDir: "test-app",
       appName: "MyApp123",
@@ -23,14 +22,10 @@ suite "startapp name validation":
       includeTemplate: true
     )
     # This should not raise during name normalization
-    try:
-      let dirs = scaffoldApp(opts)
-      check dirs.len > 0
-    except ValueError as e:
-      fail("alphanumeric name should not raise: " & e.msg)
-    finally:
-      if dirExists("test-app"):
-        removeDir("test-app")
+    let dirs = scaffoldApp(opts)
+    check dirs.len > 0
+    if dirExists("test-app"):
+      removeDir("test-app")
 
   test "accepts names with hyphens and underscores":
     let opts = StartAppOptions(
@@ -40,14 +35,10 @@ suite "startapp name validation":
       transport: "json",
       includeTemplate: true
     )
-    try:
-      let dirs = scaffoldApp(opts)
-      check dirs.len > 0
-    except ValueError as e:
-      fail("hyphenated/underscore name should not raise: " & e.msg)
-    finally:
-      if dirExists("test-app-2"):
-        removeDir("test-app-2")
+    let dirs = scaffoldApp(opts)
+    check dirs.len > 0
+    if dirExists("test-app-2"):
+      removeDir("test-app-2")
 
   test "rejects names with double quotes":
     let opts = StartAppOptions(
@@ -109,14 +100,10 @@ suite "startapp name validation":
       transport: "json",
       includeTemplate: true
     )
-    try:
-      let dirs = scaffoldApp(opts)
-      check dirs.len > 0
-    except ValueError as e:
-      fail("64-char name should not raise: " & e.msg)
-    finally:
-      if dirExists("test-app-7"):
-        removeDir("test-app-7")
+    let dirs = scaffoldApp(opts)
+    check dirs.len > 0
+    if dirExists("test-app-7"):
+      removeDir("test-app-7")
 
   test "allows spaces in names":
     let opts = StartAppOptions(
@@ -126,14 +113,10 @@ suite "startapp name validation":
       transport: "json",
       includeTemplate: true
     )
-    try:
-      let dirs = scaffoldApp(opts)
-      check dirs.len > 0
-    except ValueError as e:
-      fail("space-containing name should not raise: " & e.msg)
-    finally:
-      if dirExists("test-app-8"):
-        removeDir("test-app-8")
+    let dirs = scaffoldApp(opts)
+    check dirs.len > 0
+    if dirExists("test-app-8"):
+      removeDir("test-app-8")
 
   test "allows dots in names":
     let opts = StartAppOptions(
@@ -143,14 +126,10 @@ suite "startapp name validation":
       transport: "json",
       includeTemplate: true
     )
-    try:
-      let dirs = scaffoldApp(opts)
-      check dirs.len > 0
-    except ValueError as e:
-      fail("dot-containing name should not raise: " & e.msg)
-    finally:
-      if dirExists("test-app-9"):
-        removeDir("test-app-9")
+    let dirs = scaffoldApp(opts)
+    check dirs.len > 0
+    if dirExists("test-app-9"):
+      removeDir("test-app-9")
 
   test "uses defaultAppName when appName is empty":
     let opts = StartAppOptions(
@@ -160,17 +139,13 @@ suite "startapp name validation":
       transport: "json",
       includeTemplate: true
     )
-    try:
-      let dirs = scaffoldApp(opts)
-      check dirs.len > 0
-      # Verify cosmos.toml contains the derived name
-      let cosmosPath = "app-from-dir" / "cosmos.toml"
-      check fileExists(cosmosPath)
-    except ValueError as e:
-      fail("empty appName with defaulting should not raise: " & e.msg)
-    finally:
-      if dirExists("app-from-dir"):
-        removeDir("app-from-dir")
+    let dirs = scaffoldApp(opts)
+    check dirs.len > 0
+    # Verify cosmos.toml contains the derived name
+    let cosmosPath = "app-from-dir" / "cosmos.toml"
+    check fileExists(cosmosPath)
+    if dirExists("app-from-dir"):
+      removeDir("app-from-dir")
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.

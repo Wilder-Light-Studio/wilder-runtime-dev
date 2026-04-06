@@ -103,6 +103,206 @@ Startup must produce one immutable capability graph snapshot containing:
 
 ## 3. Error Conditions and Startup Gate
 
+---
+
+## 10. Security & Input Validation Specification
+
+### 10.1 Input Sanitization
+
+#### 10.1.1 Application Name Validation
+- **Caller:** `startapp.nim:scaffoldApp()`
+- **Input:** app name string from CLI `--name` flag
+- **Validation:**
+  - Trim leading/trailing whitespace
+  - Check length: must be 1–64 characters after trimming
+  - Check characters: must match regex `^[a-zA-Z0-9_\-\.\  ]+$`
+    - Alphanumeric: [a-zA-Z0-9]
+    - Underscore: `_`
+    - Hyphen: `-`
+    - Dot: `.`
+    - Space: ` ` (space character)
+  - Reject quotes (`"`, `'`), backslashes (`\`), newlines (`\n`, `\r`), and control chars
+- **On Valid:** Proceed to template generation
+- **On Invalid:** Raise `ValueError` with message: `"Invalid app name: must be 1–64 alphanumeric, underscore, hyphen, dot, or space characters"`
+- **Test:** `tests/startapp_validation_test.nim` (9 test cases)
+
+#### 10.1.2 Persistence Key Sanitization
+- **Caller:** `persistence.nim:sanitizeKey()`
+- **Input:** key string from caller (e.g., module name, transaction ID prefix)
+- **Processing:**
+  - Allowlist characters: `[a-zA-Z0-9_\-]` (alphanumeric, underscore, hyphen)
+  - Normalize dots (`.`) to underscores (`_`)
+  - Drop all other characters silently (no error on invalid chars)
+  - Truncate to max 128 characters if longer
+- **Output:** sanitized key string
+- **Example:** `"module.name@1.0"` → `"module_name_1_0"` (after normalization and dropping @)
+- **Note:** Allowlist-based approach replaces prior denylist for security
+
+#### 10.1.3 Filesystem Path Validation (CLI Arguments)
+- **Caller:** `cosmos_main.nim:rejectFilesystemRoot()`
+- **Input:** filesystem path string from CLI args (e.g., `--file`, positional [path] arg)
+- **Rejection Criteria:**
+  - Windows root: `C:\`, `C:/`, `D:\`, etc. (drive letter + colon + separator)
+  - Unix root: `/`
+  - UNC paths: `\\server\share` (Windows network)
+  - Relative path starting with `..` is allowed (design choice)
+  - Relative path `./` is allowed
+- **On Rejected:** Raise `ValueError` with message: `"Path must not be a filesystem root"`
+- **On Accepted:** Proceed with path operations
+- **Callsites:** `loadConceptFromFile()`, `runScanCommand()`
+- **Test:** `tests/cosmos_main_path_safety_test.nim` (5 test cases)
+
+---
+
+### 10.2 Ciphertext Integrity & Authentication
+
+#### 10.2.1 HMAC-SHA256 Authentication Tag
+- **Module:** `encrypted_record.nim`
+- **Primitive:** RFC 2104 HMAC using SHA256
+- **Field Name:** `payloadAuthTag` on `EncryptedRecordEntry` type
+- **Generation:**
+  - Input preimage: `ciphertext || epoch || txId || checksum || schemaVersion`
+  - (Length-prefixed encoding per §10.3.1 to prevent delimiter injection)
+  - Symmetric key: entry key material (same key used for XOR encryption)
+  - Output: hex-encoded 64-character string (256-bit SHA256)
+- **Verification:**
+  - In `verifyAndDecryptRecordEntry()`: compute fresh auth tag from ciphertext + metadata
+  - Compare with stored `payloadAuthTag` using constant-time comparison
+  - If mismatch: raise `RecordVerificationError("Auth tag mismatch")`
+  - If match: proceed to decrypt using XOR with original key
+- **JSON Serialization:**
+  - Field serialized as-is in JSON
+  - Old records (missing `payloadAuthTag`) default to `""` (empty string)
+  - Empty auth tag is treated as "unverified" but still decryptable (backward compatibility during migration)
+- **Test:** `tests/encrypted_record_test.nim` round-trip verification
+
+#### 10.2.2 Safe Decryption API
+- **Proc:** `verifyAndDecryptRecordEntry(entry: EncryptedRecordEntry; keyMaterial: string): string`
+- **Contract:**
+  - Verifies auth tag before decryption
+  - Returns plaintext on success
+  - Raises `RecordVerificationError` on auth failure
+  - Raises `RecordDecryptionError` on XOR/format failure
+- **Callers:** All code paths that decrypt entry ciphertexts from storage
+
+---
+
+### 10.3 Nonce & Signature Derivation Security
+
+#### 10.3.1 Length-Prefixed Encoding
+- **Purpose:** Prevent delimiter injection in multi-field hash preimages
+- **Format:** For each field in preimage:
+  ```
+  <length-as-big-endian-u32><field-bytes>
+  ```
+- **Example:** Preimage for ["hello", "world"] encodes as:
+  ```
+  0x00000005 "hello" 0x00000005 "world"
+  ```
+- **Callsites:**
+  - `encrypted_record.nim:deriveNonce()` — nonce length-prefixed from entry metadata
+  - `validation.nim:deriveSignatureDigest()` — signature preimage length-prefixed
+- **Test:** Implicit in encrypted_record_test round-trip and validation_firewall_test
+
+#### 10.3.2 Nonce Derivation
+- **Proc:** `deriveNonce(entry: EncryptedRecordEntry): string`
+- **Input:** entry metadata (`epoch`, `txId`, `checksum`)
+- **Process:**
+  1. Encode `epoch` as length-prefixed u32
+  2. Encode `txId` as length-prefixed string
+  3. Encode `checksum` as length-prefixed hex string
+  4. Concatenate: `[epoch][txId][checksum]`
+  5. Hash result with SHA256
+  6. Use first 16 bytes (128 bits) of hash as nonce
+- **Output:** 16-byte nonce for XOR counter-mode encryption
+- **Note:** No field can inject into another field via delimiter tricks
+
+---
+
+### 10.4 Key Derivation & Runtime Configuration
+
+#### 10.4.1 Shutdown Snapshot Signing Key Resolution
+- **Proc:** `core.nim:resolveShutdownSnapshotSigningKey(config: RuntimeConfig): string`
+- **Flow:**
+  1. Check environment variable `COSMOS_SHUTDOWN_SNAPSHOT_SIGNING_KEY`
+  2. If present and non-empty: use as signing key (return immediately)
+  3. If missing or empty: derive key from `config` fields:
+     - Concatenate: `config.endpoint || ":" || config.port || ":" || config.mode || ":" || config.encryptionMode`
+     - Hash with SHA256
+     - Use first 32 bytes (256 bits) as derived key
+  4. Return resolved key
+- **Usage:** Shutdown snapshot export uses resolved key for HMAC signature
+- **Test:** Implicit in lifecycle_test and shutdown flow
+
+#### 10.4.2 Environment Override Pattern
+- **Variable:** `COSMOS_SHUTDOWN_SNAPSHOT_SIGNING_KEY`
+- **Behavior:** If set, completely overrides config-derived fallback
+- **Security Model:** Operator has explicit control over signing key without code change
+- **Note:** Production deployments should set this variable for deterministic key management
+
+---
+
+### 10.5 IPC Request ID Generation
+
+#### 10.5.1 Request ID Format
+- **Format:** `cli-<epochMilliseconds>-<counter>`
+- **Components:**
+  - `cli` prefix: identifies CLI invocation source
+  - `epochMilliseconds`: UNIX epoch milliseconds at CLI start (8-11 digit number)
+  - counter: 0-based incrementing counter for each request in same invocation
+- **Example:** `cli-1692374400123-0`, `cli-1692374400123-1`
+
+#### 10.5.2 ID Generation
+- **Proc:** `cosmos_main.nim:nextCliRequestId(): string`
+- **State:** Module-level variables:
+  - `cliRequestCounter: int = 0` (per-invocation counter)
+- **Logic:**
+  1. Get current epoch milliseconds: `times.epochTimeMs` or equivalent
+  2. Increment `cliRequestCounter`
+  3. Format: `"cli-" & $epochMs & "-" & $(cliRequestCounter - 1)`
+  4. Return formatted ID
+- **Per-Invocation Reset:** `cliRequestCounter` resets on each new CLI invocation (new module instance)
+
+#### 10.5.3 Subscribe ID Derivation
+- **Proc:** Derived in `cosmos_main` request handler
+- **Logic:** `subscribeRequestId = requestId & "-subscribe"`
+- **Example:** Request `cli-1692374400123-0` → Subscribe `cli-1692374400123-0-subscribe`
+- **Usage:** Used in both TCP IPC frames and in-process subscription registration
+- **Note:** Subscribe ID is no longer a hardcoded singleton like `"cli-subscribe"`
+
+#### 10.5.4 IPC Frame Format
+- **Frame structure:** `{requestId: string, ...other fields...}`
+- **Callsites:**
+  - TCP subscribe frames: `requestId` field set to `subscribeRequestId`
+  - In-process subscription: `requestId` field set to `subscribeRequestId`
+  - Watch frames: `requestId` field set to derived unique ID
+- **Invariant:** No hardcoded request IDs; all IDs must be generated per invocation
+- **Test:** `tests/cosmos_main_ipc_id_test.nim` (2 test cases)
+
+---
+
+### 10.6 Exception Handling
+
+#### 10.6.1 Bare Exception Ban
+- **Rule:** All `except:` blocks must specify `except CatchableError:` or more specific type
+- **Rationale:** Bare `except:` catches fatal exceptions (OutOfMemoryError, NilAccessDefect, StackOverflowError) that should halt immediately
+- **Exception:** Emergency panic-and-exit contexts only; document with comment
+- **Callsites:** Primarily reconciliation, persistence, and message handling (high-risk exception paths)
+- **Test:** Implicit in existing test suites; regression via linting
+
+---
+
+### 10.7 Security Test Suites — Coverage Summary
+
+| Requirement | Test Suite | Test Cases | Artifact |
+|---|---|---|---|
+| App name validation (injection) | startapp_validation_test | 9 | tests/startapp_validation_test.nim |
+| Path traversal rejection | cosmos_main_path_safety_test | 5 | tests/cosmos_main_path_safety_test.nim |
+| Dynamic IPC request IDs | cosmos_main_ipc_id_test | 2 | tests/cosmos_main_ipc_id_test.nim |
+| AEAD auth tag verification | encrypted_record_test | (existing round-trip + auth) | tests/encrypted_record_test.nim |
+| Length-prefixed encoding | validation_firewall_test | (implicit preimage tests) | tests/validation_firewall_test.nim |
+| Bare exception handling | record_reconciliation_test | (implicit Catchable tests) | tests/record_reconciliation_test.nim |
+
 ### 3.1 Issue Kinds
 
 Runtime must represent at least these issue kinds:

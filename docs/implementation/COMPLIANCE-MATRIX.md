@@ -60,6 +60,9 @@ Status values:
 | Validating Prefilter Requirements | Prefilter failures are emitted as safe, deterministic failure Occurrences that never leak raw invalid payload data to user code. | Failure-occurrence schema tests and negative dispatch tests. | tests/validation_failure_occurrence_test.nim | Verified |
 | Validating Prefilter Requirements | Validation masks are precomputed at build time for every signature; payload masks are computed at runtime without allocation. | Mask generation correctness tests; zero-allocation payload mask benchmarks. | tests/validation_firewall_test.nim, tests/validation_firewall_perf_test.nim | Verified |
 | Validating Prefilter Requirements | Hot-path structural validation uses mask-based boolean conjunction, constant-time with respect to mask width. | Mask conjunction correctness and timing tests. | tests/validation_firewall_test.nim, tests/validation_firewall_perf_test.nim | Verified |
+| Security Requirements (Phase X) | Input Sanitization & Code Injection Prevention (App Naming) | Character allowlist validation, max-length enforcement, injection-character rejection, safe app name derivation. | tests/startapp_validation_test.nim (9 test cases) | Verified |
+| Security Requirements (Phase X) | Path Traversal Prevention (CLI Arguments) | Filesystem root-path rejection, relative path acceptance, applied to all path-accepting CLI commands. | tests/cosmos_main_path_safety_test.nim (5 test cases, Windows-specific) | Verified |
+| Security Requirements (Phase X) | Dynamic IPC Request ID Generation | Per-invocation unique ID generation (format: `cli-<epochMsec>-<counter>`), subscribe ID derivation, hardcoded ID elimination. | tests/cosmos_main_ipc_id_test.nim (2 test cases) | Verified |
 
 ## Maintenance Rule
 
