@@ -143,17 +143,15 @@ graph TD
   G -->|Yes| I[Submit PR with evidence]
 ```
 
-## Pre-Release CI Activation
+## CI Workflow Behavior
 
-Single activation flag:
-- Set repository variable `ENABLE_PRE_RELEASE_CI=true` to enable `.github/workflows/pre_release_verify.yml`.
+Pre-release verification workflow:
+- `.github/workflows/pre_release_verify.yml` runs on push to `main` and `release/**`, on pull requests targeting `main`, and by manual dispatch.
+- It must run `nimble compliance` and `nimble verify`.
 
-Phase 19A release scaffold activation flag:
-- Set repository variable `ENABLE_RELEASE_ARTIFACTS=true` to enable `.github/workflows/release_artifacts.yml`.
-
-Pre-release default:
-- Keep variable unset or set to `false`.
-- Keep only `workflow_dispatch` trigger to avoid automatic CI resource usage.
+Release artifact workflow:
+- `.github/workflows/release_artifacts.yml` runs on `v*` tags and by manual dispatch.
+- It must build the full cross-platform matrix, run installer contract checks, generate checksums, and publish manifest metadata.
 
 ## Requirement-to-Test Update Diagram
 

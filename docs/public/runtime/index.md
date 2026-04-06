@@ -10,6 +10,7 @@ What this is. This section documents operational runtime surfaces that module de
 - `startup-sequence.md`
 - `config-and-transport.md`
 - `hardening.md`
+- `release-tooling-guide.md`
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

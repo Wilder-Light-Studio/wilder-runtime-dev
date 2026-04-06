@@ -1322,10 +1322,10 @@ All checks should run in local development and CI.
 - The `.nimble` file is the authoritative source for version, metadata, and dependencies.
 - All documentation and status outputs must reference the `.nimble` file as the source of
   truth for version.
-- An inactive pre-release CI workflow must be present as a reminder artifact,
-  and it must not run automatically until release activation criteria are met.
-- Pre-release CI activation must use a single repository variable flag:
-  `ENABLE_PRE_RELEASE_CI=true`.
+- A pre-release CI workflow must run automatically for pushes to `main` and
+  `release/**`, and for pull requests targeting `main`.
+- Pre-release CI must run both compliance and verification gates (`nimble compliance`
+  and `nimble verify`) before release publication.
 
 ### Project Phase: Phase X — Installer, Build, Release, and Concept System
 

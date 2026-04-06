@@ -19,7 +19,7 @@ Contact: [teamwilder@wildercode.org](mailto:teamwilder@wildercode.org)
 ## Architecture At A Glance
 
 ```mermaid
-graph LR
+flowchart LR
   A[Config] --> B[Runtime Core]
   B --> C[Validation]
   C --> D[Messaging]
@@ -123,14 +123,45 @@ Build and stage release artifacts locally:
 nimble releaseArtifacts
 ```
 
+## Binary Distribution Safety
+
+To reduce platform trust and policy risk, this repository does not place direct `.exe`
+download links in primary documentation.
+
+Use this release pattern instead:
+
+1. Publish artifacts through GitHub Releases.
+2. Include checksum evidence (`SHA256SUMS`) for every release.
+3. Include a release summary (`RELEASE-SUMMARY.md`) for traceability.
+4. If signing secrets are configured, include signature evidence (`SHA256SUMS.sig`).
+
+Verification examples:
+
+```powershell
+# Windows PowerShell checksum verification
+Get-FileHash .\cosmos-windows-amd64.exe -Algorithm SHA256
+```
+
+```bash
+# Linux/macOS checksum verification
+sha256sum cosmos-linux-amd64
+```
+
+Release notes should use the safe template at:
+
+- `.github/release_notes_template.md`
+
 ## CI/CD
 
 - GitHub CI: `.github/workflows/ci.yml` runs compile/test gates on pushes and pull requests to `main`.
-- GitHub CD: `.github/workflows/cd_release.yml` runs on `v*` tags and uploads staged `dist/v*` artifacts.
-- GitHub release matrix: `.github/workflows/release_artifacts.yml` supports multi-platform release artifact generation.
+- GitHub pre-release verify: `.github/workflows/pre_release_verify.yml` runs compliance and verify gates on push/PR and manual dispatch.
+- GitHub release matrix: `.github/workflows/release_artifacts.yml` runs on `v*` tags and manual dispatch; it builds cross-platform artifacts, verifies checksums, and publishes a GitHub Release.
+- GitHub release promotion: `.github/workflows/promote_release.yml` promotes a preview release tag to a stable tag and republishes assets with promotion notes.
+- GitHub CD fallback: `.github/workflows/cd_release.yml` is a manual Windows-only fallback staging workflow.
 - Codeberg CI/CD: `.woodpecker.yml` provides:
   - push/pull-request CI for `main`
   - tag-driven `v*` release staging (Linux artifact generation and dist packaging)
+- Release operator playbook: `docs/public/runtime/release-tooling-guide.md`
 
 ## Repository Map
 

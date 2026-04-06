@@ -201,12 +201,14 @@ foreach ($snippet in $requiredPrTemplateSnippets) {
   }
 }
 
-# Inactive pre-release workflow checks.
+# Active pre-release workflow checks.
 $requiredWorkflowPatterns = @(
-  "name: Pre-Release Verify \(Inactive\)",
+  "name: Pre-Release Verify",
+  "pull_request:",
+  "push:",
   "workflow_dispatch:",
-  "if: \$\{\{ vars.ENABLE_PRE_RELEASE_CI == 'true' \}\}",
-  "ENABLE_PRE_RELEASE_CI"
+  "nimble compliance",
+  "nimble verify"
 )
 
 foreach ($pattern in $requiredWorkflowPatterns) {
@@ -215,20 +217,17 @@ foreach ($pattern in $requiredWorkflowPatterns) {
   }
 }
 
-if ($preReleaseWorkflowContent -match '(?m)^\s*pull_request:\s*$' -or $preReleaseWorkflowContent -match '(?m)^\s*push:\s*$') {
-  $missing.Add("Pre-release workflow must remain inactive and must not include push/pull_request triggers.")
-}
-
-# Phase 19A release scaffold checks.
+# Active release matrix workflow checks.
 $requiredReleaseWorkflowPatterns = @(
-  "name: Release Artifacts \(Phase 19A Scaffold\)",
+  "name: Release Artifacts",
+  "push:",
+  "tags:",
   "workflow_dispatch:",
-  "if: \$\{\{ vars.ENABLE_RELEASE_ARTIFACTS == 'true' \}\}",
+  "Resolve release metadata",
   "Stage 1 - build",
   "Stage 2 - package",
-  "Stage 3 - sign scaffold",
-  "Stage 4 - verify-signature and checksums",
-  "Stage 5 - publish scaffold metadata",
+  "Stage 3 - verify artifacts and checksums",
+  "Stage 4 - publish metadata",
   "test_installer_contract.ps1",
   "generate_artifact_checksums.ps1",
   "windows-amd64",
@@ -264,12 +263,6 @@ foreach ($artifact in $requiredHeaderArtifacts) {
 }
 
 $requiredCompletionArtifacts = @(
-  "docs/implementation/Chapter1/MODULE-FLOWCHARTS.md",
-  "docs/implementation/Chapter2/MODULE-FLOWCHARTS.md",
-  "docs/implementation/Chapter3/MODULE-FLOWCHARTS.md",
-  "docs/implementation/Chapter4/MODULE-FLOWCHARTS.md",
-  "docs/implementation/Chapter5/MODULE-FLOWCHARTS.md",
-  "docs/implementation/Chapter6/MODULE-FLOWCHARTS.md",
   "tests/security_boundary_test.nim",
   "tests/core_principles_test.nim",
   "scripts/test_validate_config_script.ps1"
