@@ -35,6 +35,7 @@ The following priority sequence governs near-term implementation. Items marked
 | **P3B** | **Ch 20B** — Runtime Entrypoint CLI Interface | Coordinator launch options model, parse/validate matrix, watch-mode constraints, structured failure output contract, operator usage coverage | Ch 20, Ch 10, Host Hardening |
 | **P3C** | **Phase X** — Installer, Build, Release, and Concept System | Runtime-home resolver, concept registry, concept CLI, startapp scaffold, expanded release matrix, version registry | Ch 12, Ch 19A, Ch 20B |
 | **P3D** | **Phase XE** — Humane Offline Licensing | Licensing requirements/spec alignment, offline-first local licensing module, optional transparency email workflow, liberation-timer deactivation gate, deterministic tests | Ch 19A, Ch 20B, Ch 99 |
+| **P3E** | **Phase XF** — Cosmos Encryption Spectrum | Encryption-mode requirements/spec alignment, config schema/parser extension, encryption policy layer, metadata-minimization rules, migration and key-handling tests | Ch 2A, Ch 3, Phase XD, Ch 20B |
 | **P3** | **Ch 99** — Test Harness & CI Gating | Harness completion, core tests required for merges, CI workflow | All P0–P2 tests passing |
 | **P4** | **Ch 14** — Security & Performance | Microbenchmarks for prefilter hot path, perception filtering, startup time; iterate on results | Ch 10 (full startup) |
 
@@ -1319,4 +1320,9 @@ Implements deterministic encrypted RECORD persistence with triumvirate sovereign
 **Status:** 🚧 PLANNED | **Prerequisite:** Phase X, installer
 
 Implements humane offline-first local licensing with duty-to-pay plus compassionate complimentary path, optional one-time transparency email, valid-license enforcement deactivation, and a three-year version liberation timer.
+
+### Phase XF — Cosmos Encryption Spectrum
+**Status:** 🚧 PLANNED | **Prerequisite:** Ch 2A, Ch 3, Phase XD
+
+Introduces four canonical runtime encryption modes — CLEAR, STANDARD, PRIVATE, and COMPLETE — with explicit config selection, key-custody rules, metadata-exposure contracts, and migration guardrails layered over the existing encrypted RECORD foundation.
 *See LICENSE for details.*

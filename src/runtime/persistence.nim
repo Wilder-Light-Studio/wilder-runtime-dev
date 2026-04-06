@@ -21,6 +21,8 @@ import std/[json, tables, strutils, times, os, sequtils, algorithm, monotimes]
 import validation
 import api
 import encrypted_record
+import config
+import encryption_mode
 
 const
   RuntimeLayer* = "runtime"
@@ -32,6 +34,11 @@ const
 
 type
   PersistenceError* = object of CatchableError
+
+  RecordMigrationResult* = object
+    migratedCount*: int
+    fromMode*: EncryptionMode
+    toMode*: EncryptionMode
 
   MigrationStep* = proc(payload: JsonNode): JsonNode
 
@@ -82,6 +89,54 @@ proc bytesToString(data: openArray[byte]): string =
 # Flow: Create independent copy of JSON object.
 proc cloneJson(node: JsonNode): JsonNode =
   result = parseJson($node)
+
+# Flow: Extract validated runtime encryption contract metadata from a runtime payload.
+proc extractRuntimeContract*(payload: JsonNode): JsonNode =
+  ## Return an empty object when the payload carries no encryption contract.
+  result = newJObject()
+  if payload.isNil or payload.kind != JObject or not payload.hasKey("encryptionMode"):
+    return
+
+  if payload["encryptionMode"].kind != JString:
+    raise newException(PersistenceError,
+      "persistence: runtime encryptionMode must be string")
+  let modeName = payload["encryptionMode"].getStr().strip.toLowerAscii
+  discard parseEncryptionMode(modeName)
+  result["encryptionMode"] = %modeName
+
+  if payload.hasKey("recoveryEnabled"):
+    if payload["recoveryEnabled"].kind != JBool:
+      raise newException(PersistenceError,
+        "persistence: runtime recoveryEnabled must be bool")
+    result["recoveryEnabled"] = %payload["recoveryEnabled"].getBool()
+  else:
+    result["recoveryEnabled"] = %false
+
+  if payload.hasKey("operatorEscrow"):
+    if payload["operatorEscrow"].kind != JBool:
+      raise newException(PersistenceError,
+        "persistence: runtime operatorEscrow must be bool")
+    result["operatorEscrow"] = %payload["operatorEscrow"].getBool()
+  else:
+    result["operatorEscrow"] = %false
+
+# Flow: Merge the active runtime encryption contract into an existing runtime payload.
+proc mergeRuntimeContract*(payload: JsonNode, cfg: RuntimeConfig): JsonNode =
+  ## Preserve prior runtime fields while sealing the active policy into persistence.
+  result = if payload.isNil: newJObject() else: cloneJson(payload)
+  result["encryptionMode"] = %encryptionModeName(cfg.encryptionMode)
+  result["recoveryEnabled"] = %cfg.recoveryEnabled
+  result["operatorEscrow"] = %cfg.operatorEscrow
+
+# Flow: Compare runtime payload contract fields to snapshot runtime contract metadata.
+proc runtimeContractMatches(payload: JsonNode, contractNode: JsonNode): bool =
+  let payloadContract = extractRuntimeContract(payload)
+  if payloadContract.len != contractNode.len:
+    return false
+  for key, value in contractNode:
+    if not payloadContract.hasKey(key) or payloadContract[key] != value:
+      return false
+  result = true
 
 # Flow: Clone tables with deep copy of JSON values.
 proc tableClone(src: Table[string, JsonNode]): Table[string, JsonNode] =
@@ -750,6 +805,105 @@ proc readEnvelope*(bridge: PersistenceBridge,
   let env = bridge.loadEnvelope(layer, key)
   result = unwrapEnvelope(env)
 
+# Flow: Forward declarations for transactional helpers used by record migration.
+proc commit*(bridge: PersistenceBridge): bool
+proc rollback*(bridge: PersistenceBridge)
+
+# Flow: Stage a RECORD write using the selected encryption mode and deterministic metadata.
+proc writeRecordEntry*(bridge: PersistenceBridge,
+    key: string,
+    payload: JsonNode,
+    encryptionMode: EncryptionMode,
+    keyMaterial: string,
+    sequence: int,
+    entryType: string,
+    authorId: string,
+    previousHash: string) =
+  let entry = buildRecordEntryForMode(
+    payload,
+    encryptionMode,
+    keyMaterial,
+    sequence,
+    entryType,
+    authorId,
+    previousHash
+  )
+  bridge.writeEnvelope(RecordsLayer, key, encryptedRecordToJson(entry))
+
+# Flow: Read committed RECORD entry payload using the selected encryption mode.
+proc readRecordPayload*(bridge: PersistenceBridge,
+    key: string,
+    encryptionMode: EncryptionMode,
+    keyMaterial: string): JsonNode =
+  let recordNode = bridge.readEnvelope(RecordsLayer, key)
+  let entry = encryptedRecordFromJson(recordNode)
+  result = restoreRecordPayloadForMode(entry, encryptionMode, keyMaterial)
+
+# Flow: Return one operator-facing summary of a committed RECORD entry for the selected mode.
+proc summarizeRecordForOperator*(bridge: PersistenceBridge,
+    key: string,
+    encryptionMode: EncryptionMode): JsonNode =
+  let recordNode = bridge.readEnvelope(RecordsLayer, key)
+  let entry = encryptedRecordFromJson(recordNode)
+  result = summarizeRecordEntryForMode(entry, encryptionMode)
+
+# Flow: Rewrite the committed RECORD layer into a new encryption mode deterministically.
+proc migrateRecordLayer*(bridge: PersistenceBridge,
+    fromMode: EncryptionMode,
+    toMode: EncryptionMode,
+    fromKeyMaterial: string,
+    toKeyMaterial: string,
+    allowDowngrade: bool = false): RecordMigrationResult =
+  if bridge.activeTransaction:
+    raise newException(PersistenceError,
+      "persistence: migrateRecordLayer requires no active transaction")
+  if isPrivacyDowngrade(fromMode, toMode) and not allowDowngrade:
+    raise newException(PersistenceError,
+      "persistence: explicit approval required for encryption-mode downgrade")
+
+  type RecordItem = tuple[key: string, entry: EncryptedRecordEntry]
+  var items: seq[RecordItem] = @[]
+  for key in bridge.listLayerKeys(RecordsLayer):
+    let recordNode = bridge.readEnvelope(RecordsLayer, key)
+    items.add((key: key, entry: encryptedRecordFromJson(recordNode)))
+
+  items.sort(proc(a, b: RecordItem): int =
+    result = system.cmp(a.entry.sequence, b.entry.sequence)
+    if result == 0:
+      result = system.cmp(a.key, b.key)
+  )
+
+  if items.len == 0:
+    return RecordMigrationResult(migratedCount: 0, fromMode: fromMode, toMode: toMode)
+
+  discard beginTransaction(bridge)
+  try:
+    var previousHash = ""
+    for item in items:
+      let payload = restoreRecordPayloadForMode(item.entry, fromMode, fromKeyMaterial)
+      let migrated = buildRecordEntryForMode(
+        payload,
+        toMode,
+        toKeyMaterial,
+        item.entry.sequence,
+        item.entry.entryType,
+        item.entry.authorId,
+        previousHash
+      )
+      bridge.writeEnvelope(RecordsLayer, item.key, encryptedRecordToJson(migrated))
+      previousHash = migrated.encryptedPayloadHash
+    discard commit(bridge)
+  except CatchableError:
+    rollback(bridge)
+    raise newException(PersistenceError,
+      "persistence: record migration failed")
+
+  result = RecordMigrationResult(
+    migratedCount: items.len,
+    fromMode: fromMode,
+    toMode: toMode
+  )
+
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc commit*(bridge: PersistenceBridge): bool =
   ## Commit staged changes atomically with post-commit invariant checks.
@@ -912,7 +1066,7 @@ proc hmacSha256(key: string, message: string): string =
   result = computeSha256(outerInput)
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
-proc signSnapshot(snapshotEnv: JsonNode,
+proc signSnapshot*(snapshotEnv: JsonNode,
     signingKey: string): string =
   if signingKey.len == 0:
     raise newException(PersistenceError,
@@ -929,11 +1083,17 @@ proc exportSnapshot*(bridge: PersistenceBridge,
   var items = newJObject()
   for k, env in snapshot.pairs:
     items[k] = cloneJson(env)
-  let payload = %*{
+  var payload = %*{
     "snapshotId": snapshotId,
     "epoch": bridge.epoch,
     "entries": items
   }
+  let runtimeKey = composeKey(RuntimeLayer, "runtime")
+  if runtimeKey in snapshot:
+    let runtimePayload = unwrapEnvelope(snapshot[runtimeKey])
+    let runtimeContract = extractRuntimeContract(runtimePayload)
+    if runtimeContract.len > 0:
+      payload["runtimeContract"] = runtimeContract
   var env = envelopeFor(bridge, payload, bridge.epoch, "snapshot-export")
   env["signature"] = %signSnapshot(env, signingKey)
   result = env
@@ -961,6 +1121,19 @@ proc importSnapshot*(bridge: PersistenceBridge,
   if payload["entries"].kind != JObject:
     raise newException(PersistenceError,
       "persistence: snapshot entries must be object")
+
+  if payload.hasKey("runtimeContract"):
+    if payload["runtimeContract"].kind != JObject:
+      raise newException(PersistenceError,
+        "persistence: snapshot runtimeContract must be object")
+    let runtimeKey = composeKey(RuntimeLayer, "runtime")
+    if runtimeKey notin payload["entries"]:
+      raise newException(PersistenceError,
+        "persistence: snapshot runtimeContract requires runtime entry")
+    let runtimePayload = unwrapEnvelope(payload["entries"][runtimeKey])
+    if not runtimeContractMatches(runtimePayload, payload["runtimeContract"]):
+      raise newException(PersistenceError,
+        "persistence: snapshot runtimeContract does not match runtime payload")
 
   var snapshot = initTable[string, JsonNode]()
   for k, env in payload["entries"]:

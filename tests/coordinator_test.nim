@@ -46,6 +46,10 @@ suite "coordinator parse and resolve":
     let opts = parseCoordinatorOptions(@["--config", "/x", "--mode", "debug"])
     check opts.modeOverride == some("debug")
 
+  test "encryption mode passes through":
+    let opts = parseCoordinatorOptions(@["--config", "/x", "--encryption-mode", "complete"])
+    check opts.encryptionMode == some("complete")
+
 # ── validation failures ───────────────────────────────────────────────────────
 
 suite "coordinator validation failures":
@@ -60,6 +64,10 @@ suite "coordinator validation failures":
 
   test "bad mode exits non-zero":
     let (code, lines) = runCoordinatorMain(@["--config", "/x", "--mode", "staging"])
+    check code != 0
+
+  test "bad encryption mode exits non-zero":
+    let (code, lines) = runCoordinatorMain(@["--config", "/x", "--encryption-mode", "sealed"])
     check code != 0
 
   test "daemonize plus explicit console attach exits non-zero":
@@ -124,6 +132,7 @@ suite "coordinator success path":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -139,6 +148,7 @@ suite "coordinator success path":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -146,6 +156,7 @@ suite "coordinator success path":
     }""")
     let (code, _) = runCoordinatorMain(@[
       "--config", configPath,
+      "--encryption-mode", "complete",
       "--log-level", "debug",
       "--port", "9090"
     ])
@@ -157,6 +168,7 @@ suite "coordinator success path":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",

@@ -1461,6 +1461,103 @@ Minimum required tests:
 
 ---
 
+# 19G. Phase XF — Cosmos Encryption Spectrum Specification
+
+**REQ:** Project Phase: Phase XF — Cosmos Encryption Spectrum
+
+**Source:** Encryption-mode selection, key custody, metadata exposure, and migration
+behavior layered over the existing encrypted RECORD and persistence model.
+
+### 19G.1 Mode Selector and Scope Contract
+
+- Runtime configuration must expose `encryptionMode` with canonical values
+  `clear`, `standard`, `private`, and `complete`.
+- Exactly one encryption mode is active for a runtime instance at a time.
+- The selected mode applies uniformly to:
+  - RECORD payloads,
+  - prompts and outputs,
+  - eidela state,
+  - persisted runtime state containing user data,
+  - exports and backup artifacts.
+- Phase XD encrypted RECORD structure, hashing, and reconciliation rules remain binding
+  for every mode that stores encrypted RECORD payloads.
+
+### 19G.2 CLEAR Contract
+
+- `clear` disables Cosmos-managed content encryption and key-derivation flows.
+- RECORD payloads and other protected user-data classes may persist as plaintext.
+- No ciphertext wrapper, recovery envelope, or synthetic key material is required.
+- User-facing surfaces must label the mode as non-private or equivalent language.
+
+### 19G.3 STANDARD Contract
+
+- `standard` encrypts user-authored content client-side before operator-controlled
+  persistence, replication, or sync.
+- Operator-visible metadata is limited to fields needed for routing, timestamps, size,
+  deterministic reconciliation, and bounded diagnostics.
+- Recovery or escrow is optional and valid only with explicit user opt-in.
+
+### 19G.4 PRIVATE Contract
+
+- `private` encrypts all user content and eidela state client-side.
+- Primary content keys remain under user or device custody.
+- Metadata exposure must be strictly less than or equal to `standard` and limited to
+  the minimum needed for deterministic runtime operation.
+- Recovery is permitted only through explicit user-provisioned artifacts.
+
+### 19G.5 COMPLETE Contract
+
+- `complete` enforces end-to-end encryption across content-bearing runtime surfaces.
+- User content, eidela state, and runtime state containing user data must be encrypted
+  before they cross the user-controlled device boundary.
+- Operator-controlled services may observe ciphertext and the minimum transport or
+  reconciliation metadata only.
+- Operator escrow, hidden recovery channels, or plaintext inspection exceptions are
+  forbidden.
+
+### 19G.6 Key Handling and Recovery Contract
+
+- `clear` uses no content-encryption key material.
+- `standard` may use device-local keys and optional user-approved recovery wrapping.
+- `private` requires user-controlled or device-controlled key custody for primary
+  content keys.
+- `complete` requires user-controlled key custody and must never upload plaintext keys
+  to operator-controlled services.
+- Missing required key material must cause deterministic startup or activation failure.
+
+### 19G.7 Metadata and Diagnostics Contract
+
+- `clear` permits plaintext content and metadata visibility.
+- `standard` allows structural metadata visibility but forbids operator plaintext access
+  to protected content.
+- `private` must minimize metadata beyond `standard` while preserving deterministic
+  routing and reconciliation.
+- `complete` must not emit plaintext-derived diagnostic fields, previews, or support
+  traces to operator-controlled surfaces.
+
+### 19G.8 Migration and Failure Contract
+
+- Mode changes are explicit migrations, not implicit runtime fallbacks.
+- Moving to a more private mode requires re-encryption or state rewriting to complete
+  before activation.
+- Moving to a less private mode requires explicit user-visible confirmation and must not
+  occur silently.
+- `complete` activation must fail fast when end-to-end key material is unavailable.
+- Recovery combinations that contradict the selected mode's trust boundary must be
+  rejected deterministically.
+
+### 19G.9 Testability Contract
+
+Minimum required tests:
+- deterministic parsing and validation of `encryptionMode`;
+- `clear` bypass behavior for Cosmos encryption layers;
+- no-plaintext-access coverage for `standard`, `private`, and `complete`;
+- metadata exposure assertions per mode;
+- migration and downgrade guardrail coverage;
+- missing-key and invalid-recovery failure coverage.
+
+---
+
 # 21. Runtime Configuration Specification
 
 **REQ:** Runtime Configuration Requirements
@@ -1471,6 +1568,7 @@ Minimum required tests:
 | Field      | Type   | Values                                      | Default       |
 |------------|--------|---------------------------------------------|---------------|
 | `mode`     | string | `"debug"` \| `"production"`                 | `"debug"`     |
+| `encryptionMode` | string | `"clear"` \| `"standard"` \| `"private"` \| `"complete"` | `"standard"` |
 | `transport`| string | `"json"` \| `"protobuf"`                    | `"json"`      |
 | `logLevel` | string | `"trace"` \| `"debug"` \| `"info"` \| `"warn"` \| `"error"` | `"info"` |
 | `endpoint` | string | non-empty hostname or address               | `"localhost"` |
@@ -1478,6 +1576,12 @@ Minimum required tests:
 
 ### 21.2 Validation Rules
 - `mode = "production"` must reject `logLevel ∈ {"trace", "debug"}`.
+- `encryptionMode` must be one of `clear|standard|private|complete`.
+- `clear` must bypass Cosmos-managed content-encryption paths without synthetic key
+  requirements.
+- `private` and `complete` must reject activation when required key material is absent.
+- `complete` must reject operator-escrow or operator-recovery settings if they are
+  present in the effective config.
 - `port` must be in range `[1, 65535]`.
 - `endpoint` must be a non-empty string.
 - All other invalid combinations must produce a structured error at config-load time.
@@ -1488,15 +1592,17 @@ The loaded config must map to a single Nim record passed to all subsystems:
 ```nim
 type
   RuntimeMode    = enum rmDebug, rmProduction
+  EncryptionMode = enum emClear, emStandard, emPrivate, emComplete
   TransportKind  = enum tkJson, tkProtobuf
   LogLevel       = enum llTrace, llDebug, llInfo, llWarn, llError
 
   RuntimeConfig = object
-    mode:      RuntimeMode
-    transport: TransportKind
-    logLevel:  LogLevel
-    endpoint:  string
-    port:      int
+    mode:           RuntimeMode
+    encryptionMode: EncryptionMode
+    transport:      TransportKind
+    logLevel:       LogLevel
+    endpoint:       string
+    port:           int
 ```
 
 ### 21.4 Loading Contract
@@ -1512,7 +1618,8 @@ type
 ### 21.6 Override Precedence
 - `loadConfig` must support override inputs from environment and CLI.
 - Precedence order is: config file < environment variables < CLI flags.
-- Supported environment variable overrides include `COSMOS_MODE`, `COSMOS_LOG_LEVEL`, and `COSMOS_PORT`.
+- Supported environment variable overrides include `COSMOS_MODE`,
+  `COSMOS_ENCRYPTION_MODE`, `COSMOS_LOG_LEVEL`, and `COSMOS_PORT`.
 - All override values are validated using the same rules as file-provided values.
 - Overrides are additive replacements only; they do not permit missing required fields after validation.
 

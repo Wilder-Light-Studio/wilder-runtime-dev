@@ -2,6 +2,10 @@
 
 This note expands the proposed encryption mode vocabulary and captures the intended trust boundaries.
 
+It predates the normative Phase XF work and is now superseded by the canonical
+four-mode Cosmos encryption spectrum in `docs/implementation/REQUIREMENTS.md` and
+`docs/implementation/SPECIFICATION-NIM.md`.
+
 These notes are exploratory and do not define current runtime behavior.
 
 ## Summary

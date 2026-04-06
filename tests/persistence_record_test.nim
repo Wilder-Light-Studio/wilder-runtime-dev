@@ -5,20 +5,17 @@
 # Wilder Foundation License 1.0
 # persistence_record_test.nim
 
-import std/[json, os, tempfiles]
+import std/[json, os]
 import ../src/runtime/persistence
 import ../src/runtime/encrypted_record
 import ../src/runtime/validation
+import ../src/runtime/config
 
 # Flow: Convert string to bytes.
 proc toBytes(s: string): seq[byte] =
   result = newSeq[byte](s.len)
   for i in 0 ..< s.len:
     result[i] = byte(s[i])
-
-# Flow: Compose layer:key composite key for testing.
-proc composeKey(layer, key: string): string =
-  layer & ":" & key
 
 # Flow: Execute test suite with deterministic setup/teardown.
 proc runTests*() =
@@ -133,7 +130,7 @@ proc runTests*() =
 
     bridge.persistEnvelope(RecordsLayer, "snap_entry", recordEnv)
 
-    let snapshot = bridge.snapshotAll()
+    discard bridge.snapshotAll()
     # Load the entry back to confirm it persisted correctly.
     let loaded = bridge.loadEnvelope(RecordsLayer, "snap_entry")
     assert loaded["payload"]["encryptedPayloadHash"].getStr() == encryptedPayloadHash,
@@ -221,6 +218,91 @@ proc runTests*() =
     finally:
       if dirExists(tmpDir):
         removeDir(tmpDir)
+
+  # Test: clear mode persists plaintext JSON through record helpers.
+  block:
+    let bridge = newInMemoryBridge(schemaVersion=1, origin="test")
+    discard bridge.beginTransaction()
+    let payload = %*{"mode": "clear", "content": "visible"}
+    bridge.writeRecordEntry("clear_entry", payload, emClear, "", 1, "clear_entry", "author-clear", "")
+    discard bridge.commit()
+
+    let stored = bridge.loadEnvelope(RecordsLayer, "clear_entry")
+    assert stored["payload"]["encryptedPayload"].getStr() == $payload,
+      "clear-mode RECORD payload should remain plaintext"
+    let restored = bridge.readRecordPayload("clear_entry", emClear, "")
+    assert restored == payload, "clear-mode RECORD payload round-trip mismatch"
+    echo "[OK] clear mode persists plaintext RECORD payloads predictably"
+
+  # Test: standard mode persists ciphertext through record helpers and restores payload.
+  block:
+    let bridge = newInMemoryBridge(schemaVersion=1, origin="test")
+    discard bridge.beginTransaction()
+    let payload = %*{"mode": "standard", "content": "hidden"}
+    bridge.writeRecordEntry("standard_entry", payload, emStandard, "std-key", 1, "secure_entry", "author-std", "")
+    discard bridge.commit()
+
+    let stored = bridge.loadEnvelope(RecordsLayer, "standard_entry")
+    assert stored["payload"]["encryptedPayload"].getStr() != $payload,
+      "standard-mode RECORD payload should not remain plaintext"
+    let restored = bridge.readRecordPayload("standard_entry", emStandard, "std-key")
+    assert restored == payload, "standard-mode RECORD payload round-trip mismatch"
+    echo "[OK] standard mode persists ciphertext and restores RECORD payloads"
+
+  # Test: migrating clear RECORDs to standard rewrites plaintext to ciphertext.
+  block:
+    let bridge = newInMemoryBridge(schemaVersion=1, origin="test")
+    discard bridge.beginTransaction()
+    bridge.writeRecordEntry("entry_a", %*{"v": 1}, emClear, "", 1, "event", "author-a", "")
+    bridge.writeRecordEntry("entry_b", %*{"v": 2}, emClear, "", 2, "event", "author-a", computeSha256(toBytes($(%*{"v": 1}))))
+    discard bridge.commit()
+
+    let migration = bridge.migrateRecordLayer(emClear, emStandard, "", "migrate-key")
+    assert migration.migratedCount == 2, "expected both clear RECORDs to migrate"
+
+    let storedA = bridge.loadEnvelope(RecordsLayer, "entry_a")
+    let storedB = bridge.loadEnvelope(RecordsLayer, "entry_b")
+    assert storedA["payload"]["encryptedPayload"].getStr() != $(%*{"v": 1}),
+      "migrated standard RECORD payload should not remain plaintext"
+    let migratedPayloadB = bridge.readRecordPayload("entry_b", emStandard, "migrate-key")
+    assert migratedPayloadB == %*{"v": 2}, "migrated standard RECORD payload mismatch"
+    assert storedB["payload"]["previousHash"].getStr() == storedA["payload"]["encryptedPayloadHash"].getStr(),
+      "migrated RECORD chain should be re-linked to new hashes"
+    echo "[OK] clear-to-standard migration rewrites RECORD ciphertext and chain metadata"
+
+  # Test: downgrading protected RECORDs requires explicit approval.
+  block:
+    let bridge = newInMemoryBridge(schemaVersion=1, origin="test")
+    discard bridge.beginTransaction()
+    bridge.writeRecordEntry("entry_secure", %*{"secret": true}, emStandard, "secure-key", 1, "event", "author-s", "")
+    discard bridge.commit()
+
+    try:
+      discard bridge.migrateRecordLayer(emStandard, emClear, "secure-key", "")
+      assert false, "expected downgrade migration to require explicit approval"
+    except PersistenceError:
+      discard
+
+    let migration = bridge.migrateRecordLayer(emStandard, emClear, "secure-key", "", allowDowngrade = true)
+    assert migration.migratedCount == 1, "expected protected RECORD downgrade to migrate one entry"
+    let downgraded = bridge.loadEnvelope(RecordsLayer, "entry_secure")
+    assert downgraded["payload"]["encryptedPayload"].getStr() == $(%*{"secret": true}),
+      "approved downgrade should rewrite payload to plaintext"
+    echo "[OK] protected-to-clear migration requires approval and rewrites plaintext"
+
+  # Test: operator summaries redact payload in protected modes.
+  block:
+    let bridge = newInMemoryBridge(schemaVersion=1, origin="test")
+    discard bridge.beginTransaction()
+    bridge.writeRecordEntry("operator_view", %*{"secret": "hidden"}, emComplete, "summary-key", 1, "event", "author-o", "")
+    discard bridge.commit()
+
+    let summary = bridge.summarizeRecordForOperator("operator_view", emComplete)
+    assert summary["contentVisible"].getBool() == false,
+      "complete-mode operator summary must hide content"
+    assert not summary.hasKey("authorId"),
+      "complete-mode operator summary must hide author metadata"
+    echo "[OK] operator summaries redact protected RECORD metadata and payloads"
 
 # Entry point.
 when isMainModule:

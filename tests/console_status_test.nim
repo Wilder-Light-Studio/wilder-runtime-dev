@@ -326,6 +326,7 @@ suite "console cli entrypoint":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -345,6 +346,7 @@ suite "console cli entrypoint":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -364,6 +366,7 @@ suite "console cli entrypoint":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -401,6 +404,7 @@ suite "console cli log-level flag":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -410,8 +414,27 @@ suite "console cli log-level flag":
     check code == 0
     teardownTest()
 
+  test "--encryption-mode private with valid config exits zero":
+    setupTest("console_encryption_mode_accept")
+    let configPath = testTmpDir / "runtime.json"
+    writeFile(configPath, """{
+      "mode": "development",
+      "encryptionMode": "standard",
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+    let (code, _) = runConsoleMain(@["--config", configPath, "--encryption-mode", "private"])
+    check code == 0
+    teardownTest()
+
   test "--log-level invalid value exits non-zero":
     let (code, _) = runConsoleMain(@["--config", "/x", "--log-level", "verbose"])
+    check code != 0
+
+  test "--encryption-mode invalid value exits non-zero":
+    let (code, _) = runConsoleMain(@["--config", "/x", "--encryption-mode", "sealed"])
     check code != 0
 
 suite "console cli port flag":
@@ -420,6 +443,7 @@ suite "console cli port flag":
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",

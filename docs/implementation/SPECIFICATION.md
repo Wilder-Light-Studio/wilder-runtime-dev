@@ -319,3 +319,57 @@ consistent with `docs/implementation/REQUIREMENTS.md` (Phase XE) and
 - No-network guarantees across generation, validation, deactivation, and liberation paths.
 - Optional transparency-email decline and failure no-op coverage.
 - Liberation timer expiry deactivation coverage.
+
+---
+
+## 9. Phase XF Encryption Spectrum Addendum
+
+This addendum defines executable behavior for the Cosmos encryption spectrum and must
+remain consistent with `docs/implementation/REQUIREMENTS.md` (Phase XF) and
+`docs/implementation/SPECIFICATION-NIM.md` §19G and §21.
+
+### 9.1 Mode Selector and Scope
+
+- Runtime configuration must expose `encryptionMode` with canonical values
+  `clear|standard|private|complete`.
+- The selected mode applies to RECORD payloads, eidela state, persisted runtime state
+  containing user data, exports, and backup artifacts.
+- The mode selector is a policy contract layered over existing encryption primitives and
+  reconciliation behavior, not a single algorithm switch.
+
+### 9.2 CLEAR Behavior
+
+- `clear` bypasses Cosmos-managed content-encryption and key-derivation layers.
+- User data may be stored in plaintext for deterministic education and testing flows.
+- User-facing surfaces must present `clear` as non-private.
+
+### 9.3 STANDARD Behavior
+
+- `standard` encrypts user content client-side before operator-controlled persistence.
+- Structural metadata required for routing, timestamps, sizes, and deterministic
+  reconciliation may remain visible.
+- Recovery features require explicit user opt-in.
+
+### 9.4 PRIVATE and COMPLETE Behavior
+
+- `private` encrypts all user content client-side and minimizes metadata beyond
+  `standard`, while permitting only explicit user-provisioned recovery.
+- `complete` enforces end-to-end encryption with no operator plaintext access, no
+  operator escrow, and no hidden recovery channel.
+- `complete` must fail deterministically when required end-to-end key material is
+  unavailable.
+
+### 9.5 Migration and Failure Contract
+
+- Startup must reject invalid mode names, missing required key material, and impossible
+  recovery combinations.
+- Migration to a less private mode must require explicit user-visible confirmation.
+- Migration to a more private mode must complete required re-encryption before the new
+  mode becomes active.
+
+### 9.6 Testability Contract
+
+- Deterministic mode parsing and startup validation coverage.
+- CLEAR bypass coverage.
+- No-plaintext-access coverage for `standard`, `private`, and `complete`.
+- Metadata exposure and migration guardrail coverage.

@@ -18,9 +18,12 @@
 ##   and structured errors.
 
 import unittest
+import json
 import std/strutils
 import ../src/runtime/core
 import ../src/runtime/capabilities
+import ../src/runtime/config
+import ../src/runtime/persistence
 
 # ── helper ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +81,49 @@ suite "step 4 — reconciliation gate":
     lc.stepLoadEnvelope()
     lc.stepReconcile()
     check lc.step == lcReconciled
+
+# ── step 5 — runtime policy migration gate ───────────────────────────────────
+
+suite "step 5 — runtime policy migration gate":
+  test "migrate seals configured encryption contract into runtime envelope":
+    let lc = configuredLc()
+    lc.cfg.encryptionMode = emPrivate
+    lc.cfg.recoveryEnabled = false
+    lc.cfg.operatorEscrow = false
+    lc.stepInitPersistence()
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+
+    lc.stepMigrate()
+
+    let payload = lc.bridge.readEnvelope(RuntimeLayer, "runtime")
+    check payload["encryptionMode"].getStr() == "private"
+    check not payload["recoveryEnabled"].getBool()
+    check not payload["operatorEscrow"].getBool()
+
+  test "migrate halts on stored encryption mode mismatch":
+    let lc = configuredLc()
+    lc.cfg.encryptionMode = emStandard
+    lc.cfg.recoveryEnabled = false
+    lc.cfg.operatorEscrow = false
+    lc.stepInitPersistence()
+    discard beginTransaction(lc.bridge)
+    lc.bridge.writeEnvelope(RuntimeLayer, "runtime", %*{
+      "status": "ready",
+      "encryptionMode": "clear",
+      "recoveryEnabled": false,
+      "operatorEscrow": false
+    })
+    discard commit(lc.bridge)
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+
+    try:
+      lc.stepMigrate()
+      check false
+    except StartupError as err:
+      check err.haltedAt == lcMigrated
+      check "different encryptionMode" in err.recoveryGuidance
 
 # ── step 6 — prefilter gate ───────────────────────────────────────────────────
 

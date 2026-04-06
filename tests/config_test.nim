@@ -32,7 +32,7 @@ proc writeTempConfig(content: string): string =
 
 # Flow: Execute procedure with deterministic test helper behavior.
 proc clearOverrideEnv() =
-  for key in ["COSMOS_MODE", "COSMOS_LOG_LEVEL", "COSMOS_PORT"]:
+  for key in ["COSMOS_MODE", "COSMOS_ENCRYPTION_MODE", "COSMOS_RECOVERY_ENABLED", "COSMOS_OPERATOR_ESCROW", "COSMOS_LOG_LEVEL", "COSMOS_PORT"]:
     if existsEnv(key):
       delEnv(key)
 
@@ -40,6 +40,7 @@ suite "runtime config":
   test "loads valid development config":
     let path = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "debug",
       "endpoint": "localhost",
@@ -48,6 +49,9 @@ suite "runtime config":
 
     let cfg = loadConfig(path)
     check cfg.mode == rmDevelopment
+    check cfg.encryptionMode == emStandard
+    check cfg.recoveryEnabled == false
+    check cfg.operatorEscrow == false
     check cfg.transport == tkJson
     check cfg.logLevel == llDebug
     check cfg.port == 8080
@@ -55,6 +59,7 @@ suite "runtime config":
   test "loads valid production config":
     let path = writeTempConfig("""{
       "mode": "production",
+      "encryptionMode": "complete",
       "transport": "protobuf",
       "logLevel": "info",
       "endpoint": "runtime.prod",
@@ -63,12 +68,14 @@ suite "runtime config":
 
     let cfg = loadConfig(path)
     check cfg.mode == rmProduction
+    check cfg.encryptionMode == emComplete
     check cfg.transport == tkProtobuf
     check cfg.logLevel == llInfo
 
   test "rejects production with debug logging":
     let path = writeTempConfig("""{
       "mode": "production",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "debug",
       "endpoint": "runtime.prod",
@@ -89,6 +96,7 @@ suite "runtime config":
   test "rejects invalid port boundaries":
     let p0 = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -99,6 +107,7 @@ suite "runtime config":
 
     let p65536 = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -110,6 +119,7 @@ suite "runtime config":
   test "accepts valid port boundaries":
     let p1 = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -119,6 +129,7 @@ suite "runtime config":
 
     let p65535 = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -129,6 +140,7 @@ suite "runtime config":
   test "environment overrides beat file values":
     let path = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "clear",
       "transport": "json",
       "logLevel": "debug",
       "endpoint": "localhost",
@@ -138,17 +150,20 @@ suite "runtime config":
     clearOverrideEnv()
     defer: clearOverrideEnv()
     putEnv("COSMOS_MODE", "production")
+    putEnv("COSMOS_ENCRYPTION_MODE", "private")
     putEnv("COSMOS_LOG_LEVEL", "info")
     putEnv("COSMOS_PORT", "443")
 
     let cfg = loadConfigWithOverrides(path)
     check cfg.mode == rmProduction
+    check cfg.encryptionMode == emPrivate
     check cfg.logLevel == llInfo
     check cfg.port == 443
 
   test "cli overrides beat environment values":
     let path = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "clear",
       "transport": "json",
       "logLevel": "debug",
       "endpoint": "localhost",
@@ -158,21 +173,25 @@ suite "runtime config":
     clearOverrideEnv()
     defer: clearOverrideEnv()
     putEnv("COSMOS_MODE", "production")
+    putEnv("COSMOS_ENCRYPTION_MODE", "private")
     putEnv("COSMOS_LOG_LEVEL", "info")
     putEnv("COSMOS_PORT", "443")
 
     let cfg = loadConfigWithOverrides(path, RuntimeConfigOverrides(
       mode: some("debug"),
+      encryptionMode: some("complete"),
       logLevel: some("warn"),
       port: some(9001)
     ))
     check cfg.mode == rmDebug
+    check cfg.encryptionMode == emComplete
     check cfg.logLevel == llWarn
     check cfg.port == 9001
 
   test "invalid override values are rejected after precedence is applied":
     let path = writeTempConfig("""{
       "mode": "development",
+      "encryptionMode": "standard",
       "transport": "json",
       "logLevel": "info",
       "endpoint": "localhost",
@@ -185,6 +204,112 @@ suite "runtime config":
 
     expect(ValueError):
       discard loadConfigWithOverrides(path)
+
+  test "invalid encryption mode is rejected":
+    let path = writeTempConfig("""{
+      "mode": "development",
+      "encryptionMode": "sealed",
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+
+    expect(ValueError):
+      discard loadConfig(path)
+
+  test "missing encryption mode defaults to standard":
+    let path = writeTempConfig("""{
+      "mode": "development",
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+
+    let cfg = loadConfig(path)
+    check cfg.encryptionMode == emStandard
+
+  test "clear mode rejects recovery and escrow flags":
+    let path = writeTempConfig("""{
+      "mode": "development",
+      "encryptionMode": "clear",
+      "recoveryEnabled": true,
+      "operatorEscrow": false,
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+
+    expect(ValueError):
+      discard loadConfig(path)
+
+  test "private mode rejects operator escrow":
+    let path = writeTempConfig("""{
+      "mode": "development",
+      "encryptionMode": "private",
+      "recoveryEnabled": true,
+      "operatorEscrow": true,
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+
+    expect(ValueError):
+      discard loadConfig(path)
+
+  test "complete mode rejects operator escrow":
+    let path = writeTempConfig("""{
+      "mode": "development",
+      "encryptionMode": "complete",
+      "recoveryEnabled": true,
+      "operatorEscrow": true,
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+
+    expect(ValueError):
+      discard loadConfig(path)
+
+  test "standard operator escrow requires recovery opt-in":
+    let path = writeTempConfig("""{
+      "mode": "development",
+      "encryptionMode": "standard",
+      "recoveryEnabled": false,
+      "operatorEscrow": true,
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+
+    expect(ValueError):
+      discard loadConfig(path)
+
+  test "environment boolean overrides apply to encryption settings":
+    let path = writeTempConfig("""{
+      "mode": "development",
+      "encryptionMode": "standard",
+      "recoveryEnabled": false,
+      "operatorEscrow": false,
+      "transport": "json",
+      "logLevel": "info",
+      "endpoint": "localhost",
+      "port": 8080
+    }""")
+
+    clearOverrideEnv()
+    defer: clearOverrideEnv()
+    putEnv("COSMOS_RECOVERY_ENABLED", "true")
+    putEnv("COSMOS_OPERATOR_ESCROW", "true")
+
+    let cfg = loadConfig(path)
+    check cfg.recoveryEnabled == true
+    check cfg.operatorEscrow == true
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.

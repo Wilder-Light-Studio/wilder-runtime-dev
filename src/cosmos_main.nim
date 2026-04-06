@@ -20,6 +20,7 @@ type
   CoordinatorLaunchOptions* = object
     configPath*: string
     modeOverride*: Option[string]       ## development|debug|production
+    encryptionMode*: Option[string]     ## clear|standard|private|complete
     logLevel*: Option[string]           ## trace|debug|info|warn|error
     port*: Option[int]                  ## 1-65535
     consoleMode*: CoordinatorConsoleMode
@@ -37,6 +38,7 @@ type
 const
   CoordinatorUsageText* =
     "Usage: cosmos --config <path> [--mode <dev|debug|prod>] " &
+    "[--encryption-mode <clear|standard|private|complete>] " &
     "[--console <auto|attach|detach>] [--watch <path>] [--daemonize] " &
     "[--log-level <trace|debug|info|warn|error>] [--port <N>] [--help]"
   CoordinatorHelpText* =
@@ -61,6 +63,7 @@ const
     "\n" &
     "Optional:\n" &
     "  --mode <dev|debug|prod>              Override runtime mode\n" &
+    "  --encryption-mode <mode>             Override encryption mode (clear|standard|private|complete)\n" &
     "  --console <auto|attach|detach>       Console launch mode (default: detach)\n" &
     "  --watch <path>                       Watch target on initial attach\n" &
     "  --daemonize                          Run in background/detached mode\n" &
@@ -231,6 +234,12 @@ proc parseCoordinatorOptions*(args: seq[string]): CoordinatorLaunchOptions =
           "cosmos: --mode requires a value")
       result.modeOverride = some(normalizeCoordinatorMode(args[i + 1]))
       i += 2
+    of "--encryption-mode":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "cosmos: --encryption-mode requires a value")
+      result.encryptionMode = some(args[i + 1].toLowerAscii.strip)
+      i += 2
     of "--console":
       if i + 1 >= args.len:
         raise newException(ValueError,
@@ -303,6 +312,11 @@ proc validateCoordinatorOptions*(opts: CoordinatorLaunchOptions) =
     if lvl notin ["trace", "debug", "info", "warn", "error"]:
       raise newException(ValueError,
         "cosmos: --log-level must be one of trace|debug|info|warn|error")
+  if opts.encryptionMode.isSome:
+    let mode = opts.encryptionMode.get()
+    if mode notin ["clear", "standard", "private", "complete"]:
+      raise newException(ValueError,
+        "cosmos: --encryption-mode must be one of clear|standard|private|complete")
   if opts.port.isSome:
     let p = opts.port.get()
     if p < 1 or p > 65535:
@@ -730,6 +744,8 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
     var overrides = RuntimeConfigOverrides()
     if opts.modeOverride.isSome:
       overrides.mode = opts.modeOverride
+    if opts.encryptionMode.isSome:
+      overrides.encryptionMode = opts.encryptionMode
     if opts.logLevel.isSome:
       overrides.logLevel = opts.logLevel
     if opts.port.isSome:

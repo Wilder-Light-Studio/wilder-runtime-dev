@@ -12,6 +12,8 @@
 import json
 import std/strutils
 import validation
+import config
+import encryption_mode
 
 type
   EncryptedRecordEntry* = object
@@ -199,6 +201,105 @@ proc encryptedRecordToJson*(entry: EncryptedRecordEntry): JsonNode =
     "encryptedPayload": entry.encryptedPayload,
     "encryptedPayloadHash": entry.encryptedPayloadHash
   }
+
+# Flow: Convert deterministic JSON object back into typed encrypted record entry.
+proc encryptedRecordFromJson*(node: JsonNode): EncryptedRecordEntry =
+  discard validateStructure(node, @[
+    "entryType", "authorId", "sequence", "previousHash",
+    "encryptedPayload", "encryptedPayloadHash"
+  ])
+  if node["entryType"].kind != JString or
+     node["authorId"].kind != JString or
+     node["sequence"].kind != JInt or
+     node["previousHash"].kind != JString or
+     node["encryptedPayload"].kind != JString or
+     node["encryptedPayloadHash"].kind != JString:
+    raise newException(ValueError,
+      "encrypted_record: record JSON has invalid field types")
+  EncryptedRecordEntry(
+    entryType: node["entryType"].getStr(),
+    authorId: node["authorId"].getStr(),
+    sequence: node["sequence"].getInt(),
+    previousHash: node["previousHash"].getStr(),
+    encryptedPayload: node["encryptedPayload"].getStr(),
+    encryptedPayloadHash: node["encryptedPayloadHash"].getStr()
+  )
+
+# Flow: Build a record entry according to the selected encryption mode.
+proc buildRecordEntryForMode*(payload: JsonNode,
+                              encryptionMode: EncryptionMode,
+                              keyMaterial: string,
+                              sequence: int,
+                              entryType: string,
+                              authorId: string,
+                              previousHash: string): EncryptedRecordEntry =
+  let policy = policyFor(encryptionMode)
+  if policy.storesPlaintext:
+    let plaintext = $payload
+    return EncryptedRecordEntry(
+      entryType: entryType,
+      authorId: authorId,
+      sequence: sequence,
+      previousHash: previousHash,
+      encryptedPayload: plaintext,
+      encryptedPayloadHash: computeSha256(toBytes(plaintext))
+    )
+  if policy.requiresKeyMaterial and keyMaterial.strip.len == 0:
+    raise newException(ValueError,
+      "encrypted_record: key material is required for this encryption mode")
+  result = buildEncryptedRecordEntry(
+    payload,
+    keyMaterial,
+    sequence,
+    entryType,
+    authorId,
+    previousHash
+  )
+
+# Flow: Restore the original payload according to the selected encryption mode.
+proc restoreRecordPayloadForMode*(entry: EncryptedRecordEntry,
+                                  encryptionMode: EncryptionMode,
+                                  keyMaterial: string): JsonNode =
+  if policyFor(encryptionMode).storesPlaintext:
+    try:
+      return parseJson(entry.encryptedPayload)
+    except JsonParsingError:
+      raise newException(ValueError,
+        "encrypted_record: clear-mode payload is not valid JSON")
+  result = decryptDeterministicPayload(
+    entry.encryptedPayload,
+    keyMaterial,
+    entry.sequence,
+    entry.entryType,
+    entry.authorId,
+    entry.previousHash
+  )
+
+# Flow: Build one operator-facing summary that respects the selected encryption mode.
+proc summarizeRecordEntryForMode*(entry: EncryptedRecordEntry,
+                                  encryptionMode: EncryptionMode): JsonNode =
+  result = %*{
+    "entryType": entry.entryType,
+    "sequence": entry.sequence,
+    "previousHash": entry.previousHash,
+    "encryptedPayloadHash": entry.encryptedPayloadHash,
+    "contentVisible": false
+  }
+
+  case encryptionMode
+  of emClear:
+    result["authorId"] = %entry.authorId
+    result["contentVisible"] = %true
+    try:
+      result["payload"] = parseJson(entry.encryptedPayload)
+    except JsonParsingError:
+      result["payload"] = %entry.encryptedPayload
+  of emStandard:
+    result["authorId"] = %entry.authorId
+  of emPrivate:
+    discard
+  of emComplete:
+    discard
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.

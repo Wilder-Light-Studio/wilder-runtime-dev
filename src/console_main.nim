@@ -12,6 +12,7 @@ import runtime/[console, config]
 const
   UsageText* =
     "Usage: console_main --config <path> [--mode <dev|debug|prod>] " &
+    "[--encryption-mode <clear|standard|private|complete>] " &
     "[--attach <identity>] [--watch <path>] " &
     "[--log-level <trace|debug|info|warn|error>] [--port <N>] [--help]"
   ConsoleHelpText* =
@@ -25,6 +26,7 @@ const
     "\n" &
     "Optional:\n" &
     "  --mode <dev|debug|prod>   Override runtime mode\n" &
+    "  --encryption-mode <mode>  Override encryption mode (clear|standard|private|complete)\n" &
     "  --attach <identity>       Auto-attach to this identity on launch\n" &
     "  --watch <path>            Start watch on this path (requires --attach)\n" &
     "  --log-level <level>       Override log level (trace|debug|info|warn|error)\n" &
@@ -39,6 +41,7 @@ type
   ConsoleLaunchOptions* = object
     configPath*: string
     modeOverride*: string
+    encryptionMode*: string
     attachIdentity*: string
     watchTarget*: string
     logLevel*: string
@@ -76,6 +79,12 @@ proc parseLaunchOptions*(args: seq[string]): ConsoleLaunchOptions =
         raise newException(ValueError,
           "console_main: --mode requires a value")
       result.modeOverride = normalizeMode(args[i + 1])
+      i += 2
+    of "--encryption-mode":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "console_main: --encryption-mode requires a value")
+      result.encryptionMode = args[i + 1].toLowerAscii.strip
       i += 2
     of "--attach":
       if i + 1 >= args.len:
@@ -123,6 +132,10 @@ proc validateLaunchOptions*(opts: ConsoleLaunchOptions) =
      opts.logLevel notin ["trace", "debug", "info", "warn", "error"]:
     raise newException(ValueError,
       "console_main: --log-level must be one of trace|debug|info|warn|error")
+  if opts.encryptionMode.len > 0 and
+     opts.encryptionMode notin ["clear", "standard", "private", "complete"]:
+    raise newException(ValueError,
+      "console_main: --encryption-mode must be one of clear|standard|private|complete")
   if opts.port != 0 and (opts.port < 1 or opts.port > 65535):
     raise newException(ValueError,
       "console_main: --port must be in range 1-65535, got " & $opts.port)
@@ -143,6 +156,8 @@ proc runConsoleMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]
     var overrides = RuntimeConfigOverrides()
     if opts.modeOverride.len > 0:
       overrides.mode = some(opts.modeOverride)
+    if opts.encryptionMode.len > 0:
+      overrides.encryptionMode = some(opts.encryptionMode)
     if opts.logLevel.len > 0:
       overrides.logLevel = some(opts.logLevel)
     if opts.port != 0:

@@ -23,6 +23,7 @@ import json
 import std/[tables, os, strutils, sequtils]
 import harness
 import ../src/runtime/persistence
+import ../src/runtime/validation
 
 const
   BadChecksum =
@@ -142,15 +143,38 @@ suite "Chapter 3 UAT":
   test "UAT-CH3-009 valid signed snapshot imports successfully":
     var source = newInMemoryBridge()
     discard beginTransaction(source)
-    source.writeEnvelope(RuntimeLayer, "runtime", %*{"state": "green"})
+    source.writeEnvelope(RuntimeLayer, "runtime", %*{
+      "state": "green",
+      "encryptionMode": "standard",
+      "recoveryEnabled": false,
+      "operatorEscrow": false
+    })
     source.writeEnvelope(ModulesLayer, "mod.delta", %*{"value": 42})
     check commit(source)
 
     let snapshot = exportSnapshot(source, "snap-001", SigningKey)
+    check snapshot["payload"]["runtimeContract"]["encryptionMode"].getStr() ==
+      "standard"
     var target = newInMemoryBridge()
     importSnapshot(target, snapshot, SigningKey)
     check target.readEnvelope(RuntimeLayer, "runtime")["state"].getStr() ==
       "green"
+
+  test "UAT-CH3-009A snapshot export records runtime encryption contract":
+    var source = newInMemoryBridge()
+    discard beginTransaction(source)
+    source.writeEnvelope(RuntimeLayer, "runtime", %*{
+      "state": "green",
+      "encryptionMode": "private",
+      "recoveryEnabled": false,
+      "operatorEscrow": false
+    })
+    check commit(source)
+
+    let snapshot = exportSnapshot(source, "snap-001a", SigningKey)
+    check snapshot["payload"]["runtimeContract"]["encryptionMode"].getStr() ==
+      "private"
+    check not snapshot["payload"]["runtimeContract"]["recoveryEnabled"].getBool()
 
   test "UAT-CH3-010 invalid snapshot signature is rejected":
     var source = newInMemoryBridge()
@@ -160,6 +184,26 @@ suite "Chapter 3 UAT":
 
     var snapshot = exportSnapshot(source, "snap-002", SigningKey)
     snapshot["signature"] = %"tampered"
+
+    var target = newInMemoryBridge()
+    expect(PersistenceError):
+      importSnapshot(target, snapshot, SigningKey)
+
+  test "UAT-CH3-010A snapshot import rejects mismatched runtime contract":
+    var source = newInMemoryBridge()
+    discard beginTransaction(source)
+    source.writeEnvelope(RuntimeLayer, "runtime", %*{
+      "state": "blue",
+      "encryptionMode": "standard",
+      "recoveryEnabled": false,
+      "operatorEscrow": false
+    })
+    check commit(source)
+
+    var snapshot = exportSnapshot(source, "snap-002a", SigningKey)
+    snapshot["payload"]["runtimeContract"]["encryptionMode"] = %"complete"
+    snapshot["checksum"] = %computeSha256(toBytes($snapshot["payload"]))
+    snapshot["signature"] = %signSnapshot(snapshot, SigningKey)
 
     var target = newInMemoryBridge()
     expect(PersistenceError):

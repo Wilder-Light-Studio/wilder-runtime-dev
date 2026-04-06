@@ -2,6 +2,10 @@
 
 This document captures a possible future enhancement for runtime and product privacy posture.
 
+It predates the normative Phase XF work and is now superseded by the canonical
+four-mode Cosmos encryption spectrum in `docs/implementation/REQUIREMENTS.md` and
+`docs/implementation/SPECIFICATION-NIM.md`.
+
 It is exploratory and non-normative. It does not change current runtime behavior, configuration, or requirements.
 
 ## Goal

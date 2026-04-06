@@ -21,6 +21,7 @@
 ##   # run frames ...
 ##   shutdown(st)
 
+import json
 import std/[strutils, algorithm, tables]
 import config
 import persistence
@@ -71,6 +72,7 @@ type
     reconcileResult*: ReconcileResult
     prefilterGenerationId*: string
     loadedModules*: seq[string]
+    loadedRuntimePayload*: JsonNode
     bannerLines*: seq[string]
     eventSink*: HostEventSink
 
@@ -89,6 +91,7 @@ proc newRuntimeLifecycle*(): RuntimeLifecycle =
     ),
     prefilterGenerationId: "",
     loadedModules: @[],
+    loadedRuntimePayload: nil,
     bannerLines: @[],
     eventSink: newHostEventSink()
   )
@@ -151,6 +154,7 @@ proc stepLoadConfig*(lc: RuntimeLifecycle,
     "startup step reached: configuration loaded")
   lc.bannerLine("  config: loaded from " & configPath)
   lc.bannerLine("  mode:   " & $lc.cfg.mode)
+  lc.bannerLine("  crypto: " & $lc.cfg.encryptionMode)
 
 # ── Step 2 — Initialise persistence backend ───────────────────────────────────
 
@@ -183,12 +187,22 @@ proc stepLoadEnvelope*(lc: RuntimeLifecycle) =
       lcEnvelopeLoaded,
       "Initialize persistence successfully before attempting to load the runtime envelope."
     )
-  # For in-memory backend the runtime layer starts empty; that is valid.
-  # A file-backed bridge would readEnvelope here.
+  lc.loadedRuntimePayload = nil
+  for key in lc.bridge.listLayerKeys(RuntimeLayer):
+    if key == "runtime":
+      lc.loadedRuntimePayload = lc.bridge.readEnvelope(RuntimeLayer, key)
+      break
   lc.step = lcEnvelopeLoaded
   lc.recordEvent(evStartupStep, lcEnvelopeLoaded,
     "startup step reached: runtime envelope loaded")
-  lc.bannerLine("  envelope: loaded (runtime layer)")
+  if lc.loadedRuntimePayload.isNil:
+    lc.bannerLine("  envelope: loaded (runtime layer empty)")
+  else:
+    lc.bannerLine("  envelope: loaded (runtime layer present)")
+    let runtimeContract = extractRuntimeContract(lc.loadedRuntimePayload)
+    if runtimeContract.len > 0:
+      lc.bannerLine("  envelope: stored crypto=" &
+        runtimeContract["encryptionMode"].getStr())
 
 # ── Step 4 — Reconcile layers (GATE) ─────────────────────────────────────────
 
@@ -233,14 +247,57 @@ proc stepMigrate*(lc: RuntimeLifecycle) =
       lcMigrated,
       "Complete reconciliation before running schema migrations."
     )
-  # Migrations are registered on the bridge; run all pending steps.
-  # (Future chapters will register migration procs here.)
+  var runtimePayload = lc.loadedRuntimePayload
+  if runtimePayload.isNil:
+    for key in lc.bridge.listLayerKeys(RuntimeLayer):
+      if key == "runtime":
+        runtimePayload = lc.bridge.readEnvelope(RuntimeLayer, key)
+        break
+
+  let configuredMode = encryptionModeName(lc.cfg.encryptionMode)
+  if not runtimePayload.isNil:
+    try:
+      let runtimeContract = extractRuntimeContract(runtimePayload)
+      if runtimeContract.len > 0:
+        let storedMode = runtimeContract["encryptionMode"].getStr()
+        if storedMode != configuredMode:
+          lc.haltStartup(
+            "lifecycle: stored encryption mode '" & storedMode &
+              "' does not match configured mode '" & configuredMode & "'",
+            lcMigrated,
+            "Migrate persisted runtime state and RECORD data explicitly before restarting with a different encryptionMode."
+          )
+    except StartupError:
+      raise
+    except CatchableError as err:
+      lc.haltStartup(
+        "lifecycle: runtime policy validation failed — " & err.msg,
+        lcMigrated,
+        "Repair the runtime envelope or restore a known-good snapshot before restarting."
+      )
+
+  let sealedPayload = mergeRuntimeContract(runtimePayload, lc.cfg)
+  if not sealedPayload.hasKey("status"):
+    sealedPayload["status"] = %"ready"
+  try:
+    discard beginTransaction(lc.bridge)
+    lc.bridge.writeEnvelope(RuntimeLayer, "runtime", sealedPayload)
+    discard commit(lc.bridge)
+    lc.loadedRuntimePayload = sealedPayload
+  except CatchableError as err:
+    rollback(lc.bridge)
+    lc.haltStartup(
+      "lifecycle: runtime policy seal failed — " & err.msg,
+      lcMigrated,
+      "Restore persistence integrity and retry startup."
+    )
+
   lc.step = lcMigrated
   lc.recordEvent(evStartupStep, lcMigrated,
     "startup step reached: migration phase complete")
   lc.recordEvent(evMigrate, lcMigrated,
     "migration phase completed")
-  lc.bannerLine("  migrate: no pending migrations")
+  lc.bannerLine("  migrate: runtime policy sealed (" & configuredMode & ")")
 
 # ── Step 6 — Activate prefilter (INGRESS GATE) ───────────────────────────────
 

@@ -9,6 +9,7 @@
 import unittest
 import json
 import ../src/runtime/encrypted_record
+import ../src/runtime/config
 
 suite "encrypted RECORD deterministic behavior":
   test "same input yields same ciphertext and hash":
@@ -35,6 +36,32 @@ suite "encrypted RECORD deterministic behavior":
       entry.previousHash
     )
     check restored == payload
+
+  test "clear mode stores plaintext deterministically":
+    let payload = %*{"event": "clear", "revision": 1}
+    let entry = buildRecordEntryForMode(payload, emClear, "", 1, "snapshot", "anon-c", "")
+    check entry.encryptedPayload == $payload
+    check restoreRecordPayloadForMode(entry, emClear, "") == payload
+
+  test "protected modes require key material":
+    expect(ValueError):
+      discard buildRecordEntryForMode(%*{"event": "secure"}, emComplete, "", 1, "snapshot", "anon-c", "")
+
+  test "standard summary hides payload but keeps author":
+    let payload = %*{"event": "standard", "revision": 2}
+    let entry = buildRecordEntryForMode(payload, emStandard, "k-std", 1, "snapshot", "anon-d", "")
+    let summary = summarizeRecordEntryForMode(entry, emStandard)
+    check summary["contentVisible"].getBool == false
+    check summary["authorId"].getStr() == "anon-d"
+    check not summary.hasKey("payload")
+
+  test "complete summary hides payload and author":
+    let payload = %*{"event": "complete", "revision": 3}
+    let entry = buildRecordEntryForMode(payload, emComplete, "k-complete", 1, "snapshot", "anon-e", "")
+    let summary = summarizeRecordEntryForMode(entry, emComplete)
+    check summary["contentVisible"].getBool == false
+    check not summary.hasKey("authorId")
+    check not summary.hasKey("payload")
 
 suite "encrypted RECORD metadata reconciliation":
   test "metadata chain validation accepts valid sequence and previous hash":

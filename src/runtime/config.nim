@@ -19,6 +19,12 @@ type
     rmDebug
     rmProduction
 
+  EncryptionMode* = enum
+    emClear
+    emStandard
+    emPrivate
+    emComplete
+
   TransportKind* = enum
     tkJson
     tkProtobuf
@@ -32,6 +38,9 @@ type
 
   RuntimeConfig* = object
     mode*: RuntimeMode
+    encryptionMode*: EncryptionMode
+    recoveryEnabled*: bool
+    operatorEscrow*: bool
     transport*: TransportKind
     logLevel*: LogLevel
     endpoint*: string
@@ -39,6 +48,9 @@ type
 
   RuntimeConfigOverrides* = object
     mode*: Option[string]
+    encryptionMode*: Option[string]
+    recoveryEnabled*: Option[bool]
+    operatorEscrow*: Option[bool]
     logLevel*: Option[string]
     port*: Option[int]
 
@@ -54,6 +66,27 @@ proc parseRuntimeMode(raw: string): RuntimeMode =
   else:
     raise newException(ValueError,
       "loadConfig: mode must be one of development|debug|production")
+
+# Flow: Normalize text value and map to EncryptionMode.
+proc parseEncryptionMode*(raw: string): EncryptionMode =
+  ## Parse encryption mode from string configuration.
+  case raw.toLowerAscii.strip
+  of "clear": emClear
+  of "standard": emStandard
+  of "private": emPrivate
+  of "complete": emComplete
+  else:
+    raise newException(ValueError,
+      "loadConfig: encryptionMode must be one of clear|standard|private|complete")
+
+# Flow: Convert one encryption mode enum to the canonical configuration string.
+proc encryptionModeName*(mode: EncryptionMode): string =
+  ## Return the stable text form used in config and persisted runtime metadata.
+  case mode
+  of emClear: "clear"
+  of emStandard: "standard"
+  of emPrivate: "private"
+  of emComplete: "complete"
 
 # Flow: Normalize text value and map to TransportKind.
 proc parseTransportKind(raw: string): TransportKind =
@@ -82,7 +115,17 @@ proc parseLogLevel(raw: string): LogLevel =
 proc parseRuntimeConfig(n: JsonNode): RuntimeConfig =
   discard validateStructure(n, @["mode", "transport", "logLevel", "endpoint", "port"])
 
+  if "encryptionMode" notin n:
+    n["encryptionMode"] = %"standard"
+  if "recoveryEnabled" notin n:
+    n["recoveryEnabled"] = %false
+  if "operatorEscrow" notin n:
+    n["operatorEscrow"] = %false
+
   if n["mode"].kind != JString or
+     n["encryptionMode"].kind != JString or
+     n["recoveryEnabled"].kind != JBool or
+     n["operatorEscrow"].kind != JBool or
      n["transport"].kind != JString or
      n["logLevel"].kind != JString or
      n["endpoint"].kind != JString or
@@ -91,6 +134,9 @@ proc parseRuntimeConfig(n: JsonNode): RuntimeConfig =
       "loadConfig: config fields have invalid types")
 
   result.mode = parseRuntimeMode(n["mode"].getStr())
+  result.encryptionMode = parseEncryptionMode(n["encryptionMode"].getStr())
+  result.recoveryEnabled = n["recoveryEnabled"].getBool()
+  result.operatorEscrow = n["operatorEscrow"].getBool()
   result.transport = parseTransportKind(n["transport"].getStr())
   result.logLevel = parseLogLevel(n["logLevel"].getStr())
   result.endpoint = n["endpoint"].getStr().strip
@@ -103,6 +149,24 @@ proc parseRuntimeConfig(n: JsonNode): RuntimeConfig =
     raise newException(ValueError,
       "loadConfig: production mode does not allow trace/debug log levels")
 
+  case result.encryptionMode
+  of emClear:
+    if result.recoveryEnabled or result.operatorEscrow:
+      raise newException(ValueError,
+        "loadConfig: clear mode does not permit recovery or operator escrow")
+  of emStandard:
+    if result.operatorEscrow and not result.recoveryEnabled:
+      raise newException(ValueError,
+        "loadConfig: operatorEscrow requires recoveryEnabled in standard mode")
+  of emPrivate:
+    if result.operatorEscrow:
+      raise newException(ValueError,
+        "loadConfig: private mode does not permit operator escrow")
+  of emComplete:
+    if result.operatorEscrow:
+      raise newException(ValueError,
+        "loadConfig: complete mode does not permit operator escrow")
+
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc applyEnvironmentOverrides(n: var JsonNode) =
   if existsEnv("COSMOS_MODE"):
@@ -110,10 +174,39 @@ proc applyEnvironmentOverrides(n: var JsonNode) =
     if raw.len > 0:
       n["mode"] = %raw
 
+  if existsEnv("COSMOS_ENCRYPTION_MODE"):
+    let raw = getEnv("COSMOS_ENCRYPTION_MODE").strip
+    if raw.len > 0:
+      n["encryptionMode"] = %raw
+
   if existsEnv("COSMOS_LOG_LEVEL"):
     let raw = getEnv("COSMOS_LOG_LEVEL").strip
     if raw.len > 0:
       n["logLevel"] = %raw
+
+  if existsEnv("COSMOS_RECOVERY_ENABLED"):
+    let raw = getEnv("COSMOS_RECOVERY_ENABLED").strip.toLowerAscii
+    if raw.len > 0:
+      case raw
+      of "true":
+        n["recoveryEnabled"] = %true
+      of "false":
+        n["recoveryEnabled"] = %false
+      else:
+        raise newException(ValueError,
+          "COSMOS_RECOVERY_ENABLED environment variable must be true or false")
+
+  if existsEnv("COSMOS_OPERATOR_ESCROW"):
+    let raw = getEnv("COSMOS_OPERATOR_ESCROW").strip.toLowerAscii
+    if raw.len > 0:
+      case raw
+      of "true":
+        n["operatorEscrow"] = %true
+      of "false":
+        n["operatorEscrow"] = %false
+      else:
+        raise newException(ValueError,
+          "COSMOS_OPERATOR_ESCROW environment variable must be true or false")
 
   if existsEnv("COSMOS_PORT"):
     let raw = getEnv("COSMOS_PORT").strip
@@ -128,6 +221,12 @@ proc applyEnvironmentOverrides(n: var JsonNode) =
 proc applyCliOverrides(n: var JsonNode, overrides: RuntimeConfigOverrides) =
   if overrides.mode.isSome:
     n["mode"] = %overrides.mode.get().strip
+  if overrides.encryptionMode.isSome:
+    n["encryptionMode"] = %overrides.encryptionMode.get().strip
+  if overrides.recoveryEnabled.isSome:
+    n["recoveryEnabled"] = %overrides.recoveryEnabled.get()
+  if overrides.operatorEscrow.isSome:
+    n["operatorEscrow"] = %overrides.operatorEscrow.get()
   if overrides.logLevel.isSome:
     n["logLevel"] = %overrides.logLevel.get().strip
   if overrides.port.isSome:

@@ -41,8 +41,9 @@
 | **HH-5** | Hardening Verification Gate | ✅ Complete | all hardening tests |
 | **Phase VF** | Validation Firewall Vocabulary Refactor | ✅ Complete | requirements/spec/plan/compliance alignment, Chapter 2 reference doc, comment, test text, and test artifact rename updates |
 | **Phase XE** | Humane Offline Licensing | 🚧 Planned | licensing tests, installer-contract checks, doc compliance checks |
+| **Phase XF** | Cosmos Encryption Spectrum | 🚧 Planned | encryption-mode config tests, metadata exposure tests, migration guardrail tests |
 
-**23 chapters complete; Phase X is in progress, Phase XE is planned, and Phase VF is complete.**
+**23 chapters complete; Phase X is in progress; Phase XE and Phase XF are planned; and Phase VF is complete.**
 
 ---
 
@@ -73,6 +74,7 @@ The following priority sequence governs near-term implementation. Items marked
 | **P3B** | **Ch 20B** — Runtime Entrypoint CLI Interface | Coordinator launch options model, parse/validate matrix, watch-mode constraints, structured failure output contract, operator usage coverage | Ch 20, Ch 10, Host Hardening |
 | **P3C** | **Phase X** — Installer, Build, Release, and Concept System | Runtime-home resolver, concept registry, concept CLI, startapp scaffold, expanded release matrix, version registry | Ch 12, Ch 19A, Ch 20B |
 | **P3D** | **Phase XE** — Humane Offline Licensing | Licensing requirements/spec alignment, offline-first local licensing module, optional transparency email workflow, liberation-timer deactivation gate, deterministic tests | Ch 19A, Ch 20B, Ch 99 |
+| **P3E** | **Phase XF** — Cosmos Encryption Spectrum | Encryption-mode requirements/spec alignment, config schema/parser extension, encryption policy layer, metadata-minimization rules, migration and key-handling tests | Ch 2A, Ch 3, Phase XD, Ch 20B |
 | **P3** | **Ch 99** — Test Harness & CI Gating | Harness completion, core tests required for merges, CI workflow | All P0–P2 tests passing |
 | **P4** | **Ch 14** — Security & Performance | Microbenchmarks for prefilter hot path, perception filtering, startup time; iterate on results | Ch 10 (full startup) |
 
@@ -184,6 +186,63 @@ The following priority sequence governs near-term implementation. Items marked
 - Three-year liberation timer permanently deactivates licensing enforcement for the version.
 - Declining optional transparency email has zero functional impact.
 - Requirements, specification, plan, and implementation remain contradiction-free.
+
+---
+
+## Phase XF — Cosmos Encryption Spectrum
+
+**Status:** 🚧 Planned
+**Spec anchor:** `docs/implementation/REQUIREMENTS.md` (Phase XF),
+`docs/implementation/SPECIFICATION-NIM.md` §19G and §21,
+`docs/implementation/SPECIFICATION.md` §9
+
+### Ordered Tasks (Strict Sequence)
+
+1. Freeze the four-mode requirements in `docs/implementation/REQUIREMENTS.md`:
+      - canonical modes CLEAR, STANDARD, PRIVATE, COMPLETE,
+      - trust contracts and user guarantees per mode,
+      - key-custody, metadata, migration, and failure constraints,
+      - explicit CLEAR education/testing boundary and COMPLETE no-operator-access guarantee.
+2. Update `docs/implementation/SPECIFICATION.md` and `docs/implementation/SPECIFICATION-NIM.md` to define:
+      - `encryptionMode` config expression,
+      - mode scope across RECORDs, eidela state, runtime state, exports, and backups,
+      - key-handling and recovery rules,
+      - metadata exposure, migration, and failure behavior.
+3. Reconcile this plan section and mirrored plan artifacts with the frozen requirements and specifications.
+4. Extend `config/runtime.cue` and `src/runtime/config.nim` with the canonical encryption-mode selector and deterministic validation rules.
+5. Add runtime policy types and enforcement helpers in `src/runtime/` so mode contracts are explicit rather than ad hoc.
+6. Integrate the selected mode into encrypted RECORD persistence, state serialization, backup/export flows, and any operator-visible diagnostics.
+7. Add migration tooling and guardrails so upgrades to more private modes re-encrypt state before activation and downgrades require explicit confirmation.
+8. Add tests under `tests/` for:
+      - mode parsing and config validation,
+      - CLEAR bypass behavior,
+      - no-plaintext-access guarantees for STANDARD, PRIVATE, and COMPLETE,
+      - metadata exposure boundaries,
+      - migration and missing-key failure paths.
+9. Update compliance and public documentation artifacts after implementation so user-facing privacy guarantees match the runtime behavior exactly.
+
+### Dependencies
+
+- Chapter 2A runtime configuration loading and validation.
+- Chapter 3 persistence model and storage layers.
+- Phase XD encrypted RECORD primitives and reconciliation.
+- Chapter 20B runtime entrypoint CLI/config contract.
+
+### Outputs
+
+- Normative encryption-spectrum requirements and specification text.
+- Config schema and parser support for `encryptionMode`.
+- Runtime policy layer covering key custody, metadata exposure, and migration.
+- Test coverage proving per-mode privacy and failure guarantees.
+
+### Acceptance Criteria
+
+- Runtime exposes exactly four canonical encryption modes with deterministic validation.
+- CLEAR bypasses Cosmos content encryption predictably and is labeled non-private.
+- STANDARD, PRIVATE, and COMPLETE prevent operator plaintext access to protected content according to their mode contracts.
+- COMPLETE forbids operator escrow and fails fast when required end-to-end key material is absent.
+- Metadata exposure contracts are documented, implemented, and tested per mode.
+- Migration between modes is explicit, deterministic, and contradiction-free across docs and runtime behavior.
 
 ---
 
@@ -1412,8 +1471,9 @@ This document uses two naming conventions for clarity:
 | Phase XC | `PX-C` or `Phase XC` | Coordinator IPC and Notification Stream |
 | Phase XD | `PX-D` or `Phase XD` | Encrypted Triumvirate RECORD |
 | Phase XE | `PX-E` or `Phase XE` | Humane Offline Licensing |
+| Phase XF | `PX-F` or `Phase XF` | Cosmos Encryption Spectrum |
 
-**Phase X** is the umbrella; **Phase XA through XE** are interdependent subphases.
+**Phase X** is the umbrella; **Phase XA through XF** are interdependent subphases.
       optional check-only update behavior.
 
 ### Ordered Tasks

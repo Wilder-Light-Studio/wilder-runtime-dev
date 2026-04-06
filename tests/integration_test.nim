@@ -21,6 +21,7 @@ import std/[os, json, strutils, options]
 import harness
 import ../src/runtime/core
 import ../src/runtime/config
+import ../src/runtime/persistence
 import ../src/runtime/observability
 import ../src/runtime/capabilities
 
@@ -116,6 +117,19 @@ suite "integration — full startup and shutdown":
     check lc.cfg.mode == rmDebug
     check lc.cfg.logLevel == llWarn
     check lc.cfg.port == 9091
+    check lc.bridge.readEnvelope("runtime", "runtime")["encryptionMode"].getStr() ==
+      "standard"
+    teardownTest()
+
+  test "startup seals overridden encryption mode into runtime envelope":
+    setupTest("integration_encryption_policy_seal")
+    let cfgPath = writeDevConfig(testTmpDir)
+    let lc = newRuntimeLifecycle()
+    startup(lc, cfgPath, @[], RuntimeConfigOverrides(
+      encryptionMode: some("private")
+    ))
+    let payload = lc.bridge.readEnvelope("runtime", "runtime")
+    check payload["encryptionMode"].getStr() == "private"
     teardownTest()
 
   test "startup loads config exactly once":

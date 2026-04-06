@@ -1620,6 +1620,108 @@ All checks should run in local development and CI.
 - Tests must verify no network calls are attempted in generation, validation, deactivation, and liberation paths.
 - Tests must verify liberation timer expiry permanently deactivates licensing checks for that version.
 
+### Project Phase: Phase XF — Cosmos Encryption Spectrum
+
+#### Encryption Spectrum Core Requirements
+
+- The runtime must expose exactly four canonical Cosmos encryption modes: CLEAR,
+  STANDARD, PRIVATE, and COMPLETE.
+- The active encryption mode must be selected explicitly by runtime configuration and
+  validated deterministically at startup.
+- One runtime instance must operate under exactly one active encryption mode at a time.
+- The encryption spectrum must govern RECORD payloads, eidela state, persisted runtime
+  state containing user data, exports, backups, and operator-visible metadata rules.
+- Phase XD encrypted RECORD guarantees remain mandatory for every mode except CLEAR;
+  the spectrum extends that foundation and does not weaken it.
+
+#### CLEAR Mode Requirements
+
+- CLEAR is fully unencrypted and exists only for education, testing, local inspection,
+  and other deliberate non-private workflows.
+- CLEAR must bypass Cosmos-managed content-encryption, key-derivation, and ciphertext
+  storage layers cleanly and predictably.
+- Under CLEAR, RECORD payloads, eidela state, and other user data managed by Cosmos may
+  be stored or exported in plaintext.
+- CLEAR must be labeled as non-private in user-facing surfaces and must never be
+  represented as providing confidentiality.
+
+#### STANDARD Mode Requirements
+
+- STANDARD must encrypt user-authored content client-side before operator-controlled
+  persistence or sync.
+- STANDARD may expose structural metadata required for routing, timestamps, sizes,
+  deterministic reconciliation, and operational diagnostics.
+- STANDARD must protect RECORD payloads, prompts, outputs, and eidela state from
+  operator plaintext access.
+- STANDARD recovery or escrow behavior is permitted only through explicit user opt-in.
+
+#### PRIVATE Mode Requirements
+
+- PRIVATE must encrypt all user-authored content and eidela state client-side with
+  user-controlled or device-controlled key material.
+- PRIVATE must minimize metadata exposure to the least set required for storage,
+  synchronization, and deterministic reconciliation.
+- PRIVATE must not assume operator recovery by default.
+- PRIVATE recovery is allowed only when the user explicitly provisions a recovery
+  artifact such as a recovery phrase, hardware token, or wrapped backup key.
+
+#### COMPLETE Mode Requirements
+
+- COMPLETE must provide full end-to-end encryption where no operator or administrator
+  can access user plaintext at any layer.
+- COMPLETE must encrypt RECORD payloads, prompts, outputs, eidela state, and runtime
+  state containing user data before they leave the user-controlled device boundary.
+- COMPLETE must not permit operator escrow, hidden recovery backdoors, or plaintext
+  inspection exceptions.
+- COMPLETE key loss must be treated as unrecoverable unless recovery material was
+  explicitly created and retained by the user without operator access.
+
+#### Key Handling and Trust Boundary Requirements
+
+- CLEAR must not generate pretend encryption artifacts or unused key material merely to
+  imitate stronger modes.
+- STANDARD may use device-local keys plus optional user-approved escrow or recovery
+  wrapping.
+- PRIVATE must keep primary content keys under user or device custody; any recovery
+  material must be explicitly user-authorized.
+- COMPLETE must keep content keys on user-controlled devices and must never expose
+  plaintext keys to operator-controlled services.
+- The configured mode's trust contract must be reflected consistently across runtime,
+  storage, sync, export, backup, and recovery behavior.
+
+#### Metadata and Storage Exposure Requirements
+
+- CLEAR may expose plaintext content and metadata.
+- STANDARD may expose only the structural metadata needed for deterministic operation,
+  while content remains ciphertext.
+- PRIVATE must minimize metadata further than STANDARD while preserving deterministic
+  runtime behavior.
+- COMPLETE must expose only the minimum metadata strictly necessary for transport,
+  ciphertext storage, and reconciliation; no plaintext-derived diagnostic fields are
+  permitted.
+
+#### Mode Selection, Migration, and Failure Requirements
+
+- Mode selection must be expressed in configuration with a stable, testable field.
+- Startup must reject invalid mode values, missing required key material, or impossible
+  recovery combinations for the selected mode.
+- Moving from a more private mode to a less private mode must require explicit,
+  user-visible intent and must never occur silently.
+- Moving from a less private mode to a more private mode must perform explicit
+  re-encryption or state rewriting before the new mode is considered active.
+- COMPLETE mode must fail fast when required end-to-end key material is unavailable.
+
+#### Testability Requirements
+
+- Tests must verify mode parsing and deterministic startup validation.
+- Tests must verify CLEAR bypasses Cosmos encryption layers predictably.
+- Tests must verify STANDARD, PRIVATE, and COMPLETE prevent operator plaintext access to
+  protected content.
+- Tests must verify metadata exposure contracts for each mode.
+- Tests must verify migration and downgrade guardrails.
+- Tests must verify missing key material or invalid recovery combinations fail
+  deterministically.
+
 ---
 
 ## Archive Completeness Requirements
