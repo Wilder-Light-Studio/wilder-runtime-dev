@@ -1,0 +1,87 @@
+steps:
+  setup:
+    image: nimlang/nim:2.2.6
+    commands:
+      - nimble install --depsOnly --accept
+
+  compile_check:
+    image: nimlang/nim:2.2.6
+    commands:
+      - nimble testCompile
+
+  core_tests:
+    image: nimlang/nim:2.2.6
+    commands:
+      - nim c -r tests/lifecycle_test.nim
+      - nim c -r tests/console_status_test.nim
+      - nim c -r tests/module_test.nim
+      - nim c -r tests/portability_test.nim
+      - nim c -r tests/security_bench_test.nim
+      - nim c -r tests/doc_compliance_test.nim
+      - nim c -r tests/reconciliation_test.nim
+      - nim c -r tests/validation_firewall_test.nim
+      - nim c -r tests/validation_table_generation_test.nim
+      - nim c -r tests/validation_failure_occurrence_test.nim
+      - nim c -r tests/serialization_test.nim
+      - nim c -r tests/messaging_test.nim
+      - nim c -r tests/harness_test.nim
+      - nim c -r tests/example_test.nim
+      - nim c -r tests/integration_test.nim
+
+when:
+  event:
+    include:
+      - push
+      - pull_request
+  branch:
+    include:
+      - main
+
+---
+
+steps:
+  release_linux_build:
+    image: nimlang/nim:2.2.6
+    commands:
+      - mkdir -p bin
+      - nim c -d:release --opt:speed -o:bin/cosmos src/cosmos_main.nim
+      - TAG="${CI_COMMIT_TAG}"
+      - DIST_DIR="dist/${TAG}/linux-amd64"
+      - mkdir -p "${DIST_DIR}/binaries" "${DIST_DIR}/installers" "${DIST_DIR}/checksums" "${DIST_DIR}/manifest"
+      - cp bin/cosmos "${DIST_DIR}/binaries/cosmos-linux-amd64"
+      - tar -czf "${DIST_DIR}/installers/cosmos-linux-amd64-runtime.tar.gz" -C bin cosmos
+      - sha256sum "${DIST_DIR}/binaries/cosmos-linux-amd64" > "${DIST_DIR}/checksums/cosmos-linux-amd64.sha256"
+      - sha256sum "${DIST_DIR}/installers/cosmos-linux-amd64-runtime.tar.gz" > "${DIST_DIR}/checksums/cosmos-linux-amd64-runtime.tar.gz.sha256"
+      - |
+        cat > "${DIST_DIR}/manifest/release-manifest.json" <<EOF
+        [
+          {
+            "artifactName": "cosmos-linux-amd64",
+            "version": "${TAG#v}",
+            "channel": "stable",
+            "target": "linux-amd64",
+            "checksumSha256": "$(cut -d ' ' -f1 "${DIST_DIR}/checksums/cosmos-linux-amd64.sha256")",
+            "signatureType": "unsigned-scaffold",
+            "sourceCommit": "${CI_COMMIT_SHA}",
+            "buildId": "${CI_PIPELINE_NUMBER}"
+          },
+          {
+            "artifactName": "cosmos-linux-amd64-runtime.tar.gz",
+            "version": "${TAG#v}",
+            "channel": "stable",
+            "target": "linux-amd64",
+            "checksumSha256": "$(cut -d ' ' -f1 "${DIST_DIR}/checksums/cosmos-linux-amd64-runtime.tar.gz.sha256")",
+            "signatureType": "unsigned-scaffold",
+            "sourceCommit": "${CI_COMMIT_SHA}",
+            "buildId": "${CI_PIPELINE_NUMBER}"
+          }
+        ]
+        EOF
+
+when:
+  event:
+    include:
+      - tag
+  ref:
+    include:
+      - refs/tags/v*

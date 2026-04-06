@@ -35,15 +35,11 @@ let counterMeta* = ModuleMetadata(
   description: "Counter module â€” increments a counter on each message."
 )
 
-# â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc initCounter*(ctx: var ModuleContext) {.nimcall.} =
   ## Initialise counter state to zero.
   ## Flow: called once at registration -> sets counter to 0.
   ctx.state.config = %*{"counter": 0, "lastMessage": ""}
-
-# â”€â”€ Message handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc handleCounter*(ctx: var ModuleContext, msg: JsonNode): JsonNode =

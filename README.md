@@ -90,7 +90,7 @@ Install:
 Build and run the compliance gate:
 
 ```powershell
-nimble build
+nimble buildRuntime
 ```
 
 Run compliance checks only:
@@ -116,6 +116,21 @@ Run the full verification flow:
 ```powershell
 nimble verify
 ```
+
+Build and stage release artifacts locally:
+
+```powershell
+nimble releaseArtifacts
+```
+
+## CI/CD
+
+- GitHub CI: `.github/workflows/ci.yml` runs compile/test gates on pushes and pull requests to `main`.
+- GitHub CD: `.github/workflows/cd_release.yml` runs on `v*` tags and uploads staged `dist/v*` artifacts.
+- GitHub release matrix: `.github/workflows/release_artifacts.yml` supports multi-platform release artifact generation.
+- Codeberg CI/CD: `.woodpecker.yml` provides:
+  - push/pull-request CI for `main`
+  - tag-driven `v*` release staging (Linux artifact generation and dist packaging)
 
 ## Repository Map
 

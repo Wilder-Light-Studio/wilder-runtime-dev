@@ -11,8 +11,8 @@ srcDir = "src"
 requires "nim >= 1.6"
 requires "checksums >= 0.2.1"
 
-task build, "Build release binary":
-	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check_requirements.ps1"
+task buildRuntime, "Build release binary into bin/":
+	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_binary.ps1"
 
 task compliance, "Validate requirements compliance documentation and gates":
 	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check_requirements.ps1"
@@ -88,12 +88,20 @@ task verify, "Run compliance and tests":
 task cleanExe, "Remove generated .exe artifacts":
 	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean_exes.ps1"
 
+task packageRelease, "Create dist/v<version> release artifacts":
+	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare_release.ps1"
+
+task releaseArtifacts, "Build and stage release artifacts":
+	exec "nimble buildRuntime"
+	exec "nimble packageRelease"
+
 task updateReadme, "Update README with current version from nimble":
 	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-readme-version.ps1"
 
-task release, "Prepare release: update README and run verification":
+task release, "Prepare release: update README, verify, and stage artifacts":
 	exec "nimble updateReadme"
 	exec "nimble verify"
+	exec "nimble releaseArtifacts"
 
 task testRelease, "Test-focused release: update README and run tests (skip compliance)":
 	exec "nimble updateReadme"
