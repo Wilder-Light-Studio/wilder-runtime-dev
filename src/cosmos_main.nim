@@ -20,11 +20,13 @@ type
     ccmDetach, ccmAuto, ccmAttach
 
   CoordinatorLaunchOptions* = object
-    configPath*: string
-    modeOverride*: Option[string]       ## development|debug|production
+    configPath*: Option[string]         ## optional config file path
+    modeOverride*: Option[string]       ## development|debug|production (required if no config)
+    transport*: Option[string]          ## json|protobuf (required if no config)
     encryptionMode*: Option[string]     ## clear|standard|private|complete
-    logLevel*: Option[string]           ## trace|debug|info|warn|error
-    port*: Option[int]                  ## 1-65535
+    logLevel*: Option[string]           ## trace|debug|info|warn|error (required if no config)
+    endpoint*: Option[string]           ## hostname/IP (required if no config)
+    port*: Option[int]                  ## 1-65535 (required if no config)
     consoleMode*: CoordinatorConsoleMode
     consoleModeExplicit*: bool          ## true if --console was explicitly provided
     watchTarget*: Option[string]
@@ -42,10 +44,10 @@ type
 
 const
   CoordinatorUsageText* =
-    "Usage: cosmos --config <path> [--mode <dev|debug|prod>] " &
+    "Usage: cosmos [--config <path>] [--mode <dev|debug|prod>] [--transport <json|protobuf>] " &
+    "[--log-level <trace|debug|info|warn|error>] [--endpoint <host>] [--port <N>] " &
     "[--encryption-mode <clear|standard|private|complete>] " &
     "[--console <auto|attach|detach>] [--watch <path>] [--daemonize] " &
-    "[--log-level <trace|debug|info|warn|error>] [--port <N>] " &
     "[--capability-provide <Thing.provide:signature>] " &
     "[--capability-want <Thing|Thing.provide>] " &
     "[--capability-bind <Thing.provide:moduleType:moduleRef:entrypoint:abiVersion>] " &
@@ -70,18 +72,27 @@ const
     "\n" &
     "Usage:\n" &
     "  cosmos --config <path> [options]\n" &
+    "      Run with config file. All other params override config values.\n" &
+    "  cosmos --mode <dev|debug|prod> --transport <json|protobuf> --log-level <level> --endpoint <host> --port <N> [options]\n" &
+    "      Run with CLI params only (no config file).\n" &
     "\n" &
-    "Required:\n" &
-    "  --config <path>                      Runtime config file path\n" &
+    "Required (either option A or B):\n" &
+    "  Option A: Provide config file\n" &
+    "    --config <path>                      Runtime config file path\n" &
+    "  Option B: Provide all CLI params (no config file)\n" &
+    "    --mode <dev|debug|prod>              Runtime mode (development, debug, or production)\n" &
+    "    --transport <json|protobuf>          Serialization transport (json or protobuf)\n" &
+    "    --log-level <level>                  Log level (trace|debug|info|warn|error)\n" &
+    "    --endpoint <host>                    Endpoint hostname or IP address\n" &
+    "    --port <N>                           Port number (1–65535)\n" &
     "\n" &
     "Optional:\n" &
-    "  --mode <dev|debug|prod>              Override runtime mode\n" &
-    "  --encryption-mode <mode>             Override encryption mode (clear|standard|private|complete)\n" &
+    "  --encryption-mode <mode>             Encryption mode (clear|standard|private|complete, default: standard)\n" &
+    "  --recovery-enabled                   Enable recovery layer (default: false)\n" &
+    "  --operator-escrow                    Enable operator escrow (default: false)\n" &
     "  --console <auto|attach|detach>       Console launch mode (default: detach)\n" &
     "  --watch <path>                       Watch target on initial attach\n" &
     "  --daemonize                          Run in background/detached mode\n" &
-    "  --log-level <level>                  Override log level (trace|debug|info|warn|error)\n" &
-    "  --port <N>                           Override port (1-65535)\n" &
     "  --capability-provide <decl>          Startup capability provide declaration\n" &
     "  --capability-want <ref>              Startup capability want declaration\n" &
     "  --capability-bind <decl>             Startup capability implementation binding\n" &
@@ -89,6 +100,7 @@ const
     "\n" &
     "Examples:\n" &
     "  cosmos --config config/runtime.json\n" &
+    "  cosmos --mode dev --transport json --log-level debug --endpoint localhost --port 8090\n" &
     "  cosmos --config config/runtime.json --watch /thing/a --console attach --mode dev --log-level debug"
 
 const
@@ -317,13 +329,29 @@ proc parseCoordinatorOptions*(args: seq[string]): CoordinatorLaunchOptions =
       if i + 1 >= args.len:
         raise newException(ValueError,
           "cosmos: --config requires a path")
-      result.configPath = args[i + 1]
+      result.configPath = some(args[i + 1])
       i += 2
     of "--mode":
       if i + 1 >= args.len:
         raise newException(ValueError,
           "cosmos: --mode requires a value")
       result.modeOverride = some(normalizeCoordinatorMode(args[i + 1]))
+      i += 2
+    of "--transport":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "cosmos: --transport requires a value")
+      let t = args[i + 1].toLowerAscii.strip
+      if t notin ["json", "protobuf"]:
+        raise newException(ValueError,
+          "cosmos: --transport must be one of json|protobuf, got '" & t & "'")
+      result.transport = some(t)
+      i += 2
+    of "--endpoint":
+      if i + 1 >= args.len:
+        raise newException(ValueError,
+          "cosmos: --endpoint requires a value")
+      result.endpoint = some(args[i + 1].strip)
       i += 2
     of "--encryption-mode":
       if i + 1 >= args.len:
@@ -406,26 +434,49 @@ proc resolveConsoleMode*(opts: var CoordinatorLaunchOptions) =
 proc validateCoordinatorOptions*(opts: CoordinatorLaunchOptions) =
   if opts.wantHelp:
     return
-  if opts.configPath.strip.len == 0:
+  
+  # Validate that either config file OR all required CLI params are provided
+  let hasConfigFile = opts.configPath.isSome and opts.configPath.get().strip.len > 0
+  let hasModeOverride = opts.modeOverride.isSome
+  let hasTransport = opts.transport.isSome
+  let hasLogLevel = opts.logLevel.isSome
+  let hasEndpoint = opts.endpoint.isSome and opts.endpoint.get().strip.len > 0
+  let hasPort = opts.port.isSome
+  
+  let hasAllCliParams = hasModeOverride and hasTransport and hasLogLevel and hasEndpoint and hasPort
+  
+  if not hasConfigFile and not hasAllCliParams:
+    # Missing config file AND missing some required CLI params
+    var missing: seq[string] = @[]
+    if not hasModeOverride: missing.add("--mode")
+    if not hasTransport: missing.add("--transport")
+    if not hasLogLevel: missing.add("--log-level")
+    if not hasEndpoint: missing.add("--endpoint")
+    if not hasPort: missing.add("--port")
     raise newException(ValueError,
-      "cosmos: --config is required")
+      "cosmos: either provide --config or all of these params: " & missing.join(", "))
+  
   if opts.daemonize and opts.consoleModeExplicit and opts.consoleMode == ccmAttach:
     raise newException(ValueError,
       "cosmos: --daemonize and --console attach are incompatible")
+  
   if opts.watchTarget.isSome and opts.consoleMode == ccmDetach:
     raise newException(ValueError,
       "cosmos: --watch requires an attached console mode; " &
       "use --console attach or omit --daemonize")
+  
   if opts.logLevel.isSome:
     let lvl = opts.logLevel.get()
     if lvl notin ["trace", "debug", "info", "warn", "error"]:
       raise newException(ValueError,
         "cosmos: --log-level must be one of trace|debug|info|warn|error")
+  
   if opts.encryptionMode.isSome:
     let mode = opts.encryptionMode.get()
     if mode notin ["clear", "standard", "private", "complete"]:
       raise newException(ValueError,
         "cosmos: --encryption-mode must be one of clear|standard|private|complete")
+  
   if opts.port.isSome:
     let p = opts.port.get()
     if p < 1 or p > 65535:
@@ -1117,17 +1168,32 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
     resolveConsoleMode(opts)
     validateCoordinatorOptions(opts)
 
-    var overrides = RuntimeConfigOverrides()
-    if opts.modeOverride.isSome:
-      overrides.mode = opts.modeOverride
-    if opts.encryptionMode.isSome:
-      overrides.encryptionMode = opts.encryptionMode
-    if opts.logLevel.isSome:
-      overrides.logLevel = opts.logLevel
-    if opts.port.isSome:
-      overrides.port = opts.port
-
-    discard loadConfigWithOverrides(opts.configPath, overrides)
+    # Load or build configuration
+    if opts.configPath.isSome:
+      # Load from config file (with CLI overrides)
+      let configPath = opts.configPath.get()
+      var overrides = RuntimeConfigOverrides()
+      if opts.modeOverride.isSome:
+        overrides.mode = opts.modeOverride
+      if opts.encryptionMode.isSome:
+        overrides.encryptionMode = opts.encryptionMode
+      if opts.logLevel.isSome:
+        overrides.logLevel = opts.logLevel
+      if opts.port.isSome:
+        overrides.port = opts.port
+      discard loadConfigWithOverrides(configPath, overrides)
+    else:
+      # Build config from CLI params (no config file)
+      discard buildConfigFromCliParams(
+        mode = opts.modeOverride.get(),
+        transport = opts.transport.get(),
+        logLevel = opts.logLevel.get(),
+        endpoint = opts.endpoint.get(),
+        port = opts.port.get(),
+        encryptionMode = opts.encryptionMode,
+        recoveryEnabled = none[bool](),
+        operatorEscrow = none[bool]()
+      )
 
     if opts.startupProvides.len > 0 or opts.startupWants.len > 0 or
         opts.startupBindings.len > 0:
@@ -1147,9 +1213,12 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
     let modeStr = if opts.modeOverride.isSome: opts.modeOverride.get()
                   else: "from-config"
 
+    let configPathStr = if opts.configPath.isSome: opts.configPath.get()
+                        else: "(generated from CLI params)"
+
     let report = CoordinatorStartupReport(
       consoleBranch: branchName,
-      configPath:    opts.configPath,
+      configPath:    configPathStr,
       modeResolved:  modeStr,
       exitCode:      0
     )

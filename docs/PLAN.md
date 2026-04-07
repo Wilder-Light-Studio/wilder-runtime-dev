@@ -326,7 +326,7 @@ This section records Phase 2 hardening closure and remaining operational follow-
 #### HH-4 Console Entrypoint Hardening
 - ✅ Added `src/console_main.nim` thin orchestration entrypoint.
 - ✅ Added `--config`, `--mode`, `--attach`, and `--watch` launch flag support.
-- ✅ Enforced non-zero exit and usage output when `--config` is missing.
+- ✅ Made `--config` optional: required params (mode, transport, log-level, endpoint, port) can be provided via CLI flags instead.
 - ✅ Ensured detach resets session state and terminates active watch state.
 - ✅ Extended `tests/console_status_test.nim` with launch-contract and watch-stop coverage.
 
@@ -1145,7 +1145,7 @@ supports flags and switches, and optionally launches an attached console.
 20.1. ✅ Create coordinator entrypoint in `src/runtime/coordinator.nim` with
       `runCoordinator` proc returning exit code and status lines.
 20.2. ✅ Implement argument parsing and validation for:
-      - `--config <path>` (required)
+      - `--config <path>` (optional if all required CLI params provided; otherwise required)
       - `--mode <dev|debug|prod>` (optional)
       - `--console <auto|attach|detach>` (optional)
       - `--watch <path>` (optional)
@@ -1162,7 +1162,7 @@ supports flags and switches, and optionally launches an attached console.
 
 ### Acceptance
 - Coordinator starts runtime with deterministic startup ordering.
-- Invalid combinations and missing `--config` fail fast with usage and non-zero exit.
+- Invalid combinations and missing required params (when no --config provided) fail fast with usage and non-zero exit.
 - `--console auto` launches attached console; `detach` mode does not.
 - `--watch` behavior is only allowed through attached mode (explicit or implied).
 - Startup errors provide `haltedAt`, `reason`, and `recoveryGuidance`.
@@ -1188,7 +1188,7 @@ validation, and failure semantics are testable and operator-safe.
       consoleMode, consoleModeExplicit, watchTarget, daemonize, wantHelp (per SPEC §5B.6).
 20B.2. ✅ Define `CoordinatorStartupReport`: consoleBranch, configPath, modeResolved, exitCode.
 20B.3. ✅ Implement deterministic left-to-right parser for all 8 flags:
-      `--config`, `--mode`, `--log-level`, `--port`, `--console`, `--watch`,
+      `--config` (optional), `--mode`, `--transport`, `--log-level`, `--endpoint`, `--port`, `--console`, `--watch`,
       `--daemonize`, `--help`/`-h`. Unknown flags fail immediately.
 20B.4. ✅ Implement validation:
       - `wantHelp` → sovereign bypass; exits 0 with help text.

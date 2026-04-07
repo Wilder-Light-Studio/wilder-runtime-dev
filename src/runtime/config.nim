@@ -258,6 +258,43 @@ proc loadConfigWithOverrides*(path: string,
   applyCliOverrides(n, overrides)
   result = parseRuntimeConfig(n)
 
+# Flow: Build config directly from individual CLI parameters without requiring a config file.
+proc buildConfigFromCliParams*(mode: string,
+                                transport: string,
+                                logLevel: string,
+                                endpoint: string,
+                                port: int,
+                                encryptionMode: Option[string] = none[string](),
+                                recoveryEnabled: Option[bool] = none[bool](),
+                                operatorEscrow: Option[bool] = none[bool]()): RuntimeConfig =
+  ## Build RuntimeConfig directly from CLI params (no config file needed).
+  ## Used when --config is omitted and all required params are provided via CLI.
+  var n = newJObject()
+  n["mode"] = %mode
+  n["transport"] = %transport
+  n["logLevel"] = %logLevel
+  n["endpoint"] = %endpoint
+  n["port"] = %port
+  
+  # Set optional params with defaults
+  if encryptionMode.isSome:
+    n["encryptionMode"] = %(encryptionMode.get())
+  else:
+    n["encryptionMode"] = %"standard"
+  
+  if recoveryEnabled.isSome:
+    n["recoveryEnabled"] = %(recoveryEnabled.get())
+  else:
+    n["recoveryEnabled"] = %false
+  
+  if operatorEscrow.isSome:
+    n["operatorEscrow"] = %(operatorEscrow.get())
+  else:
+    n["operatorEscrow"] = %false
+  
+  inc configLoadInvocationCount
+  result = parseRuntimeConfig(n)
+
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc loadConfig*(path: string): RuntimeConfig =
   ## Load and validate runtime configuration from file.

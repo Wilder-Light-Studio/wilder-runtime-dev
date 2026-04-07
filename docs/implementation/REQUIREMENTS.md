@@ -365,15 +365,23 @@ Path reset: /
 ### Coordinator Launch Flags and Switches
 
 - The coordinator must support:
-  - `--config <path>` (required) - runtime config path.
-  - `--mode <dev|debug|prod>` (optional) - startup mode override.
-  - `--console <auto|attach|detach>` (optional) - console launch mode.
+  - `--config <path>` (optional) - runtime config file path. If provided, loads all configuration from file. If omitted, all required parameters must be provided via CLI flags.
+  - `--mode <dev|debug|prod>` (optional if --config provided; required otherwise) - startup mode (development, debug, or production).
+  - `--transport <json|protobuf>` (optional if --config provided; required otherwise) - serialization transport (json or protobuf).
+  - `--log-level <trace|debug|info|warn|error>` (optional if --config provided; required otherwise) - runtime log level.
+  - `--endpoint <host>` (optional if --config provided; required otherwise) - endpoint hostname or IP address.
+  - `--port <N>` (optional if --config provided; required otherwise) - port number (1–65535).
+  - `--encryption-mode <clear|standard|private|complete>` (optional) - encryption mode (default: standard).
+  - `--recovery-enabled` (optional) - enable recovery layer (default: false, mutually exclusive with clear encryption mode).
+  - `--operator-escrow` (optional) - enable operator escrow (default: false, only valid with standard encryption + recovery).
+  - `--console <auto|attach|detach>` (optional) - console launch mode (default: detach).
   - `--watch <path>` (optional) - watch target to open on initial console attach.
   - `--daemonize` (optional) - run detached/background startup behavior.
-  - `--log-level <trace|debug|info|warn|error>` (optional) - log level override.
-  - `--port <N>` (optional) - port override (1–65535).
   - `--help`/`-h` (optional) - print full help text and exit 0.
-- Launch without `--config` must exit non-zero and print usage.
+- The coordinator must validate that either:
+  - `--config <path>` is provided (all other params loaded from file), OR
+  - ALL of `--mode`, `--transport`, `--log-level`, `--endpoint`, `--port` are provided (no config file needed).
+- Launch without either a valid config file or complete set of CLI required params must exit non-zero and print usage.
 - `--help`/`-h` is sovereign: exits 0 and bypasses all validation, including missing required flags.
 - `--watch <path>` without an explicit `--console` flag resolves console mode contextually:
   - if `--daemonize` is set: effective console mode is `detach`.
@@ -381,7 +389,12 @@ Path reset: /
 - `--daemonize` combined with explicit `--console attach` is an invalid combination; fail fast.
 - `--port` must be validated as an integer in range 1–65535; invalid values exit immediately.
 - `--log-level` must be validated against `trace|debug|info|warn|error`; invalid values exit immediately.
-- CLI overrides must not inject defaults into `RuntimeConfigOverrides`.
+- `--mode` must be validated as one of `dev|debug|prod|development|debug|production`; invalid values exit immediately.
+- `--transport` must be validated as one of `json|protobuf`; invalid values exit immediately.
+- `--encryption-mode` must be validated as one of `clear|standard|private|complete`; invalid values exit immediately.
+- `--endpoint` must be a non-empty string (trimmed); empty values exit immediately.
+- CLI parameter values must not inject defaults into `RuntimeConfigOverrides` (only explicit values count).
+- When `--config` is provided, CLI `--mode`, `--log-level`, `--port`, and other override flags may still be specified and take precedence over config file values.
 - Invalid flag combinations must fail fast with non-zero exit and usage output.
 
 ### Startup and Console Integration
