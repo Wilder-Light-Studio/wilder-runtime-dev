@@ -20,7 +20,7 @@ Public newcomer docs: `public/index.md`.
 - `REQUIREMENTS.md`
   The canonical statement of what must be true for the runtime to be correct.
 
-- `SPECIFICATION-NIM.md`
+- `SPECIFICATION.md`
   The implementation-oriented specification that supports the requirements.
 
 - `PLAN.md`
@@ -64,7 +64,7 @@ to understand how a requirement area was translated into code and tests.
 For a high-level introduction:
 
 1. Read `REQUIREMENTS.md`.
-2. Read `SPECIFICATION-NIM.md`.
+2. Read `SPECIFICATION.md`.
 3. Review `PLAN.md`.
 
 For active development work:
@@ -81,7 +81,7 @@ keep requirements, specification algorithms, plan tasks, and test evidence synch
 in this order:
 
 1. `REQUIREMENTS.md`
-2. `SPECIFICATION-NIM.md`
+2. `SPECIFICATION.md`
 3. `PLAN.md`
 4. `COMPLIANCE-MATRIX.md`
 

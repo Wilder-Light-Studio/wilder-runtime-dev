@@ -70,7 +70,7 @@ When editing requirements:
   `docs/implementation/ChapterX/MODULE-FLOWCHARTS.md`,
 - update docs/implementation/COMPLIANCE-MATRIX.md in the same change set,
 - confirm scripts/check_requirements.ps1 still passes,
-- if a requirement involves data handling or validation, update SPECIFICATION-NIM.md
+- if a requirement involves data handling or validation, update SPECIFICATION.md
   section 24 (including §24.9–§24.14 for validating prefilter work).
 - if validating prefilter semantics change, update docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md,
   docs/implementation/PLAN.md (Chapter 2C), and docs/implementation/COMPLIANCE-MATRIX.md in the same change set.

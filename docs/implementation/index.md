@@ -7,7 +7,7 @@ What this is. This page is the landing page for the internal, project-facing doc
 - `REQUIREMENTS.md`
   Canonical statements of what must be true for the runtime to be correct.
 
-- `SPECIFICATION-NIM.md`
+- `SPECIFICATION.md`
   Implementation-oriented specification for how requirements are realized.
 
 - `SPECIFICATION.md`
@@ -48,7 +48,7 @@ What this is. This page is the landing page for the internal, project-facing doc
 ## Suggested Read Order
 
 1. `REQUIREMENTS.md`
-2. `SPECIFICATION-NIM.md`
+2. `SPECIFICATION.md`
 3. `SPECIFICATION.md`
 4. `PLAN.md`
 5. Relevant chapter folder

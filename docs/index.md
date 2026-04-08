@@ -7,8 +7,8 @@ What this is. This page is the entry point for documentation in this repository.
 - New to the project: `docs/public/index.md`
 - Building or reviewing internals: `docs/implementation/index.md`
 - Governing requirements: `docs/implementation/REQUIREMENTS.md`
-- Implementation specification: `docs/implementation/SPECIFICATION-NIM.md`
-- Licensing phase requirements/spec: `docs/implementation/REQUIREMENTS.md` (Phase XE), `docs/implementation/SPECIFICATION-NIM.md` (§19F), `docs/implementation/SPECIFICATION.md` (§8)
+- Implementation specification: `docs/implementation/SPECIFICATION.md`
+- Licensing phase requirements/spec: `docs/implementation/REQUIREMENTS.md` (Phase XE), `docs/implementation/SPECIFICATION.md` (§19F), `docs/implementation/SPECIFICATION.md` (§8)
 - Execution plan: `docs/implementation/PLAN.md`
 - Improvement roadmap: `docs/implementation/ROADMAP.md`
 

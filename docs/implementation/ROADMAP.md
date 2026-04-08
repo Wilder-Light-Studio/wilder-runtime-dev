@@ -5,7 +5,7 @@ This document tracks future improvement ideas that are not yet committed chapter
 It is intentionally non-normative. Canonical behavior remains defined in:
 
 - `REQUIREMENTS.md`
-- `SPECIFICATION-NIM.md`
+- `SPECIFICATION.md`
 - `PLAN.md`
 
 Use this roadmap to capture candidate work, discuss tradeoffs, and prepare future planning updates.

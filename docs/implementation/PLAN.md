@@ -1,6 +1,6 @@
 # WILDER COSMOS RUNTIME — IMPLEMENTATION PLAN (v0.1.1)
 
-*Derived from the frozen REQUIREMENTS.md and SPECIFICATION-NIM.md.*
+*Derived from the frozen REQUIREMENTS.md and SPECIFICATION.md.*
 *Each chapter maps to one or more SPEC sections.*
 *Implementation details live in `docs/implementation/IMPLEMENTATION-DETAILS.md`.*
 
@@ -84,7 +84,7 @@ The following priority sequence governs near-term implementation. Items marked
 ## Phase X — DRY Wants/Provides, Capability Discovery, Multi-Module Provides (Nim-first)
 
 **Status:** ✅ Complete
-**SPEC:** `docs/implementation/SPECIFICATION.md` §1-§7, `docs/implementation/SPECIFICATION-NIM.md`
+**SPEC:** `docs/implementation/SPECIFICATION.md` §1-§7, `docs/implementation/SPECIFICATION.md`
 
 ### Ordered Tasks
 
@@ -132,7 +132,7 @@ The following priority sequence governs near-term implementation. Items marked
 ## Phase XE — Humane Offline Licensing (Offline-first, Humane, Propagation-safe)
 
 **Status:** 🚧 Planned
-**Spec anchor:** `docs/implementation/REQUIREMENTS.md` (licensing requirements), `docs/implementation/SPECIFICATION-NIM.md` §19F, `docs/implementation/SPECIFICATION.md` §8
+**Spec anchor:** `docs/implementation/REQUIREMENTS.md` (licensing requirements), `docs/implementation/SPECIFICATION.md` §19F, `docs/implementation/SPECIFICATION.md` §8
 
 ### Ordered Tasks (Strict Sequence)
 
@@ -194,7 +194,7 @@ The following priority sequence governs near-term implementation. Items marked
 
 **Status:** 🚧 In Progress
 **Spec anchor:** `docs/implementation/REQUIREMENTS.md` (Phase XF),
-`docs/implementation/SPECIFICATION-NIM.md` §19G and §21,
+`docs/implementation/SPECIFICATION.md` §19G and §21,
 `docs/implementation/SPECIFICATION.md` §9
 
 ### Ordered Tasks (Strict Sequence)
@@ -204,7 +204,7 @@ The following priority sequence governs near-term implementation. Items marked
       - trust contracts and user guarantees per mode,
       - key-custody, metadata, migration, and failure constraints,
       - explicit CLEAR education/testing boundary and COMPLETE no-operator-access guarantee.
-2. Update `docs/implementation/SPECIFICATION.md` and `docs/implementation/SPECIFICATION-NIM.md` to define:
+2. Update `docs/implementation/SPECIFICATION.md` and `docs/implementation/SPECIFICATION.md` to define:
       - `encryptionMode` config expression,
       - mode scope across RECORDs, eidela state, runtime state, exports, and backups,
       - key-handling and recovery rules,
@@ -288,7 +288,7 @@ All items below must be satisfied before broad implementation (Ch 4+) begins.
 ## Host Hardening Extension
 
 This extension captures post-baseline hardening work for the host/runtime surface.
-Normative behavior lives in `docs/implementation/REQUIREMENTS.md` and `docs/implementation/SPECIFICATION-NIM.md`.
+Normative behavior lives in `docs/implementation/REQUIREMENTS.md` and `docs/implementation/SPECIFICATION.md`.
 This section records Phase 2 hardening closure and remaining operational follow-ups.
 
 **Status:** ✅ Implementation complete across HH-1 through HH-4, with HH-5 closure checks integrated into normal verification.
@@ -555,7 +555,7 @@ recorded as normal domain Occurrences.
 
 ### Tasks
 VF.1. Update `docs/implementation/REQUIREMENTS.md` terms and principle language to validation firewall terminology.
-VF.2. Update `docs/implementation/SPECIFICATION-NIM.md` implementation-principle language and Chapter 2 source references.
+VF.2. Update `docs/implementation/SPECIFICATION.md` implementation-principle language and Chapter 2 source references.
 VF.3. Create `docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md` as the canonical Chapter 2 reference target for validating prefilter requirements.
 VF.4. Update `docs/implementation/DEVELOPMENT-GUIDELINES.md` and `docs/implementation/COMPLIANCE-MATRIX.md` to track the new terminology.
 VF.5. Update mirrored plan artifacts and Chapter 2C planning references to record this refactor as a completed implementation phase.

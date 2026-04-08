@@ -1,7 +1,7 @@
-﻿# Wilder Cosmos Runtime � Requirements
+# Wilder Cosmos Runtime � Requirements
 
 This document defines what must be true for the Wilder Cosmos Runtime to be correct.
-Specifications (how each requirement is made true) live in `docs/implementation/SPECIFICATION-NIM.md`.
+Specifications (how each requirement is made true) live in `docs/implementation/SPECIFICATION.md`.
 
 ---
 

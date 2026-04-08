@@ -4,14 +4,14 @@
 
 ## 1. Executive Summary
 
-This document is now an execution addendum. Normative behavior has been folded into `docs/implementation/REQUIREMENTS.md` and `docs/implementation/SPECIFICATION-NIM.md`; the main delivery sequencing now lives in `docs/implementation/PLAN.md` under the Host Hardening Extension.
+This document is now an execution addendum. Normative behavior has been folded into `docs/implementation/REQUIREMENTS.md` and `docs/implementation/SPECIFICATION.md`; the main delivery sequencing now lives in `docs/implementation/PLAN.md` under the Host Hardening Extension.
 
 The purpose of this file is to keep hardening closure concise: what was implemented, what was verified, and what residual operational checks remain.
 
 ## 2. Normative Source
 
 - Requirements source: `docs/implementation/REQUIREMENTS.md`
-- Implementation contract source: `docs/implementation/SPECIFICATION-NIM.md`
+- Implementation contract source: `docs/implementation/SPECIFICATION.md`
 - Execution plan source: `docs/implementation/PLAN.md` -> `Host Hardening Extension`
 - Verification source: `docs/implementation/COMPLIANCE-MATRIX.md`
 

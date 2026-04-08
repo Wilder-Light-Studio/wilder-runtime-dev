@@ -1,7 +1,7 @@
 # WILDER COSMOS RUNTIME — IMPLEMENTATION DETAILS
 
 *Implementation-level reference for the Wilder Cosmos Runtime.*
-*The canonical specification lives in `docs/implementation/SPECIFICATION-NIM.md`.*
+*The canonical specification lives in `docs/implementation/SPECIFICATION.md`.*
 *This document provides Nim types, API signatures, storage layouts, reconciliation*
 *algorithms, and operational guidance that support the specification.*
 
@@ -1060,7 +1060,7 @@ rt.save()
 - `examples/counter.nim` — example module using the template.
 - `nimble` package file.
 - `Dockerfile` and CI config (`.github/workflows/ci.yml`).
-- `docs/implementation/SPECIFICATION-NIM.md` and `docs/implementation/REQUIREMENTS.md`.
+- `docs/implementation/SPECIFICATION.md` and `docs/implementation/REQUIREMENTS.md`.
 - `docs/implementation/IMPLEMENTATION-DETAILS.md` (this file).
 - Migration registry and sample migration implementations.
 - `.github/ND_DOCS_CHECKLIST.md` — PR checklist for ND docs and public APIs.
