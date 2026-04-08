@@ -158,6 +158,25 @@ Preconditions:
 - `attach`, `instances`, `help`, `clear`, `exit`: available without an attached instance.
 - All other commands require an attached instance.
 
+### 3.5A REPL Scope Navigation Contract
+- Canonical semantic scope format is dot-separated and rendered as `(cosmos...)`.
+- `cd` updates semantic scope only; it must not mutate runtime environment configuration.
+- `cd cosmos` is invalid because the session is always already contained by Cosmos.
+- `cd /` resets scope to `(cosmos)`.
+- `cd ..` moves one descendant segment upward and must never escape `(cosmos)`.
+- `pwd` returns the canonical semantic scope string.
+- "origin" is an operator convention naming for `(cosmos)` and is not addressable as a node.
+
+### 3.5B Global Introspection API Contract
+- The console must expose global read-only introspection properties:
+  - `frame`
+  - `blip`
+  - `morphos`
+  - `uptime`
+  - `scheduler.mode`
+- These properties are runtime state values and are not children in the scope tree.
+- Introspection queries for these keys are scope-independent and do not require `cosmos.` prefixes.
+
 ### 3.6 `watch` Full-Screen Mode
 - `watch` takes over the full terminal screen; the three-layer layout suspends.
 - `Ctrl+C` or configurable timeout returns the Console to the three-layer layout.
@@ -241,6 +260,59 @@ The relational contract is optional but recommended for richer semantics:
 - PROVIDES
 
 All interrogatives are descriptive lenses over one Thing/World interiority; they are not separate entities.
+
+### 4.1A Cosmos Root Contract
+- Cosmos is a Thing with no parent.
+- Cosmos is the root of the node structure.
+- Operators are always contained by Cosmos and cannot enter Cosmos as a child scope.
+
+### 4.1B Scope Resolution Algorithm
+`resolveScope(path)` must execute deterministically:
+
+1. Normalize input by trimming whitespace.
+2. If path is `/`, return root semantic scope `(cosmos)`.
+3. If path is `..`, pop one descendant segment when present.
+4. If path is parenthesized, strip outer parentheses.
+5. If path starts with `cosmos.`, interpret as absolute descendants rooted at Cosmos.
+6. Parse remaining content as dot-separated segments.
+7. Reject empty segments and reject direct `cosmos` nesting attempts.
+8. Return canonical rendering `(cosmos.<segments...>)`.
+
+The algorithm is semantic and must not read or mutate process environment values.
+
+### 4.1C Context Resolution Algorithm
+`resolveContext(thingId)` must execute deterministically:
+
+1. Resolve Thing ancestry from root to `thingId`.
+2. Merge ancestor capabilities in root-to-leaf order with uniqueness preserved.
+3. Merge ancestor config in root-to-leaf order where descendant keys override ancestor keys.
+4. Accumulate inherited logs in ancestry order.
+5. Accumulate inherited relationships in ancestry order.
+6. Attach leaf children as contextual children view.
+7. Return a context object containing merged capabilities/config and inherited logs/relationships.
+
+Context inheritance is downward only and must not write to ancestor or sibling state.
+
+### 4.1D Override Merge Rules
+`applyOverrides(context, deltas)` must execute deterministically:
+
+1. Treat `deltas` as local contextual overrides.
+2. Apply capability additions as unique append operations.
+3. Apply config overrides as key replacement/merge onto context config.
+4. Apply log and relationship additions as append-only contextual entries.
+5. Return a new context value.
+
+Override application must not mutate ancestors, siblings, or Cosmos introspection properties.
+
+### 4.1E Reference Resolution Rules
+`resolveReference(refId)` must execute deterministically:
+
+1. Resolve `refId` to a reference record containing `targetId` and `localMetadata`.
+2. Resolve `targetId` to the canonical Thing.
+3. Resolve context from the canonical target (not the reference container).
+4. Return a resolved reference view combining canonical target context and local metadata.
+
+References are non-container indirections and must not own children.
 
 ### 4.2 Occurrence
 Occurrence is immutable internal truth inside a Thing/World:
@@ -650,6 +722,10 @@ recording structural references and relational claims within Scope.
 ### 10.1 References
 - Explicit, typed edges between Thing/World instances (e.g., parent/child, spatial adjacency).
 - No implicit or inferred references.
+- Canonical reference record includes `targetId` and `localMetadata`.
+- Reference context is inherited from canonical target.
+- References cannot override canonical target context.
+- References are non-container records and cannot own children.
 
 ### 10.2 Claims
 - Relational assertions made by Thing/World instances about local topology.

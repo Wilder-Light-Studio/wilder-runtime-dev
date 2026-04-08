@@ -461,6 +461,62 @@ Path reset: /
 - Wires, Channels, Bridges, Systems, and Constellations are patterns, not primitives.
 - No hidden behavior. No implicit coercion. No directional delivery semantics.
 
+### Cosmos Root and Origin Convention
+
+- Cosmos is a Thing with no parent and is the runtime-created root of the node structure.
+- Operators are always contained by Cosmos; `cd cosmos` must not be required and must not create a nested Cosmos scope.
+- `(cosmos)` is the canonical root semantic scope rendering.
+- "origin" is an operator naming convention for `(cosmos)` only and must not be represented as a node.
+- Cosmos exposes read-only introspective runtime properties:
+  - `frame`
+  - `blip`
+  - `morphos`
+  - `uptime`
+  - `scheduler.mode`
+- The introspective properties above are runtime state properties, not World Graph children, and not part of the scope tree.
+
+### Scope Semantics
+
+- Scope is a dot-separated semantic containment path.
+- Canonical scope form is parenthesized and lowercase for root-first rendering (for example: `(cosmos.bicycle.renderer)`).
+- `cd` changes semantic scope and associated context only.
+- Scope changes must never imply environment mutation or cross-instance rebinding.
+
+### Context Inheritance Rules
+
+- Context inheritance is downward only from ancestors to descendants.
+- Context includes:
+  - capabilities
+  - configuration
+  - logs
+  - relationships
+  - children
+- Context must not flow upward to ancestors.
+- Context must not flow sideways to siblings.
+
+### Override Rules
+
+- Overrides are local contextual deltas.
+- Overrides apply only to the declaring Thing and its descendants.
+- Overrides must not mutate ancestors.
+- Overrides must not affect siblings.
+- Overrides must not mutate Cosmos-level introspection properties.
+
+### Reference Rules
+
+- A reference points to one canonical target Thing.
+- A reference inherits target context, not container context.
+- A reference cannot override the target.
+- A reference may carry local metadata only (labels, annotations, permissions).
+- A reference is not a container and must not have children.
+
+### Introspection Rules
+
+- Introspection commands are global and runtime-scoped.
+- Introspection commands must not depend on the current semantic scope.
+- Introspection commands must be read-only.
+- Introspection commands must not require `cosmos.` prefixes.
+
 ---
 
 ## Runtime Lifecycle Requirements

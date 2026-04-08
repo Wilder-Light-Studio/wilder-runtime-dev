@@ -18,8 +18,10 @@
 
 import unittest
 import json
+import std/tables
 import ../../src/cosmos/thing/thing
 import ../../src/cosmos/runtime/ledger
+import ../../src/runtime/ontology
 import ../../src/runtime/persistence
 
 # Flow: Execute procedure with deterministic test helper behavior.
@@ -104,6 +106,43 @@ suite "world ledger persistence":
     check loaded.references.len == 1
     check loaded.claims.len == 1
     check loaded.references[0].toThing == "child"
+
+suite "reference resolution behavior":
+  test "reference resolves canonical target context":
+    var things = initTable[string, Thing]()
+    things["cosmos"] = createThing(
+      thingId = "cosmos",
+      capabilities = @["root.observe"],
+      config = %*{"region": "global"},
+      metadata = %*{"logs": ["boot"], "relationships": ["root"]}
+    )
+    things["child"] = createThing(
+      thingId = "child",
+      parentId = "cosmos",
+      capabilities = @["render"],
+      config = %*{"region": "local"},
+      metadata = %*{"logs": ["child-up"], "relationships": ["child-of-cosmos"]}
+    )
+
+    var refs = initTable[string, Reference]()
+    refs["ref-child"] = Reference(
+      targetId: "child",
+      localMetadata: %*{"label": "child-link", "permissions": ["read"]}
+    )
+
+    let resolved = resolveReference(refs, things, "ref-child")
+    check resolved.targetId == "child"
+    check "root.observe" in resolved.context.mergedCapabilities
+    check "render" in resolved.context.mergedCapabilities
+    check resolved.context.mergedConfig["region"].getStr == "local"
+    check resolved.localMetadata["label"].getStr == "child-link"
+
+  test "reference cannot target missing thing":
+    let things = initTable[string, Thing]()
+    var refs = initTable[string, Reference]()
+    refs["broken"] = Reference(targetId: "missing", localMetadata: %*{})
+    expect(ValueError):
+      discard resolveReference(refs, things, "broken")
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.

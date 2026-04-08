@@ -114,6 +114,51 @@ The following priority sequence governs near-term implementation. Items marked
 
 ---
 
+## Phase XH — Final Ontology and Scope Mechanics
+
+**Status:** 🚧 In Progress
+**Spec anchor:** `docs/implementation/REQUIREMENTS.md` (Ontology/World Graph/Console semantics),
+`docs/implementation/SPECIFICATION.md` §3.5A-§3.5B, §4.1A-§4.1E, §10.1
+
+### Ordered Tasks (Strict Sequence)
+
+1. Update runtime schema structures:
+      - Thing: `id`, `children`, `capabilities`, `config`, `overrideDeltas`.
+      - Reference: `targetId`, `localMetadata`.
+      - Context: merged capabilities/config with inherited logs/relationships.
+2. Implement deterministic context resolution pipeline:
+      - `resolveContext(thingId)` ancestry walk and downward-only inheritance.
+3. Implement deterministic override merge logic:
+      - `applyOverrides(context, deltas)` with local delta semantics only.
+4. Implement deterministic reference resolution logic:
+      - `resolveReference(refId)` canonical target resolution with target-context inheritance.
+5. Implement deterministic scope traversal logic:
+      - `resolveScope(path)` using canonical dot-separated semantic scope.
+      - enforce `(cosmos)` root behavior and origin naming convention.
+6. Update REPL behavior:
+      - Prompt and `pwd` show semantic scope.
+      - `cd` changes semantic scope only.
+      - prevent invalid `cd cosmos` nesting.
+7. Update global introspection behavior:
+      - expose read-only `frame`, `blip`, `morphos`, `uptime`, and `scheduler.mode` independent of scope.
+8. Add and update tests for:
+      - context inheritance,
+      - override behavior,
+      - reference behavior,
+      - scope traversal,
+      - introspection stability.
+
+### Acceptance Criteria
+
+- Scope rendering is canonical and dot-separated: `(cosmos...)`.
+- Context inheritance is strictly downward-only.
+- Overrides affect only local Thing context and descendants.
+- References resolve to canonical targets and remain non-container.
+- Global introspection keys are read-only and scope-independent.
+- Updated unit tests cover each required behavior and pass in CI.
+
+---
+
 ## Phase X — DRY Wants/Provides, Capability Discovery, Multi-Module Provides (Nim-first)
 
 **Status:** ✅ Complete

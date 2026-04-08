@@ -18,7 +18,9 @@
 ##   cs.attach("operator", @["read", "write"])
 ##   echo cs.dispatch("ls")
 
+import json
 import std/[strutils, tables]
+import ontology
 
 # ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +50,14 @@ type
     targetPath*: string
     snapshotLines*: seq[string]
 
+  RuntimeIntrospectionState* = object
+    ## Global read-only runtime state exposed by introspection commands.
+    frame*: int64
+    blip*: string
+    morphos*: string
+    uptime*: int64
+    schedulerMode*: string
+
   ConsoleSession* = ref object
     ## Live console session handle.  One per connected operator.
     attach*: AttachFlags
@@ -56,6 +66,7 @@ type
     scopeLine*: string          ## Scope line content.
     promptText*: string         ## Current prompt text.
     watchState*: WatchState
+    runtimeState*: RuntimeIntrospectionState
     instanceRegistry*: Table[string, string] ## instanceId -> identity
 
   ConsoleOutput* = object
@@ -76,6 +87,13 @@ proc newConsoleSession*(): ConsoleSession =
     scopeLine: "",
     promptText: "> ",
     watchState: WatchState(active: false),
+    runtimeState: RuntimeIntrospectionState(
+      frame: 0,
+      blip: "steady",
+      morphos: "stable",
+      uptime: 0,
+      schedulerMode: "idle"
+    ),
     instanceRegistry: initTable[string, string]()
   )
 
@@ -114,15 +132,22 @@ proc renderStatusBar*(cs: ConsoleSession): string =
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc renderScopeLine*(cs: ConsoleSession): string =
   ## Layer 2: Scope line — current namespace path.
-  if cs.currentPath.len == 0:
-    result = "/"
-  else:
-    result = "/" & cs.currentPath.join("/")
+  renderScope(cs.currentPath)
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc renderPromptLine*(cs: ConsoleSession): string =
   ## Layer 3: Prompt line — ready to accept input.
   result = cs.renderScopeLine() & " " & cs.promptText
+
+proc introspectionValue(cs: ConsoleSession, target: string): string =
+  let key = target.toLowerAscii()
+  case key
+  of "frame": $cs.runtimeState.frame
+  of "blip": cs.runtimeState.blip
+  of "morphos": cs.runtimeState.morphos
+  of "uptime": $cs.runtimeState.uptime
+  of "scheduler.mode": cs.runtimeState.schedulerMode
+  else: ""
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc renderAll*(cs: ConsoleSession): string =
@@ -202,16 +227,10 @@ proc cmdCd*(cs: ConsoleSession, path: string): ConsoleOutput =
   ## Change scope to path.  ".." moves up one level.
   if not cs.requireAttached:
     return err("cd: requires attached session")
-  if path == "..":
-    if cs.currentPath.len > 0:
-      cs.currentPath = cs.currentPath[0 ..< cs.currentPath.high]
-    return ok(cs.renderScopeLine())
-  if path == "/":
-    cs.currentPath = @[]
-    return ok("/")
-  let seg = path.strip(chars = {'/'})
-  if seg.len > 0:
-    cs.currentPath.add(seg)
+  try:
+    cs.currentPath = resolveScope(path, cs.currentPath)
+  except ValueError as e:
+    return err("cd: " & e.msg)
   ok(cs.renderScopeLine())
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
@@ -228,6 +247,9 @@ proc cmdInfo*(cs: ConsoleSession, target: string): ConsoleOutput =
   ## Show identity and metadata for a Thing or namespace.
   if not cs.requireAttached:
     return err("info: requires attached session")
+  let value = cs.introspectionValue(target)
+  if value.len > 0:
+    return ok(target & "=" & value)
   ok("info: " & target & " (stub — expand with ontology lookup)")
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
@@ -235,6 +257,9 @@ proc cmdPeek*(cs: ConsoleSession, target: string): ConsoleOutput =
   ## Show the current field values of a Thing's status.
   if not cs.requireAttached:
     return err("peek: requires attached session")
+  let value = cs.introspectionValue(target)
+  if value.len > 0:
+    return ok(target & "=" & value)
   ok("peek: " & target & " (stub — expand with status lookup)")
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
@@ -261,6 +286,12 @@ proc cmdState*(cs: ConsoleSession, target: string): ConsoleOutput =
   ## Print raw state JSON for a Thing.
   if not cs.requireAttached:
     return err("state: requires attached session")
+  let key = target.toLowerAscii()
+  if key in ["frame", "blip", "morphos", "uptime", "scheduler.mode"]:
+    return ok($(%*{
+      "key": key,
+      "value": cs.introspectionValue(key)
+    }))
   ok("state: " & target & " (stub — expand with state serializer)")
 
 # ── Delegation Introspection ──────────────────────────────────────────────────

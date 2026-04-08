@@ -44,17 +44,17 @@ suite "three-layer rendering":
 
   test "scope line shows / at root":
     let cs = attachedSession()
-    check cs.renderScopeLine() == "/"
+    check cs.renderScopeLine() == "(cosmos)"
 
   test "scope line shows path after cd":
     let cs = attachedSession()
     discard cs.cmdCd("things")
-    check cs.renderScopeLine() == "/things"
+    check cs.renderScopeLine() == "(cosmos.things)"
 
   test "prompt line includes scope and prompt text":
     let cs = attachedSession()
     let p = cs.renderPromptLine()
-    check "/" in p
+    check "(cosmos)" in p
     check ">" in p
 
   test "renderAll returns three lines":
@@ -86,7 +86,7 @@ suite "attach and detach":
     check not cs.attach.attached
     check cs.currentPath.len == 0
     check not cs.watchState.active
-    check cs.renderScopeLine() == "/"
+    check cs.renderScopeLine() == "(cosmos)"
 
   test "detach from unattached session fails":
     let cs = newConsoleSession()
@@ -120,8 +120,21 @@ suite "navigation commands":
 
   test "cd changes scope":
     let cs = attachedSession()
-    discard cs.cmdCd("cosmos")
-    check cs.currentPath == @["cosmos"]
+    discard cs.cmdCd("things")
+    check cs.currentPath == @["things"]
+
+  test "cd cosmos is rejected because cosmos is already root":
+    let cs = attachedSession()
+    let r = cs.cmdCd("cosmos")
+    check not r.ok
+    check "cannot cd into cosmos" in r.lines[0]
+
+  test "cd supports dot separated descendants":
+    let cs = attachedSession()
+    let r = cs.cmdCd("bicycle.renderer")
+    check r.ok
+    check cs.currentPath == @["bicycle", "renderer"]
+    check r.lines[0] == "(cosmos.bicycle.renderer)"
 
   test "cd .. moves up":
     let cs = attachedSession()
@@ -140,7 +153,7 @@ suite "navigation commands":
     discard cs.cmdCd("things")
     let r = cs.cmdPwd()
     check r.ok
-    check "/things" in r.lines[0]
+    check "(cosmos.things)" in r.lines[0]
 
   test "pwd requires attached session":
     let cs = newConsoleSession()
@@ -156,12 +169,25 @@ suite "introspection commands":
     let cs = attachedSession()
     check cs.cmdInfo("thing-a").ok
 
+  test "info returns global runtime introspection values":
+    let cs = attachedSession()
+    let frameInfo = cs.cmdInfo("frame")
+    check frameInfo.ok
+    check "frame=" in frameInfo.lines[0]
+
   test "peek requires attached session":
     check not newConsoleSession().cmdPeek("x").ok
 
   test "peek returns ok for target":
     let cs = attachedSession()
     check cs.cmdPeek("thing-a").ok
+
+  test "peek global introspection does not depend on scope":
+    let cs = attachedSession()
+    discard cs.cmdCd("module.alpha")
+    let r = cs.cmdPeek("scheduler.mode")
+    check r.ok
+    check "scheduler.mode=" in r.lines[0]
 
   test "watch activates watch state":
     let cs = attachedSession()
@@ -186,6 +212,12 @@ suite "introspection commands":
   test "state returns ok for target":
     let cs = attachedSession()
     check cs.cmdState("thing-a").ok
+
+  test "state returns read-only global key payload":
+    let cs = attachedSession()
+    let r = cs.cmdState("uptime")
+    check r.ok
+    check "\"key\":\"uptime\"" in r.lines[0]
 
 # ── delegation commands ───────────────────────────────────────────────────────
 

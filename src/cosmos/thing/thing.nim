@@ -48,6 +48,11 @@ type
   # Thing: Runtime entity instantiated from Concept, maintains state.
   Thing* = object
     id*: string                   ## Unique Thing identifier.
+    parentId*: string             ## Parent Thing identifier (empty for Cosmos root).
+    children*: seq[string]        ## Descendant identifiers directly contained by this Thing.
+    capabilities*: seq[string]    ## Capability labels visible at Thing boundary.
+    config*: JsonNode             ## Thing-local configuration payload.
+    overrideDeltas*: JsonNode     ## Local override deltas applied to descendants.
     conceptId*: string            ## Concept this Thing instantiates.
     status*: JsonNode             ## Current state snapshot.
     perceptionLog*: seq[Perception]  ## Historical perceptions.
@@ -99,14 +104,24 @@ proc validateThing*(thing: Thing) =
 
 # Flow: Construct a Thing from identity-first inputs and defaults.
 proc createThing*(thingId: string, conceptId: string = "", initialStatus: JsonNode = nil,
-    metadata: JsonNode = nil, epoch: int64 = 0, active: bool = true): Thing =
+  metadata: JsonNode = nil, epoch: int64 = 0, active: bool = true,
+  parentId: string = "", children: seq[string] = @[],
+  capabilities: seq[string] = @[], config: JsonNode = nil,
+  overrideDeltas: JsonNode = nil): Thing =
   ## Create a Thing using the minimal identity-first contract.
   if thingId.len == 0:
     raise newException(ValueError, "Thing: id cannot be empty")
   let statusNode = if initialStatus.isNil: %*{} else: initialStatus
   let metadataNode = if metadata.isNil: %*{} else: metadata
+  let configNode = if config.isNil: %*{} else: config
+  let overridesNode = if overrideDeltas.isNil: %*{} else: overrideDeltas
   result = Thing(
     id: thingId,
+    parentId: parentId,
+    children: children,
+    capabilities: capabilities,
+    config: configNode,
+    overrideDeltas: overridesNode,
     conceptId: conceptId,
     status: statusNode,
     perceptionLog: @[],
@@ -269,6 +284,11 @@ proc thingToJson*(thing: Thing): JsonNode =
   ## Serialize a Thing to JSON.
   result = %*{
     "id": thing.id,
+    "parentId": thing.parentId,
+    "children": thing.children,
+    "capabilities": thing.capabilities,
+    "config": thing.config,
+    "overrideDeltas": thing.overrideDeltas,
     "conceptId": thing.conceptId,
     "status": thing.status,
     "perceptionLog": thing.perceptionLog.mapIt(%*{
@@ -304,6 +324,13 @@ proc thingFromJson*(data: JsonNode): Thing =
   
   result = Thing(
     id: data["id"].getStr,
+    parentId: (if "parentId" in data: data["parentId"].getStr else: ""),
+    children: (if "children" in data and data["children"].kind == JArray:
+      data["children"].getElems.mapIt(it.getStr) else: @[]),
+    capabilities: (if "capabilities" in data and data["capabilities"].kind == JArray:
+      data["capabilities"].getElems.mapIt(it.getStr) else: @[]),
+    config: data.getOrDefault("config"),
+    overrideDeltas: data.getOrDefault("overrideDeltas"),
     conceptId: (if "conceptId" in data: data["conceptId"].getStr else: ""),
     status: data.getOrDefault("status"),
     perceptionLog: perceptionLog,

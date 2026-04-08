@@ -18,7 +18,9 @@
 
 import json
 import std/strutils
+import std/tables
 import ../../src/cosmos/thing/thing
+import ../../src/runtime/ontology
 
 # Flow: Execute procedure with deterministic test helper behavior.
 proc testConceptCreation*() =
@@ -349,6 +351,82 @@ proc testThingDeserializationValidation*() =
   
   echo "✓ testThingDeserializationValidation passed"
 
+# Flow: Execute procedure with deterministic test helper behavior.
+proc testScopeResolution*() =
+  ## Test canonical dot-scope traversal semantics.
+  let rootScope = resolveScope("/")
+  assert rootScope.len == 0
+
+  let nested = resolveScope("bicycle.renderer", @[])
+  assert nested == @["bicycle", "renderer"]
+
+  let popped = resolveScope("..", nested)
+  assert popped == @["bicycle"]
+
+  try:
+    discard resolveScope("cosmos", @[])
+    assert false, "Should reject cd into cosmos"
+  except ValueError:
+    discard
+
+  echo "✓ testScopeResolution passed"
+
+# Flow: Execute procedure with deterministic test helper behavior.
+proc testContextResolutionAndOverrides*() =
+  ## Test downward-only context inheritance and local override application.
+  var things = initTable[string, Thing]()
+  things["cosmos"] = createThing(
+    thingId = "cosmos",
+    capabilities = @["observe"],
+    config = %*{"tier": "root", "tempo": "slow"},
+    metadata = %*{"logs": ["boot"], "relationships": ["root"]}
+  )
+  things["child"] = createThing(
+    thingId = "child",
+    parentId = "cosmos",
+    capabilities = @["render"],
+    config = %*{"tempo": "fast"},
+    overrideDeltas = %*{"config": {"mode": "child"}, "capabilities": ["inspect"]},
+    metadata = %*{"logs": ["child"], "relationships": ["child-of-cosmos"]}
+  )
+
+  let ctx = resolveContext(things, "child")
+  assert "observe" in ctx.mergedCapabilities
+  assert "render" in ctx.mergedCapabilities
+  assert "inspect" in ctx.mergedCapabilities
+  assert ctx.mergedConfig["tier"].getStr == "root"
+  assert ctx.mergedConfig["tempo"].getStr == "fast"
+  assert ctx.mergedConfig["mode"].getStr == "child"
+
+  let localOnly = applyOverrides(ctx, %*{"config": {"local": true}})
+  assert localOnly.mergedConfig["local"].getBool
+  assert not ctx.mergedConfig.hasKey("local")
+
+  echo "✓ testContextResolutionAndOverrides passed"
+
+# Flow: Execute procedure with deterministic test helper behavior.
+proc testReferenceResolution*() =
+  ## Test reference resolution inherits canonical target context.
+  var things = initTable[string, Thing]()
+  things["cosmos"] = createThing(thingId = "cosmos")
+  things["target"] = createThing(
+    thingId = "target",
+    parentId = "cosmos",
+    capabilities = @["cap.target"],
+    config = %*{"scope": "target"}
+  )
+
+  var refs = initTable[string, Reference]()
+  refs["r1"] = Reference(targetId: "target", localMetadata: %*{"label": "shortcut"})
+  let resolved = resolveReference(refs, things, "r1")
+
+  assert resolved.targetId == "target"
+  assert "cap.target" in resolved.context.mergedCapabilities
+  assert resolved.context.mergedConfig["scope"].getStr == "target"
+  assert resolved.localMetadata["label"].getStr == "shortcut"
+
+  echo "✓ testReferenceResolution passed"
+
 when isMainModule:
   echo "Running Chapter 4 Ontology Tests..."
   echo ""
@@ -369,6 +447,9 @@ when isMainModule:
   testThingSerialization()
   testThingDeserialization()
   testThingDeserializationValidation()
+  testScopeResolution()
+  testContextResolutionAndOverrides()
+  testReferenceResolution()
   
   echo ""
   echo "✅ All Chapter 4 tests passed!"
