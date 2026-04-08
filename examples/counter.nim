@@ -22,8 +22,6 @@ import json
 import ../src/runtime/modules
 import ../src/runtime/api
 
-# â”€â”€ Module metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 const counterModuleName* = "example.counter"
 
 let counterMeta* = ModuleMetadata(
