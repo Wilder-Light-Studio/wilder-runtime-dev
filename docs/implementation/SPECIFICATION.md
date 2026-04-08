@@ -1673,7 +1673,7 @@ type
 # 22. Messaging System Specification
 
 **REQ:** Wave Serialization Requirements
-**Schema format:** Protobuf (`.proto` file at `proto/messaging.proto`) and JSON as encoding patterns.
+**Schema format:** Protobuf (`.proto` file at `config/proto/messaging.proto`) and JSON as encoding patterns.
 
 ### 22.1 WaveEnvelope Fields
 
@@ -1742,7 +1742,7 @@ proc decode*(s: Serializer, data: seq[byte]): WaveEnvelope
 - Used for: filesystem bridge, debug mode, and fallback when Protobuf is unavailable.
 
 ### 23.4 Protobuf Serializer
-- Schema defined in `proto/messaging.proto`.
+- Schema defined in `config/proto/messaging.proto`.
 - Must round-trip all `WaveEnvelope` and payload types.
 - Used for: production mode (`transport = "protobuf"`).
 
@@ -2389,7 +2389,7 @@ Startup must produce one immutable capability graph snapshot containing:
   - Reject quotes (`"`, `'`), backslashes (`\`), newlines (`\n`, `\r`), and control chars
 - **On Valid:** Proceed to template generation
 - **On Invalid:** Raise `ValueError` with message: `"Invalid app name: must be 1–64 alphanumeric, underscore, hyphen, dot, or space characters"`
-- **Test:** `tests/startapp_validation_test.nim` (9 test cases)
+- **Test:** `tests/integration/startapp_validation_test.nim` (9 test cases)
 
 #### 10.1.2 Persistence Key Sanitization
 - **Caller:** `persistence.nim:sanitizeKey()`
@@ -2415,7 +2415,7 @@ Startup must produce one immutable capability graph snapshot containing:
 - **On Rejected:** Raise `ValueError` with message: `"Path must not be a filesystem root"`
 - **On Accepted:** Proceed with path operations
 - **Callsites:** `loadConceptFromFile()`, `runScanCommand()`
-- **Test:** `tests/cosmos_main_path_safety_test.nim` (5 test cases)
+- **Test:** `tests/integration/cosmos_main_path_safety_test.nim` (5 test cases)
 
 ---
 
@@ -2439,7 +2439,7 @@ Startup must produce one immutable capability graph snapshot containing:
   - Field serialized as-is in JSON
   - Old records (missing `payloadAuthTag`) default to `""` (empty string)
   - Empty auth tag is treated as "unverified" but still decryptable (backward compatibility during migration)
-- **Test:** `tests/encrypted_record_test.nim` round-trip verification
+- **Test:** `tests/unit/encrypted_record_test.nim` round-trip verification
 
 #### 10.2.2 Safe Decryption API
 - **Proc:** `verifyAndDecryptRecordEntry(entry: EncryptedRecordEntry; keyMaterial: string): string`
@@ -2542,7 +2542,7 @@ Startup must produce one immutable capability graph snapshot containing:
   - In-process subscription: `requestId` field set to `subscribeRequestId`
   - Watch frames: `requestId` field set to derived unique ID
 - **Invariant:** No hardcoded request IDs; all IDs must be generated per invocation
-- **Test:** `tests/cosmos_main_ipc_id_test.nim` (2 test cases)
+- **Test:** `tests/integration/cosmos_main_ipc_id_test.nim` (2 test cases)
 
 ---
 
@@ -2561,12 +2561,12 @@ Startup must produce one immutable capability graph snapshot containing:
 
 | Requirement | Test Suite | Test Cases | Artifact |
 |---|---|---|---|
-| App name validation (injection) | startapp_validation_test | 9 | tests/startapp_validation_test.nim |
-| Path traversal rejection | cosmos_main_path_safety_test | 5 | tests/cosmos_main_path_safety_test.nim |
-| Dynamic IPC request IDs | cosmos_main_ipc_id_test | 2 | tests/cosmos_main_ipc_id_test.nim |
-| AEAD auth tag verification | encrypted_record_test | (existing round-trip + auth) | tests/encrypted_record_test.nim |
-| Length-prefixed encoding | validation_firewall_test | (implicit preimage tests) | tests/validation_firewall_test.nim |
-| Bare exception handling | record_reconciliation_test | (implicit Catchable tests) | tests/record_reconciliation_test.nim |
+| App name validation (injection) | startapp_validation_test | 9 | tests/integration/startapp_validation_test.nim |
+| Path traversal rejection | cosmos_main_path_safety_test | 5 | tests/integration/cosmos_main_path_safety_test.nim |
+| Dynamic IPC request IDs | cosmos_main_ipc_id_test | 2 | tests/integration/cosmos_main_ipc_id_test.nim |
+| AEAD auth tag verification | encrypted_record_test | (existing round-trip + auth) | tests/unit/encrypted_record_test.nim |
+| Length-prefixed encoding | validation_firewall_test | (implicit preimage tests) | tests/unit/validation_firewall_test.nim |
+| Bare exception handling | record_reconciliation_test | (implicit Catchable tests) | tests/unit/record_reconciliation_test.nim |
 
 ### 3.1 Issue Kinds
 

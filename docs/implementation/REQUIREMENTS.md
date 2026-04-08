@@ -823,7 +823,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 - App names must have maximum length of 64 characters.
 - App names with quotes, newlines, backslashes, or control characters must be rejected with clear error message.
 - Name validation must occur **before** template generation to prevent code injection in scaffold files (TOML, Nim source).
-- Test coverage: `tests/startapp_validation_test.nim` (9 test cases).
+- Test coverage: `tests/integration/startapp_validation_test.nim` (9 test cases).
 
 #### Persistence Key Sanitization
 - Persistence layer keys must be validated against character allowlist: `[a-zA-Z0-9_\-]` (alphanumeric, underscore, hyphen).
@@ -835,7 +835,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 - Filesystem paths provided via CLI arguments (e.g., `cosmos scan <path>`, `cosmos concept show --file <path>`) must reject filesystem root paths.
 - Root path rejection covers: `C:\` (Windows), `/` (Unix), and any variation (e.g., `C:/`).
 - Root path rejection prevents traversal to unintended filesystem regions.
-- Test coverage: `tests/cosmos_main_path_safety_test.nim` (5 test cases, Windows-specific).
+- Test coverage: `tests/integration/cosmos_main_path_safety_test.nim` (5 test cases, Windows-specific).
 
 ### Ciphertext Integrity & Authentication
 
@@ -845,7 +845,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 - Authentication tag must be verified **before** decryption via `verifyAndDecryptRecordEntry` safe API.
 - Verification must use constant-time comparison to prevent timing attacks.
 - Failed verification raises `RecordVerificationError` and halts decryption.
-- Test coverage: implicit in `tests/encrypted_record_test.nim` round-trip verification.
+- Test coverage: implicit in `tests/unit/encrypted_record_test.nim` round-trip verification.
 
 #### Nonce Derivation Security
 - Nonce derivation and signature digest computation must use length-prefixed hash preimages.
@@ -867,7 +867,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 - Counter increments per request within the same CLI invocation.
 - Subscribe request IDs are derived by appending `-subscribe` to the base request ID.
 - Hardcoded IDs like `"cli-subscribe"` are forbidden; all IDs must reflect per-invocation uniqueness.
-- Test coverage: `tests/cosmos_main_ipc_id_test.nim` (2 test cases).
+- Test coverage: `tests/integration/cosmos_main_ipc_id_test.nim` (2 test cases).
 
 ### Exception Handling
 
@@ -1254,7 +1254,7 @@ for structural validation on the hot path.
 - Header templates must be stored in `templates/headers/` and maintained
   as canonical sources for module identity/header generation.
 - A generator method must be available at
-  `scripts/new_nim_module.ps1` to create new `.nim` files with compliant
+  `scripts/dev/new_nim_module.ps1` to create new `.nim` files with compliant
   identity lines, header tags, and standard footer.
 
 ---
@@ -1275,13 +1275,13 @@ All checks should run in local development and CI.
    - Test type: corruption, removal, and replay tests.
    - Verify: rebuild from any two layers; rebuild from one full copy plus txlog;
      checksum/signature validation failures halt startup.
-   - Evidence: `tests/reconciliation_test.nim` scenarios and reconciliation logs.
+   - Evidence: `tests/unit/reconciliation_test.nim` scenarios and reconciliation logs.
 
 3. Console Subsystem
    - Test type: snapshot output tests and protocol tests.
    - Verify: three-layer layout order, command availability by attachment state,
      guardrail errors when detached, deterministic status rendering.
-   - Evidence: `tests/console_status_test.nim` and transcript fixtures.
+   - Evidence: `tests/unit/console_status_test.nim` and transcript fixtures.
 
 4. Ontology and World Model
    - Test type: schema and behavior tests.

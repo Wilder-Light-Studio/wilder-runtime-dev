@@ -16,11 +16,11 @@
 # Test Module Template
 # Summary: Nim `unittest` template with harness integration.
 # Usage:
-#   1. Copy this file into `tests/` and rename it (e.g. `tests/mymodule_test.nim`).
+#   1. Copy this file into `tests/unit/` and rename it (e.g. `tests/unit/mymodule_test.nim`).
 #   2. Replace `<module_name>` with your module name.
 #   3. Uncomment the import for the module under test.
 #   4. Add suites and tests.
-# Run with: nim c -r tests/mymodule_test.nim
+# Run with: nim c -r tests/unit/mymodule_test.nim
 #         or: nimble test
 
 import unittest

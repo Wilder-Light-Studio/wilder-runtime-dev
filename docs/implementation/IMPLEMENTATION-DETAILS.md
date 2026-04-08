@@ -842,7 +842,7 @@ the consumer.
 
 ### Proto Schema
 
-Source: `proto/messaging.proto`. Defines `MessageEnvelope` and concrete payload
+Source: `config/proto/messaging.proto`. Defines `MessageEnvelope` and concrete payload
 types. Field numbers are never reused; removed fields are reserved.
 
 ### Envelope Dispatch (Nim)
@@ -887,7 +887,7 @@ proc decode*(s: Serializer, data: seq[byte]): MessageEnvelope
 - Always used for filesystem bridge writes regardless of `transport` config.
 
 ### ProtobufSerializer
-- Uses generated Nim bindings from `proto/messaging.proto`.
+- Uses generated Nim bindings from `config/proto/messaging.proto`.
 - Round-trips all `MessageEnvelope` and payload fields without loss.
 - Only used when `transport = tkProtobuf`.
 
@@ -1047,16 +1047,16 @@ rt.save()
 - `src/runtime/messaging.nim` — envelope dispatch and debug introspection.
 - `src/runtime/serialization.nim` — envelope, format support, and serializer abstraction.
 - `config/runtime.cue` — Cue schema for runtime configuration.
-- `proto/messaging.proto` — Protobuf schema for `MessageEnvelope` and payload types.
+- `config/proto/messaging.proto` — Protobuf schema for `MessageEnvelope` and payload types.
 - `src/runtime/console.nim` — Console and tooling.
 - `src/runtime/testing.nim` — test harnesses, deterministic RNG, state snapshots.
 - `templates/cosmos_runtime_module.nim` — canonical ND-friendly module template.
 - `docs/implementation/COMMENT_STYLE.md` — ND documentation and public API comment style guide.
-- `tests/reconciliation_test.nim` — deterministic tests for redundancy and reconciliation.
-- `tests/config_test.nim` — config loading, validation, invalid combination rejection.
-- `tests/serialization_test.nim` — JSON and Protobuf round-trip tests.
-- `tests/messaging_test.nim` — envelope dispatch and introspection tests.
-- `tests/console_status_test.nim` — Console subsystem tests.
+- `tests/unit/reconciliation_test.nim` — deterministic tests for redundancy and reconciliation.
+- `tests/unit/config_test.nim` — config loading, validation, invalid combination rejection.
+- `tests/unit/serialization_test.nim` — JSON and Protobuf round-trip tests.
+- `tests/unit/messaging_test.nim` — envelope dispatch and introspection tests.
+- `tests/unit/console_status_test.nim` — Console subsystem tests.
 - `examples/counter.nim` — example module using the template.
 - `nimble` package file.
 - `Dockerfile` and CI config (`.github/workflows/ci.yml`).

@@ -6,11 +6,23 @@
 nimcache/
 nimblecache/
 htmldocs/
+build/
+*.pdb
+*.ilk
 
 # ---> artifacts 
 *.exe
 *.dll
+*.so
+*.a
+*.o
 archive/
 nimble.develop
 nimble.paths
 nimbledeps
+nimble.lock
+
+# ---> runtime/test scratch and local outputs
+tests/tmp/
+tmp/
+dist/

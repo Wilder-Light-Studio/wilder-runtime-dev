@@ -26,21 +26,21 @@ RUN nimble refresh --accept && nimble install --depsOnly --accept
 COPY . .
 
 # Compile-check all tests (Application Control is not a concern inside Docker).
-RUN nim c --hints:off --warnings:on tests/lifecycle_test.nim \
- && nim c --hints:off --warnings:on tests/console_status_test.nim \
- && nim c --hints:off --warnings:on tests/module_test.nim \
- && nim c --hints:off --warnings:on tests/portability_test.nim \
- && nim c --hints:off --warnings:on tests/security_bench_test.nim \
- && nim c --hints:off --warnings:on tests/doc_compliance_test.nim
+RUN nim c --hints:off --warnings:on tests/unit/lifecycle_test.nim \
+ && nim c --hints:off --warnings:on tests/unit/console_status_test.nim \
+ && nim c --hints:off --warnings:on tests/unit/module_test.nim \
+ && nim c --hints:off --warnings:on tests/unit/portability_test.nim \
+ && nim c --hints:off --warnings:on tests/unit/security_bench_test.nim \
+ && nim c --hints:off --warnings:on tests/unit/doc_compliance_test.nim
 
 # Run tests.
 FROM builder AS test
-RUN nim c -r tests/lifecycle_test.nim \
- && nim c -r tests/console_status_test.nim \
- && nim c -r tests/module_test.nim \
- && nim c -r tests/portability_test.nim \
- && nim c -r tests/security_bench_test.nim \
- && nim c -r tests/doc_compliance_test.nim
+RUN nim c -r tests/unit/lifecycle_test.nim \
+ && nim c -r tests/unit/console_status_test.nim \
+ && nim c -r tests/unit/module_test.nim \
+ && nim c -r tests/unit/portability_test.nim \
+ && nim c -r tests/unit/security_bench_test.nim \
+ && nim c -r tests/unit/doc_compliance_test.nim
 
 # Final verification image.
 FROM builder AS verify

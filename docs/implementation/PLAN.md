@@ -145,9 +145,9 @@ The following priority sequence governs near-term implementation. Items marked
 - Updated coordinator CLI outputs for capability discovery and concept resolution.
 - Updated Concept derivation and registry population for Nim-first boundary declarations.
 - New/updated tests in:
-      - `tests/capabilities_test.nim`
-      - `tests/coordinator_test.nim`
-      - Concept derivation coverage (`tests/concept_registry_test.nim` and follow-on tests as needed).
+      - `tests/unit/capabilities_test.nim`
+      - `tests/integration/coordinator_test.nim`
+      - Concept derivation coverage (`tests/unit/concept_registry_test.nim` and follow-on tests as needed).
 
 ### Acceptance Criteria
 
@@ -341,33 +341,33 @@ This section records Phase 2 hardening closure and remaining operational follow-
 - ✅ Newline-delimited per-epoch txlog append behavior with replay idempotence implemented.
 - ✅ `snapshotAll`/`restoreSnapshot` hardening implemented with checksum/signature validation and atomic replacement safeguards.
 - ✅ Deterministic file layout verified: `state/runtime.json`, `state/modules/`, `state/txlog/`, `state/snapshots/`.
-- ✅ Coverage added in `tests/ch3_uat.nim` and `tests/reconciliation_test.nim` for roundtrip, replay, corrupt snapshot, and restore-failure resilience.
+- ✅ Coverage added in `tests/uat/ch3_uat.nim` and `tests/unit/reconciliation_test.nim` for roundtrip, replay, corrupt snapshot, and restore-failure resilience.
 
 #### HH-2 Lifecycle and Error Hardening
 - ✅ Enforced module loading gate after reconciliation.
 - ✅ Enforced ingress gate after prefilter activation.
 - ✅ Structured `StartupError` guidance flow (`recoveryGuidance`) implemented.
-- ✅ Gate and structured halt assertions covered in `tests/lifecycle_test.nim` and `tests/integration_test.nim`.
+- ✅ Gate and structured halt assertions covered in `tests/unit/lifecycle_test.nim` and `tests/integration/integration_test.nim`.
 
 #### HH-3 Config and Observability Hardening
-- ✅ Added `scripts/validate_config.ps1` Cue validation shim for exported config.
+- ✅ Added `scripts/verify/validate_config.ps1` Cue validation shim for exported config.
 - ✅ Extended config loading for file < env < CLI precedence.
 - ✅ Added host event logging for startup, reconcile, migrate, prefilter activation, and shutdown.
 - ✅ Added safe-event assertions to ensure host logs avoid raw payload/secret leakage patterns.
-- ✅ Extended `tests/config_test.nim` and `tests/integration_test.nim` for override precedence and host-event assertions.
+- ✅ Extended `tests/unit/config_test.nim` and `tests/integration/integration_test.nim` for override precedence and host-event assertions.
 
 #### HH-4 Console Entrypoint Hardening
 - ✅ Added `src/console_main.nim` thin orchestration entrypoint.
 - ✅ Added `--config`, `--mode`, `--attach`, and `--watch` launch flag support.
 - ✅ Enforced non-zero exit and usage output when `--config` is missing.
 - ✅ Ensured detach resets session state and terminates active watch state.
-- ✅ Extended `tests/console_status_test.nim` with launch-contract and watch-stop coverage.
+- ✅ Extended `tests/unit/console_status_test.nim` with launch-contract and watch-stop coverage.
 
 #### HH-5 Hardening Verification Gate
 - ✅ Hardening tests are promoted in normal verification flow.
 - ✅ Compliance matrix and plan tracking were updated alongside hardening implementation.
 - ✅ Compliance and compile gates are currently green for the hardening surface.
-- ⚠️ Cue CLI-backed execution of `scripts/validate_config.ps1` remains environment-dependent and should be run in operator environments with Cue installed.
+- ⚠️ Cue CLI-backed execution of `scripts/verify/validate_config.ps1` remains environment-dependent and should be run in operator environments with Cue installed.
 
 ### Exit Criteria
 
@@ -421,8 +421,8 @@ This section records Phase 2 hardening closure and remaining operational follow-
 2.5. ✅ `src/runtime/api.nim` — type-safe distinct types, `moduleContext_create`, `statusField_create` with fail-fast validation.
 2.6. ✅ `envelopeWrap` and `envelopeUnwrap` in `src/runtime/serialization.nim` with real SHA256 checksum validation.
 2.7. ✅ JSON serialization round-trip for all types with checksum verification. `serializeWithEnvelope`/`deserializeWithEnvelope` implemented.
-2.8. ✅ `tests/validation_test.nim` — all validation helpers covered, error cases, sanitized error messages.
-2.9. ✅ `tests/serialization_test.nim` — checksum validation, round-trip, corruption detection, serializer selection.
+2.8. ✅ `tests/unit/validation_test.nim` — all validation helpers covered, error cases, sanitized error messages.
+2.9. ✅ `tests/unit/serialization_test.nim` — checksum validation, round-trip, corruption detection, serializer selection.
 2.10. ✅ `SerializerKind`, `Serializer` base type, `JsonSerializer`, `ProtobufSerializer`, and `selectSerializer` implemented in `src/runtime/serialization.nim`.
 
 ### Acceptance
@@ -441,7 +441,7 @@ This section records Phase 2 hardening closure and remaining operational follow-
 
 **SPEC:** §21 Runtime Configuration, §24 Data Handling and Validation
 **Goal:** Load, validate, and expose runtime configuration from a Cue-exported source.
-**Status:** ✅ **COMPLETE** — `config/runtime.cue` schema defined; `src/runtime/config.nim` implemented with `RuntimeMode`, `TransportKind`, `LogLevel`, `RuntimeConfig`, and `loadConfig()`; all validation rules enforced; `tests/config_test.nim` passing (6 tests). Host-hardening follow-up for validation script and override precedence is tracked in the Host Hardening Extension (HH-3).
+**Status:** ✅ **COMPLETE** — `config/runtime.cue` schema defined; `src/runtime/config.nim` implemented with `RuntimeMode`, `TransportKind`, `LogLevel`, `RuntimeConfig`, and `loadConfig()`; all validation rules enforced; `tests/unit/config_test.nim` passing (6 tests). Host-hardening follow-up for validation script and override precedence is tracked in the Host Hardening Extension (HH-3).
 
 ### Tasks
 2A.1. Create `config/runtime.cue` — Cue schema with all fields, validation rules, and
@@ -457,7 +457,7 @@ This section records Phase 2 hardening closure and remaining operational follow-
  **(Pending)**
 2A.4. Wire `loadConfig()` into startup step 1 (§5.1, Ch 10); no subsystem reads raw
       config after startup.
-2A.5. Write tests: `tests/config_test.nim` — valid debug load, valid production load,
+2A.5. Write tests: `tests/unit/config_test.nim` — valid debug load, valid production load,
       invalid combination rejection, missing config file, port boundary tests (0, 1, 65535, 65536).
 
 ### Acceptance
@@ -474,10 +474,10 @@ This section records Phase 2 hardening closure and remaining operational follow-
 **SPEC:** §22 Messaging System, §23 Serialization Transport, §24 Data Handling and Validation
 **Goal:** Define the Protobuf message schema, implement the serializer abstraction,
 wire transport selection to config, and validate all message inputs.
-**Status:** ✅ **COMPLETE** — `proto/messaging.proto` defined; `JsonSerializer` and `ProtobufSerializer` implemented in `src/runtime/serialization.nim`; `src/runtime/messaging.nim` implemented with envelope dispatch, debug/production mode logging, and inbound validation; `selectSerializer()` wired to config transport; tests passing: `serialization_test.nim` (6 tests), `messaging_test.nim` (4 tests).
+**Status:** ✅ **COMPLETE** — `config/proto/messaging.proto` defined; `JsonSerializer` and `ProtobufSerializer` implemented in `src/runtime/serialization.nim`; `src/runtime/messaging.nim` implemented with envelope dispatch, debug/production mode logging, and inbound validation; `selectSerializer()` wired to config transport; tests passing: `serialization_test.nim` (6 tests), `messaging_test.nim` (4 tests).
 
 ### Tasks
-2B.1. Create `proto/messaging.proto` — `MessageEnvelope` with `id`, `type`, `version`,
+2B.1. Create `config/proto/messaging.proto` — `MessageEnvelope` with `id`, `type`, `version`,
       `timestamp`, and `oneof payload`; define `Ping` and `ConfigUpdate` payload types
       (SPEC §22.1, §22.2). Apply forward-compatibility rules (§22.3).
 2B.2. Generate or hand-write Nim bindings for `MessageEnvelope` and payload types.
@@ -492,10 +492,10 @@ wire transport selection to config, and validate all message inputs.
 2B.6. Implement `src/runtime/messaging.nim` — envelope dispatch; full envelope logging
       in `debug` mode; no logging overhead in `production` mode (§22.4).
       Validate all inbound messages using `validateStructure` before dispatch.
-2B.7. Write tests: `tests/serialization_test.nim` — JSON round-trip, Protobuf
+2B.7. Write tests: `tests/unit/serialization_test.nim` — JSON round-trip, Protobuf
       round-trip, correct serializer selected by config, filesystem bridge always JSON,
       checksum validation on deserialization, malformed message rejection.
-2B.8. Write tests: `tests/messaging_test.nim` — envelope dispatch, debug introspection
+2B.8. Write tests: `tests/unit/messaging_test.nim` — envelope dispatch, debug introspection
       logging present, production mode logging absent, invalid envelope rejection.
 
 ### Acceptance
@@ -554,16 +554,16 @@ recorded as normal domain Occurrences.
 2C.11. Implement no-copying and regeneration behavior:
       regenerate when artifacts are stale or missing; fail startup if regeneration
       cannot produce a valid prefilter index.
-2C.12. Write tests: `tests/validation_firewall_test.nim` — unknown signature,
+2C.12. Write tests: `tests/unit/validation_firewall_test.nim` — unknown signature,
       arg mismatch, type mismatch, missing field, unknown-field policy,
       ordering/cardinality violations, mask conjunction pass/fail, gate enforcement.
-2C.13. Write tests: `tests/validation_firewall_perf_test.nim` — O(1) lookup,
+2C.13. Write tests: `tests/unit/validation_firewall_perf_test.nim` — O(1) lookup,
       constant-time mask comparison, zero-allocation payload mask computation,
       no dynamic schema parsing on hot path.
-2C.14. Write tests: `tests/validation_table_generation_test.nim` — generated
+2C.14. Write tests: `tests/unit/validation_table_generation_test.nim` — generated
       artifact correctness, source digest conformance, regeneration drift
       prevention, no manual prefilter table copying.
-2C.15. Write tests: `tests/validation_failure_occurrence_test.nim` — deterministic
+2C.15. Write tests: `tests/unit/validation_failure_occurrence_test.nim` — deterministic
       redacted diagnostics, negative dispatch checks, and proof that invalid
       payload bytes are never surfaced to user code or operator-facing output.
 
@@ -624,7 +624,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 3.8. Implement migration strategy: `migrate_vN_to_vNplus1` with validation pre/post-migration.
 3.9. Implement snapshot export/import with signing and checksum verification using
      `validateChecksum` and `validateStructure`.
-3.10. Write tests: `tests/reconciliation_test.nim` — simulate single-layer failure,
+3.10. Write tests: `tests/unit/reconciliation_test.nim` — simulate single-layer failure,
       bit-rot, partial writes. Verify rebuild from any two layers.
       Test checksum validation failures halt operations with structured errors.
 
@@ -644,7 +644,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 **SPEC:** §4 Ontology (Concept, Occurrence, Perception, Thing)
 **IMPL:** Ontology Implementation
 **Goal:** Implement the four ontological primitives.
-**Status:** ✅ **COMPLETE** — All four primitive types and lifecycle procs implemented in `src/cosmos/thing/thing.nim`; `tests/ontology_test.nim` written and all 30 tests passing.
+**Status:** ✅ **COMPLETE** — All four primitive types and lifecycle procs implemented in `src/cosmos/thing/thing.nim`; `tests/unit/ontology_test.nim` written and all 30 tests passing.
 
 ### Tasks
 4.1. Define `Concept` type with six sections + Interrogative Manifest reference.
@@ -654,7 +654,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
      `metadata`).
 4.5. Implement Thing lifecycle: instantiation, active, destruction.
 4.6. Implement Occurrence projection and Perception filtering.
-4.7. ✅ Write tests: `tests/ontology_test.nim` — Thing instantiation from Concept,
+4.7. ✅ Write tests: `tests/unit/ontology_test.nim` — Thing instantiation from Concept,
      Occurrence emission, Perception matching, status validation.
 
 ### Acceptance
@@ -691,7 +691,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 **SPEC:** §7 Status Model, §8 Memory Model
 **IMPL:** Memory Enforcement
 **Goal:** Status schema with invariant checking and bounded memory.
-**Status:** ✅ **COMPLETE** — `src/cosmos/core/status.nim` implemented with status schema validation, phase-aware invariant checks (load/mutation/reconciliation), memory categories, mutation-time cap enforcement, warning→rejection escalation, and memory introspection reports; tests added in `tests/status_memory_test.nim` and compile clean in this environment.
+**Status:** ✅ **COMPLETE** — `src/cosmos/core/status.nim` implemented with status schema validation, phase-aware invariant checks (load/mutation/reconciliation), memory categories, mutation-time cap enforcement, warning→rejection escalation, and memory introspection reports; tests added in `tests/unit/status_memory_test.nim` and compile clean in this environment.
 
 ### Tasks
 6.1. ✅ Implement `StatusSchema` validation against Thing state.
@@ -701,7 +701,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 6.5. ✅ Implement escalation: warning → rejection → structured error on repeated
       violation.
 6.6. ✅ Implement memory introspection (queryable per-module and per-Thing).
-6.7. ✅ Write tests: `tests/status_memory_test.nim`.
+6.7. ✅ Write tests: `tests/unit/status_memory_test.nim`.
 
 ### Acceptance
 - Invariant violations produce structured errors.
@@ -715,7 +715,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 **SPEC:** §10 World Ledger, §11 World Graph
 **IMPL:** World Ledger Implementation
 **Goal:** Declarative relationship model and navigable world structure.
-**Status:** ✅ **COMPLETE** — `src/cosmos/runtime/ledger.nim` implemented with append-only ledger references/claims, load-time validation, persistence integration through `PersistenceBridge`, deterministic world graph reconstruction, explicit-edge enforcement, and single-root invariant checks; `tests/world_test.nim` added and passing.
+**Status:** ✅ **COMPLETE** — `src/cosmos/runtime/ledger.nim` implemented with append-only ledger references/claims, load-time validation, persistence integration through `PersistenceBridge`, deterministic world graph reconstruction, explicit-edge enforcement, and single-root invariant checks; `tests/unit/world_test.nim` added and passing.
 
 ### Tasks
 7.1. ✅ Define `LedgerReference` and `LedgerClaim` types.
@@ -724,7 +724,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 7.4. ✅ Implement load-time validation of references and claims.
 7.5. ✅ Build the world graph from ledger references (nodes = Things, edges = references).
 7.6. ✅ Implement single root Thing invariant.
-7.7. ✅ Write tests: `tests/world_test.nim` — ledger mutations, graph construction,
+7.7. ✅ Write tests: `tests/unit/world_test.nim` — ledger mutations, graph construction,
      no implicit edges.
 
 ### Acceptance
@@ -739,7 +739,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 **SPEC:** §12 Scheduler & Tempo
 **IMPL:** Scheduler & Tempo Implementation
 **Goal:** Deterministic frame loop with five tempo types.
-**Status:** ✅ **COMPLETE** — `src/cosmos/runtime/scheduler.nim` implemented with deterministic frame execution order, bounded per-Thing work budget, cooperative yielding, failure isolation, repeated-failure suspension, and deterministic replay digest; `tests/scheduler_test.nim` added and passing.
+**Status:** ✅ **COMPLETE** — `src/cosmos/runtime/scheduler.nim` implemented with deterministic frame execution order, bounded per-Thing work budget, cooperative yielding, failure isolation, repeated-failure suspension, and deterministic replay digest; `tests/unit/scheduler_test.nim` added and passing.
 
 ### Tasks
 8.1. ✅ Implement tempo types: Caused (Event), Periodic, Continuous, Manual, Sequence.
@@ -753,7 +753,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 8.6. ✅ Implement error boundaries: per-Thing failure isolation, repeated failure
      suspension.
 8.7. ✅ Implement frame replay: given same state + Occurrences → identical result.
-8.8. ✅ Write tests: `tests/scheduler_test.nim` — determinism, replay, error isolation,
+8.8. ✅ Write tests: `tests/unit/scheduler_test.nim` — determinism, replay, error isolation,
      tempo types.
 
 ### Acceptance
@@ -769,7 +769,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 **SPEC:** §9 Delegation Model
 **IMPL:** Delegation Implementation
 **Goal:** Voluntary, Occurrence-based delegation and specialist matching.
-**Status:** ✅ **COMPLETE** — `src/cosmos/runtime/delegation.nim` implemented with `DelegationOccurrence`/`DelegationResult`, delegation emission, deterministic specialist matching (narrowest capability + lexical fallback), asynchronous result delivery (>=2 frames), no-match and specialist-failure handling, and specialist declaration validation; `tests/delegation_test.nim` added and passing.
+**Status:** ✅ **COMPLETE** — `src/cosmos/runtime/delegation.nim` implemented with `DelegationOccurrence`/`DelegationResult`, delegation emission, deterministic specialist matching (narrowest capability + lexical fallback), asynchronous result delivery (>=2 frames), no-match and specialist-failure handling, and specialist declaration validation; `tests/unit/delegation_test.nim` added and passing.
 
 ### Tasks
 9.1. ✅ Define `DelegationOccurrence` and `DelegationResult` types.
@@ -780,7 +780,7 @@ VF.6. Rename Chapter 2C membrane-named test artifacts and user-facing suite labe
 9.5. ✅ Implement failure handling: no match → auto-failure result; specialist failure →
      structured error result.
 9.6. ✅ Implement load-time validation of specialist declarations.
-9.7. ✅ Write tests: `tests/delegation_test.nim` — matching, result delivery, no-match
+9.7. ✅ Write tests: `tests/unit/delegation_test.nim` — matching, result delivery, no-match
      failure, multi-specialist tiebreaker.
 
 ### Acceptance
@@ -821,7 +821,7 @@ reconciliation gates enforced before ingress.
       Prefilter activation failure and reconciliation failure both halt startup.
 10.5. Implement startup banner (from IMPL: version, mode, modules, backend, reconcile
       status, prefilter generation ID, epoch).
-10.6. Write tests: `tests/lifecycle_test.nim` — successful startup/shutdown, failure
+10.6. Write tests: `tests/unit/lifecycle_test.nim` — successful startup/shutdown, failure
       at each step, invariant enforcement, prefilter activation gate, reconciliation
       gate.
 
@@ -856,7 +856,7 @@ reconciliation gates enforced before ingress.
 11.10. Implement `ls` output rules (flat list, Thing/dir/virtual/file formatting).
 11.11. Implement `watch` full-screen mode with `Ctrl+C` resume.
 11.12. Implement preconditions: unattached commands vs attached-only commands.
-11.13. Extend `tests/console_status_test.nim` — all layers, all commands, attach/detach.
+11.13. Extend `tests/unit/console_status_test.nim` — all layers, all commands, attach/detach.
 
 ### Acceptance
 - Three-layer layout renders correctly.
@@ -879,7 +879,7 @@ reconciliation gates enforced before ingress.
 12.3. Implement module metadata: `memoryCap`, `resourceBudget`.
 12.4. Implement deterministic module load order (lexicographic).
 12.5. Update `templates/cosmos_runtime_module.nim` to match frozen spec.
-12.6. Write tests: `tests/module_test.nim` — registration, load order, metadata.
+12.6. Write tests: `tests/unit/module_test.nim` — registration, load order, metadata.
 
 ### Acceptance
 - Modules register and load in deterministic order.
@@ -1134,27 +1134,27 @@ core tests as merge gates, and establish CI pipeline.
 ### Tasks
 99.1. Create `tests/harness.nim` — provide `setupTest(name)`, `teardownTest()`, temporary directory helpers, and JSON load/write helpers.
 99.2. Add canonical template `templates/test_module.nim` (already present).
-99.3. Add example tests that import the harness: `tests/harness_test.nim`, `tests/example_test.nim`.
+99.3. Add example tests that import the harness: `tests/harness_test.nim`, `tests/integration/example_test.nim`.
 99.4. Verify `nimble test` runs and example tests pass locally.
 99.5. Define the **core test suite** that must pass before merge:
-      - `tests/validation_firewall_test.nim` (Ch 2C)
-      - `tests/validation_firewall_perf_test.nim` (Ch 2C)
-      - `tests/validation_table_generation_test.nim` (Ch 2C)
-      - `tests/validation_failure_occurrence_test.nim` (Ch 2C)
-      - `tests/serialization_test.nim` (Ch 2 + 2B)
-      - `tests/messaging_test.nim` (Ch 2B)
-      - `tests/reconciliation_test.nim` (Ch 3)
-      - `tests/lifecycle_test.nim` (Ch 10)
+      - `tests/unit/validation_firewall_test.nim` (Ch 2C)
+      - `tests/unit/validation_firewall_perf_test.nim` (Ch 2C)
+      - `tests/unit/validation_table_generation_test.nim` (Ch 2C)
+      - `tests/unit/validation_failure_occurrence_test.nim` (Ch 2C)
+      - `tests/unit/serialization_test.nim` (Ch 2 + 2B)
+      - `tests/unit/messaging_test.nim` (Ch 2B)
+      - `tests/unit/reconciliation_test.nim` (Ch 3)
+      - `tests/unit/lifecycle_test.nim` (Ch 10)
 99.6. Create or update CI workflow (`.github/workflows/ci.yml`) to run the core
       test suite on every PR. Merge must be blocked on failure.
 99.7. Add integration test that exercises the full startup sequence (config → reconcile
       → prefilter activate → module load → frame loop) end-to-end.
 99.8. Extend merge-gated verification with host-hardening coverage:
-      - `tests/ch3_uat.nim` persistence hardening scenarios
-      - `tests/lifecycle_test.nim` gate enforcement and recovery guidance
-      - `tests/integration_test.nim` startup event and halt-path assertions
-      - `tests/config_test.nim` override precedence and validation-script workflow
-      - `tests/console_status_test.nim` CLI entrypoint and watch-stop behavior
+      - `tests/uat/ch3_uat.nim` persistence hardening scenarios
+      - `tests/unit/lifecycle_test.nim` gate enforcement and recovery guidance
+      - `tests/integration/integration_test.nim` startup event and halt-path assertions
+      - `tests/unit/config_test.nim` override precedence and validation-script workflow
+      - `tests/unit/console_status_test.nim` CLI entrypoint and watch-stop behavior
 
 ### Acceptance
 - `tests/harness.nim` compiles and is importable by test modules.
@@ -1172,7 +1172,7 @@ core tests as merge gates, and establish CI pipeline.
 **SPEC:** §5B Runtime Start Coordinator
 **Goal:** Add a runtime start coordinator process that accepts startup parameters,
 supports flags and switches, and optionally launches an attached console.
-**Status:** ✅ **COMPLETE** — `src/runtime/coordinator.nim` implemented with flag parsing, startup orchestration handoff, console mode selection (auto/attach/detach), watch-implies-attach semantics, structured startup error reporting, and daemonize flag; `tests/coordinator_test.nim` written with 7 tests all passing.
+**Status:** ✅ **COMPLETE** — `src/runtime/coordinator.nim` implemented with flag parsing, startup orchestration handoff, console mode selection (auto/attach/detach), watch-implies-attach semantics, structured startup error reporting, and daemonize flag; `tests/integration/coordinator_test.nim` written with 7 tests all passing.
 
 ### Tasks
 20.1. ✅ Create coordinator entrypoint in `src/runtime/coordinator.nim` with
@@ -1190,7 +1190,7 @@ supports flags and switches, and optionally launches an attached console.
       - `attach`: wait for external console attach signal before completion.
 20.5. ✅ Enforce `--watch` implies attached console mode.
 20.6. ✅ Emit startup and failure events through host observability.
-20.7. ✅ Add tests in `tests/coordinator_test.nim` for argument contracts,
+20.7. ✅ Add tests in `tests/integration/coordinator_test.nim` for argument contracts,
       mode transitions, startup failure handling, and watch implications (7 tests passing).
 
 ### Acceptance
@@ -1239,9 +1239,9 @@ validation, and failure semantics are testable and operator-safe.
 20B.7. ✅ Extend `src/console_main.nim`: added `--log-level`, `--port`, `--help`/`-h`;
       sovereign pre-scan; port-range + log-level validation;
       `RuntimeConfigOverrides` wired only when flags explicitly set.
-20B.8. ✅ Added coordinator CLI tests in `tests/coordinator_test.nim` (27 passing tests:
+20B.8. ✅ Added coordinator CLI tests in `tests/integration/coordinator_test.nim` (27 passing tests:
       parse/resolve, validation failures, help sovereign, success path).
-20B.9. ✅ Extended `tests/console_status_test.nim` (9 new tests: help sovereign,
+20B.9. ✅ Extended `tests/unit/console_status_test.nim` (9 new tests: help sovereign,
       log-level accept/reject, port accept/range/parse, constraint preservation).
 20B.10. ✅ Updated operator-facing usage examples in `docs/public/getting-started/install-run-console.md`.
 
@@ -1450,8 +1450,8 @@ validation, and fallback behavior.
 - `src/cosmos/core/record_encryption.nim` — AES-256-GCM encryption with auth tags.
 - `src/cosmos/core/record_reconciliation.nim` — Metadata-only validation and divergence detection.
 - `src/runtime/persistence.nim` — RecordsLayer integration with snapshotting.
-- `tests/record_reconciliation_test.nim` — Encryption/decryption and reconciliation coverage.
-- `tests/persistence_record_test.nim` — Integration with file-backed and in-memory persistence.
+- `tests/unit/record_reconciliation_test.nim` — Encryption/decryption and reconciliation coverage.
+- `tests/unit/persistence_record_test.nim` — Integration with file-backed and in-memory persistence.
 
 ### Phase XD Acceptance Criteria
 - ✅ Ciphertext deterministic for identical payload/metadata/keystream.
@@ -1697,8 +1697,8 @@ Phase XC.8. Update compliance matrix and changelog with verification evidence.
 
 - Coordinator IPC transport and schema module in `src/runtime/coordinator_ipc.nim`.
 - Coordinator CLI integration in `src/cosmos_main.nim` for `ipc request`, `ipc endpoint`, `ipc serve`, and `notify format`.
-- Dedicated IPC unit coverage in `tests/coordinator_ipc_test.nim`.
-- Coordinator CLI contract coverage in `tests/coordinator_test.nim`.
+- Dedicated IPC unit coverage in `tests/integration/coordinator_ipc_test.nim`.
+- Coordinator CLI contract coverage in `tests/integration/coordinator_test.nim`.
 
 ### Acceptance
 

@@ -12,21 +12,21 @@ steps:
   core_tests:
     image: nimlang/nim:2.2.6
     commands:
-      - nim c -r tests/lifecycle_test.nim
-      - nim c -r tests/console_status_test.nim
-      - nim c -r tests/module_test.nim
-      - nim c -r tests/portability_test.nim
-      - nim c -r tests/security_bench_test.nim
-      - nim c -r tests/doc_compliance_test.nim
-      - nim c -r tests/reconciliation_test.nim
-      - nim c -r tests/validation_firewall_test.nim
-      - nim c -r tests/validation_table_generation_test.nim
-      - nim c -r tests/validation_failure_occurrence_test.nim
-      - nim c -r tests/serialization_test.nim
-      - nim c -r tests/messaging_test.nim
+      - nim c -r tests/unit/lifecycle_test.nim
+      - nim c -r tests/unit/console_status_test.nim
+      - nim c -r tests/unit/module_test.nim
+      - nim c -r tests/unit/portability_test.nim
+      - nim c -r tests/unit/security_bench_test.nim
+      - nim c -r tests/unit/doc_compliance_test.nim
+      - nim c -r tests/unit/reconciliation_test.nim
+      - nim c -r tests/unit/validation_firewall_test.nim
+      - nim c -r tests/unit/validation_table_generation_test.nim
+      - nim c -r tests/unit/validation_failure_occurrence_test.nim
+      - nim c -r tests/unit/serialization_test.nim
+      - nim c -r tests/unit/messaging_test.nim
       - nim c -r tests/harness_test.nim
-      - nim c -r tests/example_test.nim
-      - nim c -r tests/integration_test.nim
+      - nim c -r tests/integration/example_test.nim
+      - nim c -r tests/integration/integration_test.nim
 
 when:
   event:

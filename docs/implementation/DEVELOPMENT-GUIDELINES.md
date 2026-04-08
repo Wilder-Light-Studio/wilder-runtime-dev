@@ -69,7 +69,7 @@ When editing requirements:
 - add or update chapter module flowcharts for every touched module in
   `docs/implementation/ChapterX/MODULE-FLOWCHARTS.md`,
 - update docs/implementation/COMPLIANCE-MATRIX.md in the same change set,
-- confirm scripts/check_requirements.ps1 still passes,
+- confirm scripts/verify/check_requirements.ps1 still passes,
 - if a requirement involves data handling or validation, update SPECIFICATION.md
   section 24 (including §24.9–§24.14 for validating prefilter work).
 - if validating prefilter semantics change, update docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md,
@@ -86,7 +86,7 @@ For each `.nim` file:
 - use professional, plain language with direct verbs,
 - avoid emotional or figurative wording in procedural comments,
 - generate new module headers from templates in `templates/headers/` using
-  `scripts/new_nim_module.ps1`.
+  `scripts/dev/new_nim_module.ps1`.
 
 ## Naming Conventions
 
@@ -125,7 +125,7 @@ Example evidence row:
 
 | Requirement | Implementation | Verification | Outcome |
 | --- | --- | --- | --- |
-| Console Subsystem Requirements | src/runtime/console.nim printRuntimeStatus | tests/console_status_test.nim | Pass (compile check) |
+| Console Subsystem Requirements | src/runtime/console.nim printRuntimeStatus | tests/unit/console_status_test.nim | Pass (compile check) |
 
 Use .github/pull_request_template.md for all pull requests and complete every required section.
 

@@ -9,9 +9,18 @@ execution, boundary validation, structured messaging, and layered
 reconciliation.
 
 This repository is the development home for the runtime itself. It combines
+  unit/
+  integration/
+  uat/
 the implementation, the requirements and specification documents that define
 correctness, and the tests used to verify progress.
-
+  proto/
+scripts/
+  dev/
+  build/
+  verify/
+  ops/
+templates/
 **Version:** 0.9.6
 
 Contact: [teamwilder@wildercode.org](mailto:teamwilder@wildercode.org)
@@ -218,7 +227,7 @@ The standard repository workflow is:
 6. Record evidence in the pull request.
 
 The compliance gate script is located at
-`scripts/check_requirements.ps1`.
+`scripts/verify/check_requirements.ps1`.
 
 ## Module Scaffolding
 
@@ -227,7 +236,7 @@ Header templates live under `templates/headers/`.
 To generate a new Nim module with the expected project header structure, use:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/new_nim_module.ps1 -Kind runtime -Name API -RelativePath src/runtime/api.nim -Summary "Public runtime API types and input validation framework." -Simile "API is the contract between modules and the runtime." -MemoryNote "All types are validated at boundaries; private procs assume correctness." -Flow "Public proc input -> validate -> fail-fast on error -> proceed with private implementation."
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/new_nim_module.ps1 -Kind runtime -Name API -RelativePath src/runtime/api.nim -Summary "Public runtime API types and input validation framework." -Simile "API is the contract between modules and the runtime." -MemoryNote "All types are validated at boundaries; private procs assume correctness." -Flow "Public proc input -> validate -> fail-fast on error -> proceed with private implementation."
 ```
 
 Supported `-Kind` values:

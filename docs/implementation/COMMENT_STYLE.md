@@ -69,7 +69,7 @@ Module header example:
 
 Template and generation workflow:
 - Header templates live in `templates/headers/`.
-- Use `scripts/new_nim_module.ps1` to generate new modules with compliant
+- Use `scripts/dev/new_nim_module.ps1` to generate new modules with compliant
   headers and standard footer.
 
 Proc-level Flow example:
