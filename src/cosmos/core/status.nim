@@ -2,13 +2,24 @@
 # Module name: status
 # Module Path: src/cosmos/core/status.nim
 #
-# Summary: Status schema validation and bounded memory enforcement for Things
+# Summary: 
+#
+#   Status schema validation and bounded memory enforcement for Things
 #   and modules.
-# Simile: Like a circuit breaker panel — validates each line and trips in a
+#
+# Simile: 
+#
+#   Like a circuit breaker panel — validates each line and trips in a
 #   controlled way before unsafe overloads spread.
-# Memory note: status checks run at load, mutation, and reconciliation;
+#
+# Memory note: 
+#
+#   status checks run at load, mutation, and reconciliation;
 #   memory escalation is warning first, then deterministic rejection.
-# Flow: validate status shape -> evaluate invariants -> enforce memory caps ->
+#
+# Flow: 
+#
+#   validate status shape -> evaluate invariants -> enforce memory caps ->
 #   escalate on repeated violations -> expose introspection reports.
 
 import json

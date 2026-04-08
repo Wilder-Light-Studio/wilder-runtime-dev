@@ -189,8 +189,8 @@ The following priority sequence governs near-term implementation. Items marked
 4. Add licensing domain module(s) in `src/runtime/` for deterministic local license generation, validation, and deactivation-state evaluation.
 5. Add licensing flow integration in runtime entrypoints (`src/cosmos_main.nim`, `src/console_main.nim`, and/or `src/runtime/lifecycle.nim`) so behavior is fully offline-first and never network-dependent.
 6. Add optional transparency-email invocation support through explicit user action only (no background calls), with templates/assets stored in repo paths (for example under `templates/` or `docs/public/`).
-7. Add installer/release integration checks in `scripts/` to ensure licensing artifacts and liberation-timer metadata are present and deterministic for each release build.
-8. Add tests under `tests/` for:
+7. Add installer/release integration checks in `scripts/ops/` and `scripts/verify/` to ensure licensing artifacts and liberation-timer metadata are present and deterministic for each release build.
+8. Add tests under `tests/unit/`, `tests/integration/`, and `tests/uat/` for:
       - valid paid and complimentary local license generation,
       - invalid license file handling,
       - deactivation behavior when a valid local license exists,
@@ -247,7 +247,7 @@ The following priority sequence governs near-term implementation. Items marked
 5. Add runtime policy types and enforcement helpers in `src/runtime/` so mode contracts are explicit rather than ad hoc.
 6. Integrate the selected mode into encrypted RECORD persistence, state serialization, backup/export flows, and any operator-visible diagnostics.
 7. Add migration tooling and guardrails so upgrades to more private modes re-encrypt state before activation and downgrades require explicit confirmation.
-8. Add tests under `tests/` for:
+8. Add tests under `tests/unit/`, `tests/integration/`, and `tests/uat/` for:
       - mode parsing and config validation,
       - CLEAR bypass behavior,
       - no-plaintext-access guarantees for STANDARD, PRIVATE, and COMPLETE,
