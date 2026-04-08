@@ -55,7 +55,6 @@ proc handleCounter*(ctx: var ModuleContext, msg: JsonNode): JsonNode =
     ctx.state.config["lastMessage"] = %"reset"
   result = ctx.state.config
 
-# â”€â”€ Registration helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc registerCounter*(reg: ModuleRegistry) =

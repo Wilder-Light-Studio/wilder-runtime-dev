@@ -364,38 +364,32 @@ Path reset: /
 
 ### Coordinator Launch Flags and Switches
 
-- The coordinator must support:
-  - `--config <path>` (optional) - runtime config file path. If provided, loads all configuration from file. If omitted, all required parameters must be provided via CLI flags.
-  - `--mode <dev|debug|prod>` (optional if --config provided; required otherwise) - startup mode (development, debug, or production).
-  - `--transport <json|protobuf>` (optional if --config provided; required otherwise) - serialization transport (json or protobuf).
-  - `--log-level <trace|debug|info|warn|error>` (optional if --config provided; required otherwise) - runtime log level.
-  - `--endpoint <host>` (optional if --config provided; required otherwise) - endpoint hostname or IP address.
-  - `--port <N>` (optional if --config provided; required otherwise) - port number (1–65535).
-  - `--encryption-mode <clear|standard|private|complete>` (optional) - encryption mode (default: standard).
-  - `--recovery-enabled` (optional) - enable recovery layer (default: false, mutually exclusive with clear encryption mode).
-  - `--operator-escrow` (optional) - enable operator escrow (default: false, only valid with standard encryption + recovery).
-  - `--console <auto|attach|detach>` (optional) - console launch mode (default: detach).
-  - `--watch <path>` (optional) - watch target to open on initial console attach.
-  - `--daemonize` (optional) - run detached/background startup behavior.
-  - `--help`/`-h` (optional) - print full help text and exit 0.
-- The coordinator must validate that either:
-  - `--config <path>` is provided (all other params loaded from file), OR
-  - ALL of `--mode`, `--transport`, `--log-level`, `--endpoint`, `--port` are provided (no config file needed).
-- Launch without either a valid config file or complete set of CLI required params must exit non-zero and print usage.
+- Top-level coordinator invocation with no command (`cosmos` or `cosmos.exe`) must show help text only and must not start runtime.
+- Top-level `--help`/`-h` must show help text only and must not start runtime.
+- The explicit startup command is `cosmos start` (or `cosmos.exe start`).
+- The `start` command must support:
+  - `--mode <step|continuous|periodic>` (optional; default `continuous`)
+  - `--config <path>` (optional)
+  - `--with <path>` (optional, repeatable)
+  - `--loglevel <info|warn|error|debug>` (optional)
+- `start` with no options must start an empty Cosmos.
 - `--help`/`-h` is sovereign: exits 0 and bypasses all validation, including missing required flags.
-- `--watch <path>` without an explicit `--console` flag resolves console mode contextually:
-  - if `--daemonize` is set: effective console mode is `detach`.
-  - if `--daemonize` is not set: effective console mode is `attach`.
-- `--daemonize` combined with explicit `--console attach` is an invalid combination; fail fast.
-- `--port` must be validated as an integer in range 1–65535; invalid values exit immediately.
-- `--log-level` must be validated against `trace|debug|info|warn|error`; invalid values exit immediately.
-- `--mode` must be validated as one of `dev|debug|prod|development|debug|production`; invalid values exit immediately.
-- `--transport` must be validated as one of `json|protobuf`; invalid values exit immediately.
-- `--encryption-mode` must be validated as one of `clear|standard|private|complete`; invalid values exit immediately.
-- `--endpoint` must be a non-empty string (trimmed); empty values exit immediately.
-- CLI parameter values must not inject defaults into `RuntimeConfigOverrides` (only explicit values count).
-- When `--config` is provided, CLI `--mode`, `--log-level`, `--port`, and other override flags may still be specified and take precedence over config file values.
+- `start --mode` must be validated as `step|continuous|periodic`; invalid values fail fast.
+- `start --loglevel` must be validated as `info|warn|error|debug`; invalid values fail fast.
+- `start --with` may be repeated to load multiple Thing inputs deterministically.
 - Invalid flag combinations must fail fast with non-zero exit and usage output.
+
+### Reserved Commands
+
+- The CLI must reserve these commands without implementing runtime behavior yet:
+  - `inspect`
+  - `shell`
+  - `daemon`
+  - `stop`
+  - `list`
+  - `attach`
+  - `detach`
+- Invoking a reserved command must return a deterministic "reserved/not implemented" response.
 
 ### Startup and Console Integration
 
@@ -418,23 +412,17 @@ Path reset: /
 
 - The coordinator CLI interface must parse and validate launch arguments deterministically.
 - The coordinator CLI interface must expose a clear usage contract for:
-  - `--config <path>`
-  - `--mode <dev|debug|prod>`
-  - `--console <auto|attach|detach>`
-  - `--watch <path>`
-  - `--daemonize`
-  - `--log-level <trace|debug|info|warn|error>`
-  - `--port <N>`
+  - top-level `help`
+  - `start`
+  - `start --mode <step|continuous|periodic>`
+  - `start --config <path>`
+  - `start --with <path>`
+  - `start --loglevel <info|warn|error|debug>`
   - `--help`/`-h`
-- Mode aliases must normalize as:
-  - `dev` -> `development`
-  - `debug` -> `debug`
-  - `prod` -> `production`
 - Unknown arguments, missing values, and invalid flag combinations must fail fast
   with non-zero exit and usage output.
-- `--watch` must only be valid in attached console startup modes (explicit `attach`
-  or contextually resolved `attach` behavior).
-- `--daemonize` combined with explicit `--console attach` is an invalid combination.
+- No-command invocation must not start runtime.
+- `start` must start runtime.
 - The coordinator must return a structured `CoordinatorStartupReport` on successful startup.
 - Help text must include a minimal example and a full example.
 - The coordinator CLI interface must remain a thin orchestration surface and must not
@@ -478,16 +466,24 @@ Path reset: /
 ## Runtime Lifecycle Requirements
 
 - The runtime must follow a deterministic startup sequence:
-  1. Load configuration and persistence backend.
+  1. Initialize runtime state and resolve startup configuration (defaults with optional overlays).
   2. Load runtime envelope and metadata.
   3. Reconcile persisted layers.
   4. Run migrations for all modules whose schemaVersion has changed.
   5. Activate the validating prefilter: load generated validation artifacts,
-     verify invariants and mask widths, build the immutable runtime index, and
-     block ingress until activation succeeds.
+    verify invariants and mask widths, build the immutable runtime index, and
+    block ingress until activation succeeds.
   6. Load modules in deterministic order.
-  7. Initialize scheduler, tempo, and world graph.
-  8. Begin frame loop.
+  7. Create the Cosmos root Thing automatically.
+  8. Initialize scheduler.
+  9. Initialize capability registry.
+  10. Load zero or more user Things under the Cosmos root.
+  11. Begin the frame loop.
+
+- Empty-Cosmos startup is mandatory: startup with zero user Things must succeed.
+- Startup must log Cosmos root creation as an explicit startup event.
+- Missing world manifests must not block startup.
+- Malformed user Thing declarations must be skipped with deterministic warnings and must not block startup.
 
 - The runtime lifecycle state machine must progress through these ordered states without skipping:
   `NotStarted -> ConfigLoaded -> PersistenceReady -> EnvelopeLoaded -> Reconciled -> Migrated -> PrefilterActive -> ModulesLoaded -> FramesRunning -> Running -> ShuttingDown -> Stopped`.
@@ -504,6 +500,7 @@ Path reset: /
   - No silent failure.
   - No module execution before reconciliation completes.
   - No ingress before validating prefilter activation completes.
+  - No user-defined root Thing is required for startup.
   - Deterministic module load order.
   - `loadModulesInOrder` must not run unless reconciliation has passed.
   - Ingress must remain closed unless the validating prefilter is active.
@@ -683,7 +680,9 @@ These artifacts enable consistent, reproducible unit and integration tests requi
 
 - The runtime must maintain a **World Graph** as the topology view of Thing/World Scope.
 - Nodes are Thing/World instances. Edges are explicit references from the World Ledger pattern.
-- Every Cosmos instance has a single root Thing/World.
+- Every Cosmos instance has exactly one root Thing/World created by the runtime.
+- The runtime-created root Thing has no parent and is the top of the container hierarchy.
+- User-defined Things are optional and, when loaded, must be attached as descendants of the runtime-created root Thing.
 - The world graph must be:
   - Deterministic.
   - Reconstructible from persisted state.

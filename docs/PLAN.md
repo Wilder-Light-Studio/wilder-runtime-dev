@@ -71,6 +71,7 @@ The following priority sequence governs near-term implementation. Items marked
 | **P1** | **Ch 3** — Persistence | `FileBackend`, `InMemoryBackend`, streaming for blobs > 64 KB, three-layer reconciliation tests | Ch 2C (prefilter types), Ch 2B (serialization) |
 | **P2** | **Ch 10** — Startup Sequence | Prefilter activation gate, reconciliation enforcement before ingress, startup tests | Ch 2C, Ch 3 |
 | **P2A** | **Host Hardening Extension** | FileBridge durability, lifecycle guidance, config overrides, host observability, console CLI entrypoint, hardening test gate | Ch 2, Ch 3, Ch 10, Ch 11 |
+| **P2B** | **Cosmos Root and Empty-Boot Invariants** | auto root creation, zero-arg startup defaults, deterministic root->scheduler->capability-registry->Thing load order, root creation logging, empty-Cosmos tests | Ch 10, Ch 7, Ch 8 |
 | **P3A** | **Ch 20** — Runtime Start Coordinator | canonical `cosmos.exe` startup coordinator, flag/switch parser, optional attached console launch, coordinator tests | Ch 10, Ch 11, Host Hardening |
 | **P3B** | **Ch 20B** — Runtime Entrypoint CLI Interface | Coordinator launch options model, parse/validate matrix, watch-mode constraints, structured failure output contract, operator usage coverage | Ch 20, Ch 10, Host Hardening |
 | **P3C** | **Phase X** — Installer, Build, Release, and Concept System | Runtime-home resolver, concept registry, concept CLI, startapp scaffold, expanded release matrix, version registry | Ch 12, Ch 19A, Ch 20B |
@@ -78,6 +79,38 @@ The following priority sequence governs near-term implementation. Items marked
 | **P3E** | **Phase XF** — Cosmos Encryption Spectrum | Encryption-mode requirements/spec alignment, config schema/parser extension, encryption policy layer, metadata-minimization rules, migration and key-handling tests | Ch 2A, Ch 3, Phase XD, Ch 20B |
 | **P3** | **Ch 99** — Test Harness & CI Gating | Harness completion, core tests required for merges, CI workflow | All P0–P2 tests passing |
 | **P4** | **Ch 14** — Security & Performance | Microbenchmarks for prefilter hot path, perception filtering, startup time; iterate on results | Ch 10 (full startup) |
+
+---
+
+## Phase XG — Cosmos Root and Empty-Boot Invariants
+
+**Status:** 🚧 In Progress
+**Spec anchor:** `docs/implementation/REQUIREMENTS.md` (runtime lifecycle, world graph, coordinator startup),
+`docs/implementation/SPECIFICATION.md` §5, §5B, §11
+
+### Ordered Tasks (Strict Sequence)
+
+1. Update requirements/spec text so startup requires zero flags, config is optional, and runtime-created root is mandatory.
+2. Enforce explicit `cosmos start` launch path; top-level no-command invocation shows help only.
+3. Implement runtime root creation as a deterministic startup step before scheduler initialization.
+4. Initialize scheduler and capability registry before loading user Things.
+5. Add deterministic optional user-Thing loading under the Cosmos root; malformed declarations are warnings, not startup-fatal.
+6. Keep world loading layered and optional; no user-defined root Thing required.
+7. Add explicit startup log lines/events proving root creation and empty-Cosmos startup path.
+8. Sequence core Things so `FSBridge` and other infrastructure Things are loaded under the runtime-created root, never as roots.
+9. Add tests for:
+      - empty-Cosmos startup success,
+      - runtime-created root presence and parentlessness,
+      - user Thing parent assignment under root,
+      - scheduler and capability-registry initialization order/state.
+
+### Acceptance Criteria
+
+- `cosmos` startup with zero flags succeeds using deterministic defaults.
+- One and only one runtime-created root Thing exists at startup.
+- Scheduler and capability registry are initialized before optional user Thing load.
+- Empty-Cosmos startup is first-class and test-covered.
+- Root creation logging is explicit and deterministic.
 
 ---
 

@@ -13,9 +13,22 @@ import runtime/concepts
 import runtime/coordinator_ipc
 import runtime/scanner
 import runtime/startapp
+import runtime/core
 import cosmos/thing/thing
+import cosmos/runtime/scheduler
 
 type
+  RuntimeStartMode = enum
+    rsmStep
+    rsmContinuous
+    rsmPeriodic
+
+  StartLaunchOptions = object
+    configPath: string
+    runtimeMode: RuntimeStartMode
+    withPaths: seq[string]
+    logLevel: string
+
   CoordinatorConsoleMode* = enum
     ccmDetach, ccmAuto, ccmAttach
 
@@ -53,9 +66,10 @@ const
     "[--capability-bind <Thing.provide:moduleType:moduleRef:entrypoint:abiVersion>] " &
     "[--help]"
   CoordinatorHelpText* =
-    "Wilder Cosmos Runtime -- launch and coordinate a Cosmos instance\n" &
+    "Wilder Cosmos Runtime -- command interface\n" &
     "\n" &
-    "Subcommands:\n" &
+    "Commands:\n" &
+    "  start [--mode <step|continuous|periodic>] [--config <path>] [--with <path>]... [--loglevel <info|warn|error|debug>]\n" &
     "  capabilities\n" &
     "  ipc request --method <name> [--id <id>] [--params-json <json>] [--subscribe <event>]... [--tcp] [--host <host>] [--port <N>]\n" &
     "  ipc endpoint [--host <host>] [--port <N>]\n" &
@@ -71,37 +85,38 @@ const
     "  startapp [path] [--name <name>] [--mode <dev|debug|prod>] [--transport <json|protobuf>] [--no-template]\n" &
     "\n" &
     "Usage:\n" &
-    "  cosmos --config <path> [options]\n" &
-    "      Run with config file. All other params override config values.\n" &
-    "  cosmos --mode <dev|debug|prod> --transport <json|protobuf> --log-level <level> --endpoint <host> --port <N> [options]\n" &
-    "      Run with CLI params only (no config file).\n" &
-    "\n" &
-    "Required (either option A or B):\n" &
-    "  Option A: Provide config file\n" &
-    "    --config <path>                      Runtime config file path\n" &
-    "  Option B: Provide all CLI params (no config file)\n" &
-    "    --mode <dev|debug|prod>              Runtime mode (development, debug, or production)\n" &
-    "    --transport <json|protobuf>          Serialization transport (json or protobuf)\n" &
-    "    --log-level <level>                  Log level (trace|debug|info|warn|error)\n" &
-    "    --endpoint <host>                    Endpoint hostname or IP address\n" &
-    "    --port <N>                           Port number (1–65535)\n" &
+    "  cosmos\n" &
+    "      Show this help text.\n" &
+    "  cosmos start [options]\n" &
+    "      Start runtime explicitly.\n" &
     "\n" &
     "Optional:\n" &
-    "  --encryption-mode <mode>             Encryption mode (clear|standard|private|complete, default: standard)\n" &
-    "  --recovery-enabled                   Enable recovery layer (default: false)\n" &
-    "  --operator-escrow                    Enable operator escrow (default: false)\n" &
-    "  --console <auto|attach|detach>       Console launch mode (default: detach)\n" &
-    "  --watch <path>                       Watch target on initial attach\n" &
-    "  --daemonize                          Run in background/detached mode\n" &
+    "  (start) --mode <step|continuous|periodic>     Runtime frame strategy (default: continuous)\n" &
+    "  (start) --config <path>                       Optional world/runtime config path\n" &
+    "  (start) --with <path>                         Optional Thing or directory to load (repeatable)\n" &
+    "  (start) --loglevel <info|warn|error|debug>   Optional startup log level\n" &
     "  --capability-provide <decl>          Startup capability provide declaration\n" &
     "  --capability-want <ref>              Startup capability want declaration\n" &
     "  --capability-bind <decl>             Startup capability implementation binding\n" &
     "  --help, -h                           Print this help text and exit\n" &
     "\n" &
+    "Reserved (not implemented yet):\n" &
+    "  inspect, shell, daemon, stop, list, attach, detach\n" &
+    "\n" &
     "Examples:\n" &
-    "  cosmos --config config/runtime.json\n" &
-    "  cosmos --mode dev --transport json --log-level debug --endpoint localhost --port 8090\n" &
-    "  cosmos --config config/runtime.json --watch /thing/a --console attach --mode dev --log-level debug"
+    "  cosmos\n" &
+    "  cosmos start\n" &
+    "  cosmos start --mode step\n" &
+    "  cosmos start --config ./world.json\n" &
+    "  cosmos start --with ./things/fsbridge --with ./things/logger\n" &
+    "  cosmos start --mode step --config ./world.json --with ./things/fsbridge"
+
+const
+  StartHelpText* =
+    "Usage: cosmos start [--mode <step|continuous|periodic>] [--config <path>] " &
+    "[--with <path>]... [--loglevel <info|warn|error|debug>]"
+
+let ReservedCommands = ["inspect", "shell", "daemon", "stop", "list", "attach", "detach"]
 
 const
   StartAppHelpText* =
@@ -422,6 +437,150 @@ proc parseCoordinatorOptions*(args: seq[string]): CoordinatorLaunchOptions =
       raise newException(ValueError,
         "cosmos: unknown argument '" & args[i] & "'")
 
+# Flow: Parse runtime start mode from CLI.
+proc parseRuntimeStartMode(raw: string): RuntimeStartMode =
+  case raw.strip.toLowerAscii
+  of "step": rsmStep
+  of "continuous": rsmContinuous
+  of "periodic": rsmPeriodic
+  else:
+    raise newException(ValueError,
+      "start: --mode must be one of step|continuous|periodic")
+
+# Flow: Validate start command log level.
+proc parseStartLogLevel(raw: string): string =
+  let level = raw.strip.toLowerAscii
+  if level notin ["info", "warn", "error", "debug"]:
+    raise newException(ValueError,
+      "start: --loglevel must be one of info|warn|error|debug")
+  level
+
+# Flow: Parse explicit runtime start command options.
+proc parseStartOptions(args: seq[string]): StartLaunchOptions =
+  result.runtimeMode = rsmContinuous
+  result.withPaths = @[]
+  result.logLevel = "info"
+  var i = 0
+  while i < args.len:
+    case args[i]
+    of "--help", "-h":
+      raise newException(ValueError, "start: help-requested")
+    of "--mode":
+      if i + 1 >= args.len:
+        raise newException(ValueError, "start: --mode requires a value")
+      result.runtimeMode = parseRuntimeStartMode(args[i + 1])
+      i += 2
+    of "--config":
+      if i + 1 >= args.len:
+        raise newException(ValueError, "start: --config requires a path")
+      result.configPath = args[i + 1].strip
+      i += 2
+    of "--with":
+      if i + 1 >= args.len:
+        raise newException(ValueError, "start: --with requires a path")
+      result.withPaths.add(args[i + 1].strip)
+      i += 2
+    of "--loglevel":
+      if i + 1 >= args.len:
+        raise newException(ValueError, "start: --loglevel requires a value")
+      result.logLevel = parseStartLogLevel(args[i + 1])
+      i += 2
+    else:
+      raise newException(ValueError,
+        "start: unknown argument '" & args[i] & "'")
+
+# Flow: Collect deterministic Thing IDs from one --with path list.
+proc collectThingIdsFromPaths(paths: seq[string]): tuple[ids: seq[string], warnings: seq[string]] =
+  var expandedFiles: seq[string] = @[]
+  var warnings: seq[string] = @[]
+
+  for rawPath in paths:
+    let path = rawPath.strip
+    if path.len == 0:
+      warnings.add("start: warning - empty --with path ignored")
+      continue
+    if fileExists(path):
+      expandedFiles.add(path)
+      continue
+    if dirExists(path):
+      for filePath in walkDirRec(path):
+        if fileExists(filePath):
+          expandedFiles.add(filePath)
+      continue
+    warnings.add("start: warning - --with path not found: " & path)
+
+  expandedFiles.sort(system.cmp[string])
+  var ids: seq[string] = @[]
+  for filePath in expandedFiles:
+    let name = splitFile(filePath).name.strip
+    if name.len == 0:
+      warnings.add("start: warning - could not derive Thing id from path: " & filePath)
+    else:
+      ids.add(name)
+  (ids, warnings)
+
+# Flow: Execute explicit runtime startup command.
+proc runStartCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  try:
+    let opts = parseStartOptions(args)
+    let thingLoad = collectThingIdsFromPaths(opts.withPaths)
+
+    var overrides = RuntimeConfigOverrides()
+    overrides.logLevel = some(opts.logLevel)
+
+    let lifecycle = newRuntimeLifecycle()
+    startup(
+      lifecycle,
+      configPath = opts.configPath,
+      moduleNames = @[],
+      userThingIds = thingLoad.ids,
+      configOverrides = overrides,
+      capabilityProvides = @[],
+      capabilityWants = @[]
+    )
+
+    case opts.runtimeMode
+    of rsmStep:
+      discard executeFrame(lifecycle.schedulerState, @[])
+    of rsmContinuous:
+      discard
+    of rsmPeriodic:
+      discard executeFrame(lifecycle.schedulerState, @[])
+
+    var loadedUserThings = 0
+    for thing in lifecycle.loadedThings:
+      if thing.loadStatus == tlsLoaded and not thing.isCosmosRoot:
+        inc loadedUserThings
+
+    var lines = @[
+      "cosmos: runtime started",
+      "cosmos: root thing created (" & lifecycle.cosmosRootId & ")",
+      "cosmos: scheduler initialized",
+      "cosmos: capability registry initialized",
+      "cosmos: user things loaded " & $loadedUserThings,
+      "cosmos: frame mode " &
+        (case opts.runtimeMode
+          of rsmStep: "step"
+          of rsmContinuous: "continuous"
+          of rsmPeriodic: "periodic")
+    ]
+    if loadedUserThings == 0:
+      lines.add("cosmos: empty startup active")
+    for warning in thingLoad.warnings:
+      lines.add(warning)
+    return (0, lines)
+  except ValueError as err:
+    if err.msg == "start: help-requested":
+      return (0, @[StartHelpText])
+    return (2, @[err.msg, StartHelpText])
+  except StartupError as err:
+    return (1, @[
+      "cosmos: startup halted",
+      "haltedAt=" & $err.haltedAt,
+      "reason=" & err.msg,
+      "recoveryGuidance=" & err.recoveryGuidance
+    ])
+
 # Flow: Resolve effective console mode when --watch is set without explicit --console.
 proc resolveConsoleMode*(opts: var CoordinatorLaunchOptions) =
   if opts.watchTarget.isSome and not opts.consoleModeExplicit:
@@ -434,27 +593,14 @@ proc resolveConsoleMode*(opts: var CoordinatorLaunchOptions) =
 proc validateCoordinatorOptions*(opts: CoordinatorLaunchOptions) =
   if opts.wantHelp:
     return
-  
-  # Validate that either config file OR all required CLI params are provided
-  let hasConfigFile = opts.configPath.isSome and opts.configPath.get().strip.len > 0
-  let hasModeOverride = opts.modeOverride.isSome
-  let hasTransport = opts.transport.isSome
-  let hasLogLevel = opts.logLevel.isSome
-  let hasEndpoint = opts.endpoint.isSome and opts.endpoint.get().strip.len > 0
-  let hasPort = opts.port.isSome
-  
-  let hasAllCliParams = hasModeOverride and hasTransport and hasLogLevel and hasEndpoint and hasPort
-  
-  if not hasConfigFile and not hasAllCliParams:
-    # Missing config file AND missing some required CLI params
-    var missing: seq[string] = @[]
-    if not hasModeOverride: missing.add("--mode")
-    if not hasTransport: missing.add("--transport")
-    if not hasLogLevel: missing.add("--log-level")
-    if not hasEndpoint: missing.add("--endpoint")
-    if not hasPort: missing.add("--port")
+
+  if opts.configPath.isSome and opts.configPath.get().strip.len == 0:
     raise newException(ValueError,
-      "cosmos: either provide --config or all of these params: " & missing.join(", "))
+      "cosmos: --config path must not be empty")
+
+  if opts.endpoint.isSome and opts.endpoint.get().strip.len == 0:
+    raise newException(ValueError,
+      "cosmos: --endpoint must not be empty")
   
   if opts.daemonize and opts.consoleModeExplicit and opts.consoleMode == ccmAttach:
     raise newException(ValueError,
@@ -1137,6 +1283,21 @@ proc runNotifyCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string
 
 # Flow: Run coordinator launch orchestration and return exit code plus output lines.
 proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+  if args.len == 0:
+    return (0, @[CoordinatorHelpText])
+
+  if args[0] == "--help" or args[0] == "-h":
+    return (0, @[CoordinatorHelpText])
+
+  if args[0] in ReservedCommands:
+    return (2, @["cosmos: command reserved but not implemented yet: " & args[0], CoordinatorHelpText])
+
+  if args[0] == "start":
+    return runStartCommand(args[1 .. ^1])
+
+  if args[0].startsWith("--"):
+    return (2, @["cosmos: explicit command required. Use: cosmos start [options]", CoordinatorHelpText])
+
   if args.len > 0 and args[0] == "capabilities":
     return runCapabilitiesCommand(args[1 .. ^1])
   if args.len > 0 and args[0] == "ipc":
@@ -1169,6 +1330,22 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
     validateCoordinatorOptions(opts)
 
     # Load or build configuration
+    var modeVal = "development"
+    var transportVal = "json"
+    var logLevelVal = "info"
+    var endpointVal = "localhost"
+    var portVal = 7700
+    if opts.modeOverride.isSome:
+      modeVal = opts.modeOverride.get()
+    if opts.transport.isSome:
+      transportVal = opts.transport.get()
+    if opts.logLevel.isSome:
+      logLevelVal = opts.logLevel.get()
+    if opts.endpoint.isSome:
+      endpointVal = opts.endpoint.get()
+    if opts.port.isSome:
+      portVal = opts.port.get()
+
     if opts.configPath.isSome:
       # Load from config file (with CLI overrides)
       let configPath = opts.configPath.get()
@@ -1182,14 +1359,15 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
       if opts.port.isSome:
         overrides.port = opts.port
       discard loadConfigWithOverrides(configPath, overrides)
+      modeVal = "from-config"
     else:
-      # Build config from CLI params (no config file)
+      # Build config from default profile with optional CLI overrides.
       discard buildConfigFromCliParams(
-        mode = opts.modeOverride.get(),
-        transport = opts.transport.get(),
-        logLevel = opts.logLevel.get(),
-        endpoint = opts.endpoint.get(),
-        port = opts.port.get(),
+        mode = modeVal,
+        transport = transportVal,
+        logLevel = logLevelVal,
+        endpoint = endpointVal,
+        port = portVal,
         encryptionMode = opts.encryptionMode,
         recoveryEnabled = none[bool](),
         operatorEscrow = none[bool]()
@@ -1210,11 +1388,10 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
       of ccmAttach: "attach"
       of ccmAuto:   "auto"
 
-    let modeStr = if opts.modeOverride.isSome: opts.modeOverride.get()
-                  else: "from-config"
+    let modeStr = modeVal
 
     let configPathStr = if opts.configPath.isSome: opts.configPath.get()
-                        else: "(generated from CLI params)"
+              else: "(runtime defaults)"
 
     let report = CoordinatorStartupReport(
       consoleBranch: branchName,

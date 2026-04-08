@@ -53,55 +53,40 @@ suite "coordinator parse and resolve":
 # ── validation failures ───────────────────────────────────────────────────────
 
 suite "coordinator validation failures":
-  test "missing --config exits non-zero and includes usage":
+  test "zero-arg launch shows help and does not start runtime":
     let (code, lines) = runCoordinatorMain(@[])
-    check code != 0
-    check lines.anyIt("--config" in it)
+    check code == 0
+    check lines.anyIt("Commands:" in it)
+    check not lines.anyIt("runtime started" in it)
+
+  test "start command with no args starts runtime":
+    let (code, lines) = runCoordinatorMain(@["start"])
+    check code == 0
+    check lines.anyIt("runtime started" in it)
 
   test "unknown flag exits non-zero":
     let (code, _) = runCoordinatorMain(@["--unknown-flag"])
     check code != 0
 
   test "bad mode exits non-zero":
-    let (code, _) = runCoordinatorMain(@["--config", "/x", "--mode", "staging"])
+    let (code, _) = runCoordinatorMain(@["start", "--mode", "staging"])
     check code != 0
 
-  test "bad encryption mode exits non-zero":
-    let (code, _) = runCoordinatorMain(@["--config", "/x", "--encryption-mode", "sealed"])
+  test "bad loglevel exits non-zero":
+    let (code, _) = runCoordinatorMain(@["start", "--loglevel", "verbose"])
     check code != 0
 
-  test "daemonize plus explicit console attach exits non-zero":
-    let (code, _) = runCoordinatorMain(@[
-      "--config", "/x", "--daemonize", "--console", "attach"
-    ])
+  test "unknown start option exits non-zero":
+    let (code, _) = runCoordinatorMain(@["start", "--daemonize"])
     check code != 0
 
-  test "watch plus explicit console detach exits non-zero":
-    let (code, _) = runCoordinatorMain(@[
-      "--config", "/x", "--watch", "./thing", "--console", "detach"
-    ])
+  test "reserved command exits non-zero":
+    let (code, lines) = runCoordinatorMain(@["inspect"])
     check code != 0
+    check lines.anyIt("reserved" in it)
 
-  test "watch plus daemonize exits non-zero (resolves to detach, then fails)":
-    let (code, _) = runCoordinatorMain(@[
-      "--config", "/x", "--watch", "./thing", "--daemonize"
-    ])
-    check code != 0
-
-  test "bad log-level exits non-zero":
-    let (code, _) = runCoordinatorMain(@["--config", "/x", "--log-level", "verbose"])
-    check code != 0
-
-  test "port zero exits non-zero":
-    let (code, _) = runCoordinatorMain(@["--config", "/x", "--port", "0"])
-    check code != 0
-
-  test "port over range exits non-zero":
-    let (code, _) = runCoordinatorMain(@["--config", "/x", "--port", "65536"])
-    check code != 0
-
-  test "port non-integer exits non-zero":
-    let (code, _) = runCoordinatorMain(@["--config", "/x", "--port", "abc"])
+  test "missing value for --with exits non-zero":
+    let (code, _) = runCoordinatorMain(@["start", "--with"])
     check code != 0
 
 # ── help sovereign ────────────────────────────────────────────────────────────
@@ -127,7 +112,7 @@ suite "coordinator help":
 # ── success path ──────────────────────────────────────────────────────────────
 
 suite "coordinator success path":
-  test "valid config exits zero with detach branch":
+  test "valid config exits zero via start command":
     setupTest("coordinator_success_detach")
     let configPath = testTmpDir / "runtime.json"
     writeFile(configPath, """{
@@ -138,85 +123,25 @@ suite "coordinator success path":
       "endpoint": "localhost",
       "port": 8080
     }""")
-    let (code, lines) = runCoordinatorMain(@["--config", configPath])
+    let (code, lines) = runCoordinatorMain(@["start", "--config", configPath])
     check code == 0
-    check lines.anyIt("detach" in it)
+    check lines.anyIt("runtime started" in it)
     teardownTest()
 
-  test "valid config with log-level and port overrides exits zero":
+  test "start with step mode exits zero":
     setupTest("coordinator_success_overrides")
-    let configPath = testTmpDir / "runtime.json"
-    writeFile(configPath, """{
-      "mode": "development",
-      "encryptionMode": "standard",
-      "transport": "json",
-      "logLevel": "info",
-      "endpoint": "localhost",
-      "port": 8080
-    }""")
-    let (code, _) = runCoordinatorMain(@[
-      "--config", configPath,
-      "--encryption-mode", "complete",
-      "--log-level", "debug",
-      "--port", "9090"
-    ])
+    let (code, lines) = runCoordinatorMain(@["start", "--mode", "step"])
     check code == 0
+    check lines.anyIt("frame mode step" in it)
     teardownTest()
 
-  test "valid config with explicit console attach exits zero":
+  test "start with --with loads user things":
     setupTest("coordinator_success_attach")
-    let configPath = testTmpDir / "runtime.json"
-    writeFile(configPath, """{
-      "mode": "development",
-      "encryptionMode": "standard",
-      "transport": "json",
-      "logLevel": "info",
-      "endpoint": "localhost",
-      "port": 8080
-    }""")
-    let (code, lines) = runCoordinatorMain(@["--config", configPath, "--console", "attach"])
+    let thingPath = testTmpDir / "fsbridge.nim"
+    writeFile(thingPath, "discard")
+    let (code, lines) = runCoordinatorMain(@["start", "--with", thingPath])
     check code == 0
-    check lines.anyIt("attach" in it)
-    teardownTest()
-
-  test "startup capability fatal issues halt launch":
-    setupTest("coordinator_startup_capability_gate_fail")
-    let configPath = testTmpDir / "runtime.json"
-    writeFile(configPath, """{
-      "mode": "development",
-      "encryptionMode": "standard",
-      "transport": "json",
-      "logLevel": "info",
-      "endpoint": "localhost",
-      "port": 8080
-    }""")
-    let (code, lines) = runCoordinatorMain(@[
-      "--config", configPath,
-      "--capability-want", "GhostThing.ping"
-    ])
-    check code != 0
-    check lines.anyIt("provider Thing not found" in it)
-    teardownTest()
-
-  test "startup capability declarations pass when resolvable":
-    setupTest("coordinator_startup_capability_gate_success")
-    let configPath = testTmpDir / "runtime.json"
-    writeFile(configPath, """{
-      "mode": "development",
-      "encryptionMode": "standard",
-      "transport": "json",
-      "logLevel": "info",
-      "endpoint": "localhost",
-      "port": 8080
-    }""")
-    let (code, lines) = runCoordinatorMain(@[
-      "--config", configPath,
-      "--capability-provide", "Lexicons.get:(string)->string",
-      "--capability-want", "Lexicons.get",
-      "--capability-bind", "Lexicons.get:nim:src/runtime/lexicons.nim:registerLexicons:cap-abi-v1"
-    ])
-    check code == 0
-    check lines.anyIt("capability gate passed" in it)
+    check lines.anyIt("user things loaded" in it)
     teardownTest()
 
 suite "startapp subcommand":

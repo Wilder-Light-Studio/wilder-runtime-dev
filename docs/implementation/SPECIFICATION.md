@@ -289,15 +289,18 @@ The following are patterns inside Worlds, not primitives:
 # 5. Runtime Lifecycle Specification
 
 ### 5.1 Startup Sequence
-1. Load configuration
+1. Resolve startup configuration from deterministic defaults, then apply optional environment/CLI overlays
 2. Initialize persistence backend
 3. Load runtime envelope
 4. Reconcile layers
 5. Run migrations
 6. Activate validating prefilter
 7. Load modules (deterministic order)
-8. Initialize scheduler, tempo, world graph
-9. Begin frame loop
+8. Create Cosmos root Thing automatically (`id = "COSMOS"`, `parent = ""`)
+9. Initialize scheduler
+10. Initialize capability registry
+11. Load zero or more user Things under the Cosmos root
+12. Begin frame loop
 
 ### 5.2 Shutdown Sequence
 1. Flush transactions
@@ -311,6 +314,10 @@ The following are patterns inside Worlds, not primitives:
 - no silent failure
 - no module execution before reconciliation
 - no ingress before validating prefilter activation
+- no user-defined root Thing required
+- empty-Cosmos startup is valid and supported
+- Cosmos root creation is always logged as startup evidence
+- malformed user Thing declarations are skipped with deterministic warnings
 
 ### 5.4 Lifecycle State Machine
 
@@ -392,39 +399,37 @@ bootstrap logic.
   Console subsystem.
 
 ### 5B.2 Supported Flags and Switches
-- `--config <path>` (optional when the full required startup parameter set is provided via CLI)
-- `--mode <dev|debug|prod>` (optional)
-- `--console <auto|attach|detach>` (optional, default `detach`)
-- `--watch <path>` (optional)
-- `--daemonize` (optional)
-- `--log-level <trace|debug|info|warn|error>` (optional)
-- `--port <N>` (optional, 1–65535)
-- `--help`/`-h` (optional)
+- Top-level invocations:
+  - `cosmos` or `cosmos.exe` -> print help and exit 0.
+  - `cosmos --help` / `cosmos -h` -> print help and exit 0.
+- Explicit runtime start command:
+  - `cosmos start [--mode <step|continuous|periodic>] [--config <path>] [--with <path>]... [--loglevel <info|warn|error|debug>]`
+- Reserved but not implemented commands:
+  - `inspect`, `shell`, `daemon`, `stop`, `list`, `attach`, `detach`
 
 Rules:
-- Startup config may come from `--config` or from the full required startup parameter set via CLI (`--mode`, `--transport`, `--log-level`, `--endpoint`, `--port`).
-- Missing `--config` with an incomplete required startup parameter set must print usage and exit non-zero.
-- If both `--config` and CLI startup parameters are provided, effective config is resolved as an overlay where CLI values override file values.
-- Inline duplicate CLI flags (same flag repeated in one invocation) are invalid and must fail fast with usage output and non-zero exit.
+- No-command and help invocations must never start runtime.
+- `start` is the only command that starts runtime.
+- `start --mode` defaults to `continuous`.
+- `start --config` is optional; omitted means empty-Cosmos startup.
+- `start --with` is optional and repeatable; each value is one Thing source path.
+- `start --loglevel` defaults to `info`.
 - `--help`/`-h` is sovereign: exits 0 and bypasses all validation, including missing required flags.
-- `--watch <path>` without an explicit `--console` flag resolves console mode contextually:
-  - if `--daemonize` is set: effective console mode is `detach`.
-  - if `--daemonize` is not set: effective console mode is `attach`.
-- `--daemonize` combined with explicit `--console attach` is an invalid combination; fail fast with non-zero exit.
-- `--port` must be validated as an integer in range 1–65535; invalid values exit immediately with non-zero.
-- `--log-level` must be validated against `trace|debug|info|warn|error`; invalid values exit immediately with non-zero.
-- CLI overrides must not inject defaults: only explicitly provided flags apply to `RuntimeConfigOverrides`.
+- `start --mode` must validate against `step|continuous|periodic`.
+- `start --loglevel` must validate against `info|warn|error|debug`.
+- Reserved commands must return deterministic "reserved/not implemented" response and non-zero exit.
 - All other invalid combinations fail fast with usage output and non-zero exit.
 
 ### 5B.3 Startup Flow Contract
 1. Parse and validate coordinator args.
-2. Load config and apply override precedence.
-3. Execute lifecycle startup sequence in Section 5.1 order.
-4. Branch on console mode:
-   - `detach`: runtime continues without launching console.
-   - `auto`: launch console and attach to started runtime.
-   - `attach`: wait for external console attach before reporting startup complete.
-5. Emit startup events per Section 5A.
+2. If no command or help command: print help and exit without runtime startup.
+3. If command is `start`: resolve config from defaults, then apply optional config-file and CLI override precedence.
+4. Execute lifecycle startup sequence in Section 5.1 order.
+5. Apply runtime frame strategy from start mode:
+  - `step`: execute single frame then pause for next operator action.
+  - `continuous`: keep frame loop active continuously.
+  - `periodic`: run frame loop at fixed periodic cadence.
+6. Emit startup events per Section 5A.
 
 ### 5B.4 Exit Contract
 - Exit `0`: runtime startup reached active state.
@@ -449,7 +454,7 @@ type
     ccmAuto, ccmAttach, ccmDetach
 
   CoordinatorLaunchOptions = object
-    configPath: string
+    configPath: Option[string]
     modeOverride: Option[string]      ## development|debug|production
     logLevel: Option[string]          ## trace|debug|info|warn|error
     port: Option[int]                 ## 1-65535
@@ -479,12 +484,10 @@ Argument parsing rules:
 Validation rules:
 
 - If `wantHelp` is true, all other validation is bypassed; exits 0 with help text.
-- `configPath` is required and non-empty unless the full required startup parameter set is present via CLI.
-- `daemonize` combined with explicit `consoleMode == ccmAttach` is invalid.
-- `watchTarget` is valid only in attached console modes.
-- If `watchTarget` is set and the effective `consoleMode == ccmDetach`, validation fails.
-- `port` when present must be in range 1–65535.
-- `logLevel` when present must be one of `trace|debug|info|warn|error`.
+- `configPath` is optional; when provided it must be non-empty.
+- Zero startup flags are valid and resolve to deterministic runtime defaults.
+- `start.mode` when present must be one of `step|continuous|periodic`.
+- `start.loglevel` when present must be one of `info|warn|error|debug`.
 - Only explicitly provided flags populate `RuntimeConfigOverrides`; no defaults are injected.
 
 ### 5B.7 Coordinator Output Contract
@@ -673,6 +676,9 @@ The world graph is the topology view of Thing/World Scope:
 - edges = explicit references (from World Ledger pattern)
 
 ### 11.2 Invariants
+- exactly one runtime-created Cosmos root exists
+- root has no parent and anchors container hierarchy
+- user Things are optional and attach under the Cosmos root when loaded
 - no implicit edges
 - no inferred relationships
 - all edges declared via ledger

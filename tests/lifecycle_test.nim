@@ -55,14 +55,11 @@ suite "lifecycle construction":
 # ── step 1 — load config ──────────────────────────────────────────────────────
 
 suite "step 1 — load config":
-  test "missing config file halts startup":
+  test "empty config path builds default config":
     let lc = freshLc()
-    try:
-      lc.stepLoadConfig("nonexistent/path/config.json")
-      check false
-    except StartupError as err:
-      check err.haltedAt == lcConfigLoaded
-      check err.recoveryGuidance.len > 0
+    lc.stepLoadConfig("")
+    check lc.step == lcConfigLoaded
+    check lc.cfg.endpoint == "localhost"
 
 # ── step 4 — reconciliation gate ─────────────────────────────────────────────
 
@@ -184,6 +181,93 @@ suite "step 7 — deterministic module load order":
     expect(StartupError):
       lc.stepLoadModules(@["some-module"])
 
+suite "cosmos bootstrap invariants":
+  test "stepInitFrames creates cosmos root and initializes scheduler and capability registry":
+    let lc = configuredLc()
+    lc.stepInitPersistence()
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+    lc.stepMigrate()
+    lc.stepActivatePrefilter()
+    lc.stepLoadModules(@[])
+    lc.stepInitFrames()
+
+    check lc.cosmosRootId == "COSMOS"
+    check lc.loadedThings.len >= 1
+    check lc.loadedThings[0].id == "COSMOS"
+    check lc.loadedThings[0].parentId == ""
+    check lc.loadedThings[0].isCosmosRoot
+    check lc.schedulerInitialized
+    check lc.capabilityRegistryInitialized
+
+  test "empty cosmos startup keeps only root thing":
+    let lc = configuredLc()
+    lc.stepInitPersistence()
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+    lc.stepMigrate()
+    lc.stepActivatePrefilter()
+    lc.stepLoadModules(@[])
+    lc.stepInitFrames()
+    lc.stepLoadUserThings(@[])
+
+    var loadedUserThings = 0
+    for thing in lc.loadedThings:
+      if thing.loadStatus == tlsLoaded and not thing.isCosmosRoot:
+        inc loadedUserThings
+    check loadedUserThings == 0
+
+  test "user things load as children of cosmos root":
+    let lc = configuredLc()
+    lc.stepInitPersistence()
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+    lc.stepMigrate()
+    lc.stepActivatePrefilter()
+    lc.stepLoadModules(@[])
+    lc.stepInitFrames()
+    lc.stepLoadUserThings(@["fsbridge", "logger"])
+
+    var seenFs = false
+    var seenLogger = false
+    for thing in lc.loadedThings:
+      if thing.id == "fsbridge" and thing.loadStatus == tlsLoaded:
+        check thing.parentId == "COSMOS"
+        seenFs = true
+      if thing.id == "logger" and thing.loadStatus == tlsLoaded:
+        check thing.parentId == "COSMOS"
+        seenLogger = true
+    check seenFs
+    check seenLogger
+
+  test "malformed or duplicate thing declarations do not halt startup":
+    let lc = configuredLc()
+    lc.stepInitPersistence()
+    lc.stepLoadEnvelope()
+    lc.stepReconcile()
+    lc.stepMigrate()
+    lc.stepActivatePrefilter()
+    lc.stepLoadModules(@[])
+    lc.stepInitFrames()
+    lc.stepLoadUserThings(@["", "COSMOS", "worker", "worker"])
+
+    var malformedSeen = false
+    var reservedSeen = false
+    var duplicateSeen = false
+    for thing in lc.loadedThings:
+      case thing.loadStatus
+      of tlsSkippedMalformed:
+        malformedSeen = true
+      of tlsSkippedReservedRoot:
+        reservedSeen = true
+      of tlsSkippedDuplicate:
+        duplicateSeen = true
+      else:
+        discard
+    check malformedSeen
+    check reservedSeen
+    check duplicateSeen
+
 # ── step 9 — ingress gate ─────────────────────────────────────────────────────
 
 suite "step 9 — ingress gate":
@@ -254,14 +338,12 @@ suite "capability gate":
 # ── full startup / shutdown ───────────────────────────────────────────────────
 
 suite "full startup and shutdown":
-  test "startup with no config path raises on missing file":
+  test "startup with no config path succeeds with defaults":
     let lc = freshLc()
-    try:
-      startup(lc, "nonexistent/runtime.json")
-      check false
-    except StartupError as err:
-      check err.haltedAt == lcConfigLoaded
-      check err.recoveryGuidance.len > 0
+    startup(lc)
+    check lc.step == lcRunning
+    check lc.cosmosRootId == "COSMOS"
+    check lc.frameLoopStarted
 
   test "shutdown from running state reaches Stopped":
     let lc = configuredLc()

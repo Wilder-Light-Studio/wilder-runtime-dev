@@ -22,20 +22,34 @@
 ##   shutdown(st)
 
 import json
-import std/[strutils, algorithm, tables, os]
+import std/[strutils, algorithm, tables, os, options]
 import config
 import persistence
 import prefilter_table_generated
 import api
 import observability
 import capabilities
+import ../cosmos/runtime/scheduler
 
 const
   DefaultShutdownSnapshotSigningKey = "runtime-shutdown-signing-key"
+  CosmosRootThingId = "COSMOS"
 
 # ── Types ────────────────────────────────────────────────────────────────────
 
 type
+  ThingLoadStatus* = enum
+    tlsLoaded
+    tlsSkippedMalformed
+    tlsSkippedDuplicate
+    tlsSkippedReservedRoot
+
+  LoadedThing* = object
+    id*: string
+    parentId*: string
+    isCosmosRoot*: bool
+    loadStatus*: ThingLoadStatus
+
   LifecycleStep* = enum
     ## Each enum value maps 1-to-1 to one startup step §5.
     lcNotStarted       ## Step 0 — not yet begun.
@@ -72,6 +86,13 @@ type
     reconcileResult*: ReconcileResult
     prefilterGenerationId*: string
     loadedModules*: seq[string]
+    loadedThings*: seq[LoadedThing]
+    cosmosRootId*: string
+    schedulerState*: SchedulerState
+    schedulerInitialized*: bool
+    capabilityRegistryInitialized*: bool
+    capabilityBindings*: seq[CapabilityBinding]
+    frameLoopStarted*: bool
     loadedRuntimePayload*: JsonNode
     bannerLines*: seq[string]
     eventSink*: HostEventSink
@@ -91,10 +112,32 @@ proc newRuntimeLifecycle*(): RuntimeLifecycle =
     ),
     prefilterGenerationId: "",
     loadedModules: @[],
+    loadedThings: @[],
+    cosmosRootId: "",
+    schedulerState: nil,
+    schedulerInitialized: false,
+    capabilityRegistryInitialized: false,
+    capabilityBindings: @[],
+    frameLoopStarted: false,
     loadedRuntimePayload: nil,
     bannerLines: @[],
     eventSink: newHostEventSink()
   )
+
+# Flow: Ensure the runtime always has one deterministic root Thing.
+proc ensureCosmosRoot(lc: RuntimeLifecycle) =
+  if lc.cosmosRootId.len > 0:
+    return
+  lc.cosmosRootId = CosmosRootThingId
+  lc.loadedThings.add(LoadedThing(
+    id: lc.cosmosRootId,
+    parentId: "",
+    isCosmosRoot: true,
+    loadStatus: tlsLoaded
+  ))
+  lc.eventSink.logEvent(evStartupStep, $lcFramesRunning,
+    "startup invariant: cosmos root created")
+  lc.bannerLines.add("  cosmos:   root created (" & lc.cosmosRootId & ")")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -155,18 +198,41 @@ proc stepLoadConfig*(lc: RuntimeLifecycle,
       lcConfigLoaded,
       "Restart startup from a fresh lifecycle before loading configuration."
     )
-  try:
-    lc.cfg = loadConfigWithOverrides(configPath, configOverrides)
-  except CatchableError as err:
-    lc.haltStartup(
-      "lifecycle: config load failed — " & err.msg,
-      lcConfigLoaded,
-      "Verify the config file exists, is valid JSON, and uses allowed mode, transport, logLevel, endpoint, and port values."
-    )
+  let trimmedPath = configPath.strip
+  if trimmedPath.len == 0:
+    try:
+      lc.cfg = buildConfigFromCliParams(
+        mode = if configOverrides.mode.isSome: configOverrides.mode.get() else: "development",
+        transport = "json",
+        logLevel = if configOverrides.logLevel.isSome: configOverrides.logLevel.get() else: "info",
+        endpoint = "localhost",
+        port = if configOverrides.port.isSome: configOverrides.port.get() else: 7700,
+        encryptionMode = configOverrides.encryptionMode,
+        recoveryEnabled = configOverrides.recoveryEnabled,
+        operatorEscrow = configOverrides.operatorEscrow
+      )
+    except CatchableError as err:
+      lc.haltStartup(
+        "lifecycle: default config build failed — " & err.msg,
+        lcConfigLoaded,
+        "Fix CLI/environment override values and retry startup."
+      )
+  else:
+    try:
+      lc.cfg = loadConfigWithOverrides(trimmedPath, configOverrides)
+    except CatchableError as err:
+      lc.haltStartup(
+        "lifecycle: config load failed — " & err.msg,
+        lcConfigLoaded,
+        "Verify the config file exists, is valid JSON, and uses allowed mode, transport, logLevel, endpoint, and port values."
+      )
   lc.step = lcConfigLoaded
   lc.recordEvent(evStartupStep, lcConfigLoaded,
     "startup step reached: configuration loaded")
-  lc.bannerLine("  config: loaded from " & configPath)
+  if trimmedPath.len == 0:
+    lc.bannerLine("  config: built from runtime defaults")
+  else:
+    lc.bannerLine("  config: loaded from " & trimmedPath)
   lc.bannerLine("  mode:   " & $lc.cfg.mode)
   lc.bannerLine("  crypto: " & $lc.cfg.encryptionMode)
 
@@ -394,12 +460,79 @@ proc stepInitFrames*(lc: RuntimeLifecycle) =
       lcFramesRunning,
       "Load modules before starting frame-processing subsystems."
     )
-  # Scheduler, tempo, and world-graph are initialized through their own modules.
-  # This step confirms they are ready and records the fact.
+  # Deterministic bootstrap order: root -> scheduler -> capability registry.
+  lc.ensureCosmosRoot()
+  lc.schedulerState = initSchedulerState()
+  lc.schedulerInitialized = true
+  lc.capabilityRegistryInitialized = true
+  lc.capabilityBindings = @[]
   lc.step = lcFramesRunning
   lc.recordEvent(evStartupStep, lcFramesRunning,
-    "startup step reached: frame systems ready")
-  lc.bannerLine("  frames:   scheduler + tempo + world-graph ready")
+    "startup step reached: frame systems ready (root + scheduler + capability registry)")
+  lc.bannerLine("  frames:   scheduler ready")
+  lc.bannerLine("  caps:     registry initialized")
+
+# Flow: Load optional user Things under the Cosmos root without blocking startup.
+proc stepLoadUserThings*(lc: RuntimeLifecycle, thingIds: seq[string]) =
+  if lc.step != lcFramesRunning:
+    lc.haltStartup(
+      "lifecycle: stepLoadUserThings called out of order (at " & $lc.step & ")",
+      lcFramesRunning,
+      "Initialize frame-processing subsystems before loading user Things."
+    )
+  lc.ensureCosmosRoot()
+
+  var sorted = thingIds
+  sorted.sort(cmp)
+
+  var warnings = 0
+  var loadedCount = 0
+  for rawId in sorted:
+    let thingId = rawId.strip
+    if thingId.len == 0:
+      inc warnings
+      lc.loadedThings.add(LoadedThing(
+        id: "",
+        parentId: lc.cosmosRootId,
+        isCosmosRoot: false,
+        loadStatus: tlsSkippedMalformed
+      ))
+      continue
+    if thingId == lc.cosmosRootId:
+      inc warnings
+      lc.loadedThings.add(LoadedThing(
+        id: thingId,
+        parentId: lc.cosmosRootId,
+        isCosmosRoot: false,
+        loadStatus: tlsSkippedReservedRoot
+      ))
+      continue
+    var duplicate = false
+    for thing in lc.loadedThings:
+      if thing.id == thingId and thing.loadStatus == tlsLoaded:
+        duplicate = true
+        break
+    if duplicate:
+      inc warnings
+      lc.loadedThings.add(LoadedThing(
+        id: thingId,
+        parentId: lc.cosmosRootId,
+        isCosmosRoot: false,
+        loadStatus: tlsSkippedDuplicate
+      ))
+      continue
+
+    lc.loadedThings.add(LoadedThing(
+      id: thingId,
+      parentId: lc.cosmosRootId,
+      isCosmosRoot: false,
+      loadStatus: tlsLoaded
+    ))
+    inc loadedCount
+
+  lc.bannerLine("  things:   loaded=" & $loadedCount & ", warnings=" & $warnings)
+  lc.recordEvent(evStartupStep, lcFramesRunning,
+    "user thing load complete; loaded=" & $loadedCount & ", warnings=" & $warnings)
 
 # ── Step 9 — Open ingress ─────────────────────────────────────────────────────
 
@@ -443,6 +576,13 @@ proc stepValidateCapabilities*(lc: RuntimeLifecycle,
       "Initialize frame-processing subsystems before validating capability bindings."
     )
 
+  if not lc.capabilityRegistryInitialized:
+    lc.haltStartup(
+      "lifecycle: capability validation called before registry initialization",
+      lcRunning,
+      "Initialize frame subsystems and capability registry before validating capability bindings."
+    )
+
   let resolution = resolveCapabilities(provides, wants)
   var fatalCount = 0
   var warningCount = 0
@@ -465,6 +605,7 @@ proc stepValidateCapabilities*(lc: RuntimeLifecycle,
   lc.recordEvent(evStartupStep, lcFramesRunning,
     "capability validation passed; bindings=" & $resolution.bindings.len &
     ", warnings=" & $warningCount)
+  lc.capabilityBindings = resolution.bindings
   lc.bannerLine("  capabilities: bindings=" & $resolution.bindings.len &
                 ", warnings=" & $warningCount)
 
@@ -472,8 +613,9 @@ proc stepValidateCapabilities*(lc: RuntimeLifecycle,
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc startup*(lc: RuntimeLifecycle,
-              configPath: string = "config/runtime.json",
+              configPath: string = "",
               moduleNames: seq[string] = @[],
+              userThingIds: seq[string] = @[],
               configOverrides: RuntimeConfigOverrides = RuntimeConfigOverrides(),
               capabilityProvides: seq[ProvideDeclaration] = @[],
               capabilityWants: seq[WantDeclaration] = @[]) =
@@ -490,8 +632,11 @@ proc startup*(lc: RuntimeLifecycle,
   lc.stepActivatePrefilter()
   lc.stepLoadModules(moduleNames)
   lc.stepInitFrames()
+  lc.stepLoadUserThings(userThingIds)
   lc.stepValidateCapabilities(capabilityProvides, capabilityWants)
   lc.stepOpenIngress()
+  lc.frameLoopStarted = true
+  lc.bannerLine("  loop:     frame loop started")
   lc.bannerLine("=== startup complete ===")
 
 # ── Composite shutdown ────────────────────────────────────────────────────────
@@ -540,7 +685,7 @@ proc startup*() {.deprecated: "Use startup(lc, configPath, moduleNames) with an 
   ## Zero-argument shim: creates a temporary lifecycle and runs full startup.
   ## Prefer the two-argument form for real use.
   let lc = newRuntimeLifecycle()
-  startup(lc)
+  startup(lc, configPath = "")
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc shutdown*() =
