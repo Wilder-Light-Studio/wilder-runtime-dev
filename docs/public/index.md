@@ -8,7 +8,8 @@ What this is. This is the newcomer-facing documentation set for understanding an
 2. `concepts/index.md`
 3. `runtime/index.md`
 4. `modules/index.md`
-5. `glossary/index.md`
+5. `api/index.md`
+6. `glossary/index.md`
 
 ## Sections
 
@@ -16,6 +17,7 @@ What this is. This is the newcomer-facing documentation set for understanding an
 - Concepts: core ontology and world model terms.
 - Runtime: prefilter, serialization, persistence, startup, config, transport, hardening, release tooling guide.
 - Modules: authoring workflow, lifecycle, boundaries, best practices.
+- API Reference: public types, procedures, and constants for every runtime module.
 - Glossary: short definitions for Cosmos terms.
 
 ## Source of Truth Note
