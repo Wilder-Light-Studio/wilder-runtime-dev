@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+  Validate runtime config against the Cue schema.
+.DESCRIPTION
+  Exports and validates config/runtime.json against config/runtime.cue using
+  the Cue CLI. Requires: cue (https://cuelang.org).
+.EXAMPLE
+  .\scripts\verify\validate_config.ps1
+#>
 param(
   [string]$SchemaPath = "config/runtime.cue",
   [string]$ConfigPath = "config/runtime.json",

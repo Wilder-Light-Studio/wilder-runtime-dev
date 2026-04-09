@@ -1,3 +1,14 @@
+<#
+.SYNOPSIS
+  Generate or verify SHA-256 checksums for release artifacts.
+.DESCRIPTION
+  For each file provided, generates a .sha256 sidecar file. With -Verify,
+  checks existing .sha256 files against actual hashes.
+.EXAMPLE
+  .\scripts\ops\generate_artifact_checksums.ps1 -Files bin/cosmos.exe
+.EXAMPLE
+  .\scripts\ops\generate_artifact_checksums.ps1 -Files bin/cosmos.exe -Verify
+#>
 param(
   [Parameter(Mandatory = $true)]
   [string[]]$Files,

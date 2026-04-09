@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+  Tests for the config validation script.
+.DESCRIPTION
+  Creates temporary Cue schemas and JSON configs in tests/tmp/ and verifies
+  that validate_config.ps1 correctly accepts valid configs and rejects invalid ones.
+.EXAMPLE
+  .\scripts\verify\test_validate_config_script.ps1
+#>
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 

@@ -59,13 +59,24 @@ supporting implementation notes.
 These files are most useful when you are working on a specific chapter or trying
 to understand how a requirement area was translated into code and tests.
 
+## Reading Order
+
+Returning after a break? Read in this order:
+
+1. `../../STATUS.md` — current focus and session log (~30 sec)
+2. `DEVELOPMENT-GUIDELINES.md` — the standard workflow loop (~5 min refresh)
+3. `REQUIREMENTS.md` — just the section for your current chapter (~10 min)
+4. `COMPLIANCE-MATRIX.md` — check what's verified vs. pending (~2 min scan)
+5. `PLAN.md` — review the Completion Matrix and your active phase (~5 min)
+
+New to the project? Start here instead:
+
+1. `../../README.md` — project overview and quick start
+2. `REQUIREMENTS.md` — what must be true
+3. `SPECIFICATION.md` — how it's built
+4. `PLAN.md` — chapter-by-chapter implementation sequence
+
 ## How to Use the Docs
-
-For a high-level introduction:
-
-1. Read `REQUIREMENTS.md`.
-2. Read `SPECIFICATION.md`.
-3. Review `PLAN.md`.
 
 For active development work:
 
@@ -76,7 +87,8 @@ For active development work:
 
 ## Active Workstream Note
 
-Active phase execution currently includes XA, XB, XC, and XD. During these workstreams,
+Active phase execution currently includes Phase XF (Cosmos Encryption Spectrum)
+and Phase XE (Humane Offline Licensing, planned). During these workstreams,
 keep requirements, specification algorithms, plan tasks, and test evidence synchronized
 in this order:
 

@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+  Test the installer directory contract.
+.DESCRIPTION
+  Creates a sandboxed install tree for the given OS and mode, then verifies
+  that all required directories (config, logs, cache, messages, etc.) exist.
+.EXAMPLE
+  .\scripts\ops\test_installer_contract.ps1 -TargetOs windows -Mode user -SandboxRoot .\tests\tmp\sandbox
+#>
 param(
   [Parameter(Mandatory = $true)]
   [ValidateSet("windows", "linux", "darwin")]

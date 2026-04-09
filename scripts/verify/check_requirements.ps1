@@ -1,3 +1,13 @@
+<#
+.SYNOPSIS
+  Validate requirements compliance documentation and gates.
+.DESCRIPTION
+  Checks that REQUIREMENTS.md, COMPLIANCE-MATRIX.md, DEVELOPMENT-GUIDELINES.md,
+  PR template, CI workflows, and release scripts all exist and are consistent.
+  Called by: nimble compliance
+.EXAMPLE
+  .\scripts\verify\check_requirements.ps1
+#>
 param(
   [string]$RequirementsPath = "docs/implementation/REQUIREMENTS.md",
   [string]$MatrixPath = "docs/implementation/COMPLIANCE-MATRIX.md",

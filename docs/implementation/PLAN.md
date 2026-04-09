@@ -1,5 +1,11 @@
 # WILDER COSMOS RUNTIME — IMPLEMENTATION PLAN (v0.1.1)
 
+> **Canonical copy.** A convenience mirror lives at `docs/PLAN.md`.
+> Edit this file first, then sync changes to the mirror.
+
+> **At a glance:** 23 chapters complete ✅ · Phase X complete ✅ ·
+> Phase VF complete ✅ · **Phase XF in progress** 🚧 · Phase XE planned 📅
+
 *Derived from the frozen REQUIREMENTS.md and SPECIFICATION.md.*
 *Each chapter maps to one or more SPEC sections.*
 *Implementation details live in `docs/implementation/IMPLEMENTATION-DETAILS.md`.*

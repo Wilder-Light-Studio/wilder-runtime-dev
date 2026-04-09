@@ -1,3 +1,14 @@
+<#
+.SYNOPSIS
+  Add Flow comments to Nim source and test files.
+.DESCRIPTION
+  Scans a predefined list of .nim files and inserts Flow annotation comments
+  where they are missing. Use -DryRun to preview changes without writing.
+.EXAMPLE
+  .\scripts\dev\add_flow_comments.ps1
+.EXAMPLE
+  .\scripts\dev\add_flow_comments.ps1 -DryRun
+#>
 param([switch]$DryRun)
 
 # Find all .nim files needing Flow comments

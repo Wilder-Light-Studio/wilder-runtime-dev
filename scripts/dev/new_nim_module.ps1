@@ -1,30 +1,48 @@
+<#
+.SYNOPSIS
+  Scaffold a new Nim module from a project template.
+.DESCRIPTION
+  Generates a new .nim file with the standard project header (Summary, Simile,
+  Memory Note, Flow) and a body stub. If called without parameters, prompts
+  interactively for each value.
+.EXAMPLE
+  .\scripts\dev\new_nim_module.ps1 -Kind runtime -Name "mymod" -RelativePath "src/runtime/mymod.nim" -Summary "Purpose" -Simile "Like a ..." -MemoryNote "Constraint" -Flow "Execution path"
+.EXAMPLE
+  .\scripts\dev\new_nim_module.ps1
+  # Interactive mode — prompts for each parameter.
+#>
 param(
-  [Parameter(Mandatory = $true)]
   [ValidateSet("runtime", "cosmos", "test", "example", "style")]
   [string]$Kind,
 
-  [Parameter(Mandatory = $true)]
   [string]$Name,
 
-  [Parameter(Mandatory = $true)]
   [string]$RelativePath,
 
-  [Parameter(Mandatory = $true)]
   [string]$Summary,
 
-  [Parameter(Mandatory = $true)]
   [string]$Simile,
 
-  [Parameter(Mandatory = $true)]
   [string]$MemoryNote,
 
-  [Parameter(Mandatory = $true)]
   [string]$Flow,
 
   [string]$Version = "0.1.1",
 
   [switch]$Force
 )
+
+# --- Interactive fallback: prompt for any missing mandatory values -----------
+if (-not $Kind) {
+  Write-Host "Module kinds: runtime, cosmos, test, example, style"
+  $Kind = Read-Host "Kind"
+}
+if (-not $Name)         { $Name         = Read-Host "Module name" }
+if (-not $RelativePath) { $RelativePath = Read-Host "Relative path (e.g. src/runtime/mymod.nim)" }
+if (-not $Summary)      { $Summary      = Read-Host "Summary (one sentence)" }
+if (-not $Simile)       { $Simile       = Read-Host "Simile (Like a ...)" }
+if (-not $MemoryNote)   { $MemoryNote   = Read-Host "Memory note (key constraint)" }
+if (-not $Flow)         { $Flow         = Read-Host "Flow (execution path)" }
 
 $ErrorActionPreference = "Stop"
 

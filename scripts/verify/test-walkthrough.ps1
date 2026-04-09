@@ -1,3 +1,15 @@
+<#
+.SYNOPSIS
+  Guided manual QA and UAR testing walkthrough.
+.DESCRIPTION
+  Runs categorized test suites with explanations of what each subsystem does,
+  pass criteria, and learning notes. Categories: foundation, chapter1-4,
+  subsystems, integration, all, quick.
+.EXAMPLE
+  .\scripts\verify\test-walkthrough.ps1 -TestCategory quick
+.EXAMPLE
+  .\scripts\verify\test-walkthrough.ps1 -TestCategory all -Verbose
+#>
 # ============================================================================
 # Wilder Cosmos Runtime - Complete Manual QA & UAR Testing Walkthrough
 # ============================================================================

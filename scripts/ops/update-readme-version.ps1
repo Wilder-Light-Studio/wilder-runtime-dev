@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+  Sync the README version badge from the nimble file.
+.DESCRIPTION
+  Reads the version from wilder_cosmos_runtime.nimble and updates the version
+  line in README.md to match. Use -Force to overwrite even if already current.
+.EXAMPLE
+  .\scripts\ops\update-readme-version.ps1
+#>
 param([switch]$Force)
 
 # Get paths - assuming script is in scripts/ subdirectory of project root

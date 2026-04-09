@@ -1,3 +1,14 @@
+<#
+.SYNOPSIS
+  Create dist/v<version> release artifacts.
+.DESCRIPTION
+  Reads the version from the nimble file, creates a versioned dist directory,
+  copies the binary and checksums, and generates the release manifest.
+.EXAMPLE
+  .\scripts\ops\prepare_release.ps1
+.EXAMPLE
+  .\scripts\ops\prepare_release.ps1 -Channel preview
+#>
 param(
   [string]$RootPath = ".",
   [string]$Version,
