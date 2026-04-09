@@ -159,7 +159,7 @@ suite "integration — full startup and shutdown":
     startup(lc, cfgPath, @[])
     shutdown(lc)
 
-    check lc.eventSink.countEvents(evStartupStep) == 10
+    check lc.eventSink.countEvents(evStartupStep) == 12
     check lc.eventSink.countEvents(evReconcilePass) == 1
     check lc.eventSink.countEvents(evMigrate) == 1
     check lc.eventSink.countEvents(evPrefilterActivated) == 1
