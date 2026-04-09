@@ -1,4 +1,4 @@
-<p align="left">
+﻿<p align="left">
   <img src="docs/assets/wilder-cosmos-v3.png" alt="Wilder Cosmos Logo" width="300"/>
 </p>
 
@@ -21,7 +21,7 @@ scripts/
   verify/
   ops/
 templates/
-**Version:** 0.9.6
+**Version:** 0.1.0
 
 Contact: [teamwilder@wildercode.org](mailto:teamwilder@wildercode.org)
 
@@ -258,5 +258,6 @@ Read the full license text in [LICENSE](LICENSE).
 *Contact: teamwilder@wildercode.org*\
 *Licensed under the Wilder Foundation License 1.0.*\
 *See LICENSE for details.*
+
 
 

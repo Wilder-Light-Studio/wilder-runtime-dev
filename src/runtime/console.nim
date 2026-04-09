@@ -139,6 +139,7 @@ proc renderPromptLine*(cs: ConsoleSession): string =
   ## Layer 3: Prompt line — ready to accept input.
   result = cs.renderScopeLine() & " " & cs.promptText
 
+# Flow: Resolve one introspection key to its deterministic string value.
 proc introspectionValue(cs: ConsoleSession, target: string): string =
   let key = target.toLowerAscii()
   case key

@@ -3,6 +3,9 @@
 # Module Path: src/runtime/ontology.nim
 #
 # Summary: Deterministic scope, context, override, and reference resolution.
+# Simile: Like a map legend, it keeps path and relationship meaning consistent.
+# Memory note: all scope and context resolution must be deterministic and
+#   bounded to Cosmos descendants.
 # Flow: resolve scope -> resolve context -> apply overrides -> resolve reference.
 
 import json
@@ -32,11 +35,13 @@ type
     context*: Context
     localMetadata*: JsonNode
 
+# Flow: Append only values that are not already present.
 proc uniqueAppend(dest: var seq[string], incoming: seq[string]) =
   for item in incoming:
     if item notin dest:
       dest.add(item)
 
+# Flow: Parse one JSON string array field into a sequence of strings.
 proc parseStringArray(node: JsonNode, key: string): seq[string] =
   if node.isNil or key notin node or node[key].kind != JArray:
     return @[]
@@ -44,6 +49,7 @@ proc parseStringArray(node: JsonNode, key: string): seq[string] =
     if item.kind == JString:
       result.add(item.getStr)
 
+# Flow: Merge overlay JSON into base JSON recursively for object keys.
 proc mergeJson(baseNode, overlayNode: JsonNode): JsonNode =
   let baseObj = if baseNode.isNil or baseNode.kind != JObject: %*{} else: baseNode
   let overlayObj = if overlayNode.isNil or overlayNode.kind != JObject: %*{} else: overlayNode
@@ -54,11 +60,13 @@ proc mergeJson(baseNode, overlayNode: JsonNode): JsonNode =
     else:
       result[key] = value
 
+# Flow: Render scope path segments into canonical Cosmos scope text.
 proc renderScope*(segments: seq[string]): string =
   if segments.len == 0:
     return "(" & CosmosScopeRoot & ")"
   "(" & CosmosScopeRoot & "." & segments.join(".") & ")"
 
+# Flow: Resolve one input path into normalized scope segments.
 proc resolveScope*(path: string, currentSegments: seq[string] = @[]): seq[string] =
   ## Resolve dot-separated semantic scope descendants under Cosmos.
   let raw = path.strip()
@@ -101,6 +109,7 @@ proc resolveScope*(path: string, currentSegments: seq[string] = @[]): seq[string
   result = currentSegments
   result.add(parsed)
 
+# Flow: Apply one layer of context overrides to a resolved context value.
 proc applyOverrides*(context: Context, deltas: JsonNode): Context =
   ## Apply local contextual deltas and return a new context value.
   result = context
@@ -112,6 +121,7 @@ proc applyOverrides*(context: Context, deltas: JsonNode): Context =
   result.inheritedLogs.uniqueAppend(parseStringArray(deltas, "logs"))
   result.inheritedRelationships.uniqueAppend(parseStringArray(deltas, "relationships"))
 
+# Flow: Resolve effective context by walking from root ancestor to target Thing.
 proc resolveContext*(thingsById: Table[string, Thing], thingId: string): Context =
   ## Resolve downward-only context by walking ancestors from root to leaf.
   if thingId.len == 0:
@@ -150,6 +160,7 @@ proc resolveContext*(thingsById: Table[string, Thing], thingId: string): Context
     result.inheritedRelationships.uniqueAppend(parseStringArray(thing.metadata, "relationships"))
     result = applyOverrides(result, thing.overrideDeltas)
 
+  # Flow: Resolve one reference entry to target context plus local metadata.
 proc resolveReference*(referencesById: Table[string, Reference],
                        thingsById: Table[string, Thing],
                        refId: string): ResolvedReference =
