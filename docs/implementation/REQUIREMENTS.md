@@ -1406,8 +1406,18 @@ All checks should run in local development and CI.
   elevated privileges.
 - System-wide installation must use OS-appropriate shared locations and require elevation
   only when required by the operating system.
+- Windows installer payloads must include a detailed offline-capable install guide in the
+  distributed installer artifact bundle.
+- The Windows installer flow must prompt operators to choose `user` or `system` install
+  mode before files are written.
+- The Windows installer guide must document canonical install roots, PATH opt-in
+  behavior, verification commands, and uninstall ownership rules.
 - Installers must provide optional PATH integration for `cosmos.exe` and supporting
   binaries.
+- PATH integration must be explicit opt-in and must default to no PATH mutation when the
+  operator does not grant consent.
+- PATH integration in `user` mode must target user environment scope only; PATH
+  integration in `system` mode must target machine environment scope only.
 - Uninstall operations must remove all installed binaries, wrappers, launchers,
   manifests, PATH mutations, and installer-generated metadata.
 - Uninstall operations must leave zero installer-owned residue except user-created

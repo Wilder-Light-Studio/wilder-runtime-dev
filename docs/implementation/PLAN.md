@@ -1316,6 +1316,11 @@ validation, and failure semantics are testable and operator-safe.
 manifest emission, and release-channel publishing foundations.
 **Status:** ✅ **COMPLETE** — release matrix workflow now includes staged build/package/sign/verify-signature/publish scaffold flow, checksum automation, installer contract checks, uninstall residue checks, and channel-aware manifest metadata.
 
+**Maintenance note:** Windows installer packaging now tracks one additional
+documentation contract: the installer bundle must include a detailed offline install
+guide and an operator installer script that prompts for mode and optional PATH
+integration.
+
 ### Tasks
 19A.1. ✅ Add release artifact workflow skeleton with explicit target matrix:
       windows-amd64, linux-amd64, linux-arm64, darwin-amd64, darwin-arm64.
@@ -1326,6 +1331,10 @@ manifest emission, and release-channel publishing foundations.
 19A.6. ✅ Add signing stage scaffolding (Windows/macOS/Linux) with explicit TODO gates.
 19A.7. ✅ Add release channel metadata handling foundation (later expanded by Phase X to `stable`, `beta`, and `nightly`).
 19A.8. ✅ Wire CI compliance check to fail when required 19A matrix targets are missing.
+19A.9. 🚧 Package `docs/public/getting-started/install-windows.md` into Windows
+      installer artifacts with deterministic naming.
+19A.10. 🚧 Add Windows installer script flow that prompts for `user` versus `system`
+      mode and optional PATH integration.
 
 ### Acceptance
 - Release tooling defines all required target matrix entries from SPEC §19A.1.
@@ -1334,6 +1343,7 @@ manifest emission, and release-channel publishing foundations.
 - Installer mode and uninstall contracts are validated by tests/gates.
 - Signing and publish stages are explicitly represented in pipeline ordering.
 - Foundation release-channel outputs exist and are superseded by Phase X channel expansion.
+- Windows installer bundles include an offline install guide and installer script.
 
 ---
 
@@ -1370,6 +1380,8 @@ runtime-home resolution, concept registry scaffolding, CLI expansion, and verifi
       semantic-version channels `stable`, `beta`, and `nightly`.
 - Version-registry state under `~/.wilder/cosmos/registry/` for manual-update and
       auto-check detection.
+- Detailed Windows install guide published in public docs and packaged with Windows
+      installer artifacts.
 
 ### Phase X Execution Tasks
 
@@ -1383,6 +1395,10 @@ runtime-home resolution, concept registry scaffolding, CLI expansion, and verifi
 8. Implement semantic-version channel handling (stable/beta/nightly).
 9. Add version registry queries and update-check integration.
 10. Extend reconciliation to handle concept precedence and registry fallback.
+11. Package the detailed Windows install guide with installer artifacts and reference it
+      from the generated `INSTALL.txt` file.
+12. Ensure installer script prompts for mode selection and offers opt-in PATH updates
+      with user or machine scope based on selected mode.
 
 ### Phase X Acceptance Criteria
 

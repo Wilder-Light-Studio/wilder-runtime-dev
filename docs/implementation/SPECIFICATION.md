@@ -946,6 +946,9 @@ Installers must support two explicit modes:
 - `user`: install under user-home paths.
 - `system`: install under shared system paths.
 
+Windows installers must prompt operators to choose one explicit mode (`user` or
+`system`) before writing runtime files.
+
 Mode-specific install roots:
 - Windows user mode: `%USERPROFILE%\\.wilder\\cosmos\\`
 - Windows system mode: `%ProgramData%\\Wilder\\Cosmos\\`
@@ -980,6 +983,14 @@ Ownership rules:
 
 Installers must create required directories idempotently and preserve existing user data.
 
+Windows installer artifacts must include a detailed install guide document that is
+available offline after extracting the installer bundle. The guide must include:
+- mode-selection semantics and elevation expectations,
+- canonical install roots for `user` and `system` modes,
+- PATH opt-in behavior and scope,
+- post-install verification commands,
+- uninstall ownership and residue guarantees.
+
 ### 19A.3 Canonical Entrypoint Resolution Contract
 
 - The canonical startup executable name is always `cosmos.exe` on every supported OS.
@@ -995,8 +1006,10 @@ Installers must create required directories idempotently and preserve existing u
 ### 19A.4 PATH Integration, Uninstall, and Update Registry Contract
 
 - Installers must offer opt-in PATH integration during install.
+- Installers must default to no PATH mutation unless operator consent is provided.
 - PATH mutation must be scoped to user environment for `user` mode and machine
   environment for `system` mode.
+- PATH metadata must record whether integration was requested and which entry was added.
 - Uninstall must remove:
   - installed binaries and wrappers
   - PATH entries added by installer

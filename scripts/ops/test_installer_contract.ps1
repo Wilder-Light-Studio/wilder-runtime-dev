@@ -59,8 +59,12 @@ function Resolve-InstallRoot {
   throw "Unsupported target OS: $Os"
 }
 
-function Ensure-Layout {
-  param([string]$Root)
+function Initialize-Layout {
+  param(
+    [string]$Root,
+    [string]$InstallMode,
+    [bool]$PathIntegrated
+  )
 
   foreach ($name in $requiredDirs) {
     New-Item -ItemType Directory -Force -Path (Join-Path $Root $name) | Out-Null
@@ -69,19 +73,49 @@ function Ensure-Layout {
   # Installer-owned metadata marker.
   Set-Content -LiteralPath (Join-Path $Root "registry/installer.manifest") -Value "owned=true" -Encoding utf8
   Set-Content -LiteralPath (Join-Path $Root "registry/version-registry.json") -Value '{"installedVersion":"0.0.0","channel":"nightly"}' -Encoding utf8
-  Set-Content -LiteralPath (Join-Path $Root "registry/path-metadata.json") -Value '{"pathIntegrated":true}' -Encoding utf8
+  $pathScope = if ($InstallMode -eq "system") { "Machine" } else { "User" }
+  $pathEntry = Join-Path $Root "bin"
+  $pathMetadata = [ordered]@{
+    pathIntegrated = $PathIntegrated
+    scope = $pathScope
+    addedEntry = if ($PathIntegrated) { $pathEntry } else { "" }
+  }
+  ($pathMetadata | ConvertTo-Json) | Set-Content -LiteralPath (Join-Path $Root "registry/path-metadata.json") -Encoding utf8
   # Simulate installer-owned binary.
   Set-Content -LiteralPath (Join-Path $Root "bin/cosmos.exe") -Value "placeholder" -Encoding utf8
 }
 
 function Assert-Layout {
-  param([string]$Root)
+  param(
+    [string]$Root,
+    [string]$InstallMode,
+    [bool]$ExpectedPathIntegrated
+  )
 
   foreach ($name in $requiredDirs) {
     $path = Join-Path $Root $name
     if (-not (Test-Path -LiteralPath $path)) {
       throw "Missing required layout directory: $path"
     }
+  }
+
+  $pathMetadataPath = Join-Path $Root "registry/path-metadata.json"
+  if (-not (Test-Path -LiteralPath $pathMetadataPath)) {
+    throw "Missing PATH metadata file: $pathMetadataPath"
+  }
+
+  $metadata = Get-Content -LiteralPath $pathMetadataPath -Raw | ConvertFrom-Json
+  if ([bool]$metadata.pathIntegrated -ne $ExpectedPathIntegrated) {
+    throw "PATH metadata mismatch for pathIntegrated at $pathMetadataPath"
+  }
+
+  $expectedScope = if ($InstallMode -eq "system") { "Machine" } else { "User" }
+  if ($metadata.scope -ne $expectedScope) {
+    throw "PATH metadata scope mismatch. Expected $expectedScope, got $($metadata.scope)"
+  }
+
+  if ($ExpectedPathIntegrated -and [string]::IsNullOrWhiteSpace($metadata.addedEntry)) {
+    throw "PATH metadata missing addedEntry when pathIntegrated=true"
   }
 }
 
@@ -101,9 +135,9 @@ $installRoot = Resolve-InstallRoot -Os $TargetOs -InstallMode $Mode -Root $Sandb
 New-Item -ItemType Directory -Force -Path $installRoot | Out-Null
 
 # Install pass 1 and pass 2 to prove idempotence.
-Ensure-Layout -Root $installRoot
-Ensure-Layout -Root $installRoot
-Assert-Layout -Root $installRoot
+Initialize-Layout -Root $installRoot -InstallMode $Mode -PathIntegrated $true
+Initialize-Layout -Root $installRoot -InstallMode $Mode -PathIntegrated $true
+Assert-Layout -Root $installRoot -InstallMode $Mode -ExpectedPathIntegrated $true
 
 # Simulate user-created project content that must survive uninstall.
 $projectFile = Join-Path $installRoot "projects/user-content.txt"

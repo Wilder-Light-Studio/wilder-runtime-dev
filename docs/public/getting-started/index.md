@@ -7,6 +7,7 @@ What this is. This section helps you go from zero context to running and explori
 - `what-is-cosmos.md`
 - `runtime-at-a-glance.md`
 - `install-run-console.md`
+- `install-windows.md`
 - `first-module-tutorial.md`
 
 ---

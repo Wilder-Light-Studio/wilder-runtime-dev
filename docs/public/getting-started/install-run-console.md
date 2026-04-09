@@ -2,6 +2,8 @@
 
 What this is. This page gives practical commands to build, test, and inspect the runtime locally.
 
+For packaged Windows installer usage, see `install-windows.md`.
+
 ## Prerequisites
 
 - Nim 1.6 or newer

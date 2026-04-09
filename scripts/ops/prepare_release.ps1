@@ -79,17 +79,29 @@ $binaryArtifactName = "cosmos-windows-amd64.exe"
 $binaryArtifactPath = Join-Path $binariesDir $binaryArtifactName
 Copy-Item -LiteralPath $binaryPath -Destination $binaryArtifactPath -Force
 
+$installGuideSource = Join-Path $resolvedRoot "docs/public/getting-started/install-windows.md"
+$installerScriptSource = Join-Path $resolvedRoot "scripts/ops/install_windows_bundle.ps1"
+if (-not (Test-Path -LiteralPath $installGuideSource)) {
+  throw "Missing required Windows install guide: $installGuideSource"
+}
+if (-not (Test-Path -LiteralPath $installerScriptSource)) {
+  throw "Missing required installer script: $installerScriptSource"
+}
+
 # Package a deterministic installer artifact bundle containing runtime files.
 $installerStage = Join-Path $distRoot "_installer_stage"
 New-Item -ItemType Directory -Force -Path $installerStage | Out-Null
 Copy-Item -LiteralPath $binaryArtifactPath -Destination (Join-Path $installerStage "cosmos.exe") -Force
+Copy-Item -LiteralPath $installGuideSource -Destination (Join-Path $installerStage "WINDOWS-INSTALL.md") -Force
+Copy-Item -LiteralPath $installerScriptSource -Destination (Join-Path $installerStage "install_windows_bundle.ps1") -Force
 
 $installInstructions = @(
   "Wilder Cosmos Runtime Installer Bundle",
   "",
-  "1. Copy cosmos.exe to the desired installation bin directory.",
-  "2. Ensure runtime directories exist under your selected install root.",
-  "3. Refer to project docs for installer contract and uninstall ownership rules."
+  "1. Review WINDOWS-INSTALL.md for full Windows installation guidance.",
+  "2. Run .\\install_windows_bundle.ps1 to install with mode and PATH prompts.",
+  "3. Use -InstallMode user|system and -AddToPath for non-interactive installs.",
+  "4. Installer writes metadata in registry/ and preserves projects on uninstall."
 )
 Set-Content -LiteralPath (Join-Path $installerStage "INSTALL.txt") -Value $installInstructions -Encoding utf8
 
