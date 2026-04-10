@@ -102,7 +102,7 @@ proc `$`*(state: RuntimeState): string =
     return "RuntimeState(nil)"
   result = "RuntimeState(epoch=" & $(state.epoch.int) & ")"
 
-## ND-friendly helper: convert JSON safely
+## Neurodivergent (ND)-friendly helper: convert JSON safely
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc fromJson*[T](jsonStr: string): Option[T] =
   ## Flow: parse JSON, return Option[T]. Returns none on parse error.

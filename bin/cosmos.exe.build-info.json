@@ -1,6 +1,6 @@
 ﻿{
     "outputPath":  "C:\\Users\\heywi\\Development\\wilder-runtime-dev\\bin\\cosmos.exe",
     "mainModule":  "src/cosmos_main.nim",
-    "releaseTag":  "v0.9.10-wip",
-    "builtAtUtc":  "2026-04-08T16:13:58Z"
+    "releaseTag":  "",
+    "builtAtUtc":  "2026-04-09T21:47:51Z"
 }

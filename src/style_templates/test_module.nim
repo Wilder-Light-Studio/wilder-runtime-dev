@@ -14,7 +14,7 @@
 ##  Provide a consistent structure for writing unit tests.
 ## --
 ## Description: 
-##  This template ensures ND-friendly headers and a clear test structure.
+##  This template ensures Neurodivergent (ND)-friendly headers and a clear test structure.
 ## -- 
 ## Usage: 
 ##  Copy this file and replace placeholders with test-specific logic.

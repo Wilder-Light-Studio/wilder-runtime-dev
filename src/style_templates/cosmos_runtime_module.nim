@@ -10,7 +10,7 @@
 ##  Metaphor or Simile based prhase that embodies the modules purpose or functionality.
 ## --
 ## Description: 
-##  This template ensures consistent structure and ND-friendly headers.
+##  This template ensures consistent structure and Neurodivergent (ND)-friendly headers.
 ## -- 
 ## Usage: 
 ##  Copy this file and replace placeholders with module-specific logic.

@@ -1,6 +1,11 @@
 # ND Documentation and Public API Comment Style Guide
 
-This guide defines the standards for documenting public APIs and writing comments in the Wilder Cosmos Nim runtime, with a focus on Non-Determinist (ND), New Developer, and Neurodivergent accessibility.
+This guide defines the standards for documenting public APIs and writing comments in the Wilder Cosmos Nim runtime, with a focus on Neurodivergent (ND) accessibility and New Developer onboarding.
+
+
+**ND means Neurodivergent (ND) throughout all Wilder Cosmos documentation and code.**
+
+*ND must always be expanded as "Neurodivergent (ND)" on first use in every file, including source, documentation, comments, help text, templates, tests, plans, and walkthroughs. Do not use ND to mean Non-Determinist or Non-Deterministic. If you need to refer to determinism, always write out "deterministic" or "non-deterministic" in full.*
 
 This document must remain aligned with the code comment rules in `docs/implementation/REQUIREMENTS.md`.
 

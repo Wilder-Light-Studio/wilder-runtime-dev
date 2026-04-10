@@ -7,11 +7,11 @@
 ## Purpose: Persistence is a safety net, like a lighthouse preserving state
 ## across storms while keeping integrity checks visible.
 ## Summary: Three-layer bridge implementation with deterministic validation.
-## Notes: Non-Deterministic (ND) friendly messages and fail-fast behavior.
+## Notes: Neurodivergent (ND) friendly messages and fail-fast behavior.
 
 # Summary: Three-layer bridge implementation with deterministic validation.
 # Simile: Persistence is a safety net, like a lighthouse preserving state across storms.
-# Memory note: Non-Deterministic (ND) friendly messages and fail-fast behavior.
+# Memory note: Neurodivergent (ND) friendly messages and fail-fast behavior.
 # Flow: validate requests -> persist to layers -> verify checksums -> report status.
 ## persistence.nim
 

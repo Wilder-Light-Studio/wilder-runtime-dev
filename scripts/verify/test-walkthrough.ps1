@@ -55,32 +55,32 @@ function Write-Section {
     param([string]$Title)
     Write-Host "`n$('=' * 80)" -ForegroundColor Cyan
     Write-Host $Title -ForegroundColor Cyan -BackgroundColor Black
-    Write-Host "=" * 80 -ForegroundColor Cyan
+    Write-Host ('=' * 80) -ForegroundColor Cyan
 }
 
 function Write-Subsection {
     param([string]$Title)
-    Write-Host "`n►► $Title" -ForegroundColor Yellow
+    Write-Host "`n>> $Title" -ForegroundColor Yellow
 }
 
 function Write-TestInfo {
     param([string]$Info)
-    Write-Host "  ℹ️  $Info" -ForegroundColor Gray
+    Write-Host "  [INFO] $Info" -ForegroundColor Gray
 }
 
 function Write-PassCriteria {
     param([string]$Criteria)
-    Write-Host "  ✓  [PASS CRITERIA] $Criteria" -ForegroundColor Green
+    Write-Host "  [PASS] $Criteria" -ForegroundColor Green
 }
 
 function Write-LearningNote {
     param([string]$Note)
-    Write-Host "  📚 [LEARNING] $Note" -ForegroundColor Magenta
+    Write-Host "  [LEARNING] $Note" -ForegroundColor Magenta
 }
 
 function Write-Command {
     param([string]$Command)
-    Write-Host "  ⚡ Command: $Command" -ForegroundColor Cyan
+    Write-Host "  [CMD] $Command" -ForegroundColor Cyan
 }
 
 #pragma warning disable PSUseApprovedVerbs
@@ -122,10 +122,13 @@ function InvokeWalkthroughTest {
     
     try {
         Invoke-Expression $cmd
-        Write-Host "✅ Test completed" -ForegroundColor Green
+        if ($LASTEXITCODE -ne 0) {
+            throw "Command exited with code $LASTEXITCODE"
+        }
+        Write-Host "Test completed" -ForegroundColor Green
         return $true
     } catch {
-        Write-Host "❌ Test failed: $_" -ForegroundColor Red
+        Write-Host "Test failed: $_" -ForegroundColor Red
         return $false
     }
 }
@@ -844,19 +847,22 @@ function Test-QuickTrack {
     
     # Quick sequence
     "harness_test.nim",
-    "api_tests.nim",
-    "validation_checksum_test.nim",
-    "ch2_uat.nim",
-    "ch3_uat.nim",
-    "integration_test.nim" | ForEach-Object {
+    "unit/api_tests.nim",
+    "unit/validation_checksum_test.nim",
+    "uat/ch2_uat.nim",
+    "uat/ch3_uat.nim",
+    "integration/integration_test.nim" | ForEach-Object {
         Write-Subsection "Running: $_"
         $cmd = "nim c -r tests/$_"
         Write-Command $cmd
         try {
             Invoke-Expression $cmd
-            Write-Host "✅ Passed" -ForegroundColor Green
+            if ($LASTEXITCODE -ne 0) {
+                throw "Command exited with code $LASTEXITCODE"
+            }
+            Write-Host "Passed" -ForegroundColor Green
         } catch {
-            Write-Host "❌ Failed" -ForegroundColor Red
+            Write-Host "Failed" -ForegroundColor Red
             return
         }
     }
@@ -867,16 +873,12 @@ function Test-QuickTrack {
 # ============================================================================
 
 Write-Host @"
-
-  ╔════════════════════════════════════════════════════════════════════════════╗
-  ║                                                                            ║
-  ║          WILDER COSMOS RUNTIME - COMPLETE TESTING WALKTHROUGH             ║
-  ║                                                                            ║
-  ║                 QA Testing & User Acceptance Review (UAR)                 ║
-  ║                   Version 0.9.10 | April 2026                             ║
-  ║                                                                            ║
-  ╚════════════════════════════════════════════════════════════════════════════╝
-
+"
+===============================================================================
+WILDER COSMOS RUNTIME - COMPLETE TESTING WALKTHROUGH
+QA Testing and User Acceptance Review (UAR)
+Version 0.9.10 | April 2026
+===============================================================================
 "@ -ForegroundColor Cyan
 
 Write-TestInfo "This walkthrough guides you through manual testing of every Cosmos subsystem."
@@ -947,10 +949,10 @@ Write-Section "TESTING COMPLETE"
 Write-Host "Total time: $($elapsed.TotalMinutes.ToString('F1')) minutes" -ForegroundColor Green
 Write-Host ""
 Write-Host "Summary Notes:" -ForegroundColor Yellow
-Write-Host "  • All tests follow the documentation-first principle"
-Write-Host "  • Each test includes comments about what to look for (pass criteria)"
-Write-Host "  • Learning notes explain why each subsystem matters"
-Write-Host "  • UAT (User Acceptance Test) files are the official verification scenarios"
+Write-Host "  - All tests follow the documentation-first principle"
+Write-Host "  - Each test includes comments about what to look for (pass criteria)"
+Write-Host "  - Learning notes explain why each subsystem matters"
+Write-Host "  - UAT (User Acceptance Test) files are the official verification scenarios"
 Write-Host ""
 Write-Host "For detailed test code, see tests/unit, tests/integration, and tests/uat" -ForegroundColor Gray
 Write-Host "For architecture docs, see docs/implementation/" -ForegroundColor Gray

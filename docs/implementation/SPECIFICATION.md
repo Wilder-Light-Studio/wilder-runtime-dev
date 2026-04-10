@@ -2,6 +2,13 @@
 
 This is the canonical implementation specification.
 
+
+## ND Terminology (Canonical Definition)
+
+**ND means Neurodivergent (ND) throughout all Wilder Cosmos documentation and code.**
+
+*ND must always be expanded as "Neurodivergent (ND)" on first use in every file, including source, documentation, comments, help text, templates, tests, plans, and walkthroughs. Do not use ND to mean Non-Determinist or Non-Deterministic. If you need to refer to determinism, always write out "deterministic" or "non-deterministic" in full.*
+
 ## Part I. Recommendations
 
 Normative source order:
