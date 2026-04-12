@@ -19,6 +19,7 @@ What this is. This is the newcomer-facing documentation set for understanding an
 - Modules: authoring workflow, lifecycle, boundaries, best practices.
 - API Reference: public types, procedures, and constants for every runtime module.
 - Glossary: short definitions for Cosmos terms.
+- [Application Developer Getting Started Guide](getting-started/app-developer-guide.md)
 
 ## Source of Truth Note
 

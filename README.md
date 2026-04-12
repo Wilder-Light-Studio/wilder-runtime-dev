@@ -214,6 +214,7 @@ If you are approaching the project for the first time, start with:
 - [docs/implementation/IMPLEMENTATION-DETAILS.md](docs/implementation/IMPLEMENTATION-DETAILS.md)
 - [docs/implementation/DEVELOPMENT-GUIDELINES.md](docs/implementation/DEVELOPMENT-GUIDELINES.md)
 - [docs/implementation/MODULES.md](docs/implementation/MODULES.md)
+- [Application Developer Getting Started Guide](getting-started/app-developer-guide.md)
 
 ## Development Workflow
 
