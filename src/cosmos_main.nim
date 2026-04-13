@@ -1255,7 +1255,7 @@ proc runNotifyCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string
     return (2, @[err.msg, NotifyFormatHelpText])
 
 # Flow: Map a parsed Git-style command to an IPC method and parameters.
-proc commandToIpcRequest(cmd: ParsedCommand): tuple[method: string, params: JsonNode] =
+proc commandToIpcRequest(cmd: ParsedCommand): tuple[`method`: string, params: JsonNode] =
   if cmd.verb == cvConsole:
     raise newException(ValueError, "console: use interactive mode")
   var params = %*{}
