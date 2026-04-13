@@ -49,7 +49,7 @@ proc parseManifest(path: string): Result[ThingManifest] =
       for k, v in node["entryPoints"].pairs:
         eps[k] = v.getStr()
 
-    result = ThingManifest(
+    let manifest = ThingManifest(
       id: node{"id"}.getStr(""),
       version: node{"version"}.getStr(""),
       dependencies: deps,
@@ -57,8 +57,10 @@ proc parseManifest(path: string): Result[ThingManifest] =
       entryPoints: eps
     )
     
-    if result.id.len == 0:
+    if manifest.id.len == 0:
       return err[ThingManifest]("manifest.json: 'id' field is required")
+    
+    return ok(manifest)
   except CatchableError as e:
     return err[ThingManifest]("manifest.json parsing failed: " & e.msg)
 
@@ -82,16 +84,16 @@ proc loadCosmosBundle*(path: string): BundleLoadResult =
     )
 
   let manifestPath = bundleDir & "/manifest.json"
-  case parseManifest(manifestPath):
-  of err(msg):
+  let manifestResult = parseManifest(manifestPath)
+  if manifestResult.isErr:
     return BundleLoadResult(
       loadStatus: tlsSkippedMalformed,
-      errorMsg: "manifest error: " & msg,
+      errorMsg: "manifest error: " & manifestResult.error,
       location: manifestPath
     )
-  of ok(manifest):
+  else:
     return BundleLoadResult(
-      manifest: manifest,
+      manifest: manifestResult.value,
       loadStatus: tlsLoaded,
       location: bundleDir
     )

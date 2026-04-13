@@ -28,3 +28,15 @@ proc get*[T](r: Result[T]): T =
     return r.value
   else:
     raise newException(ValueError, "Called get on Err result")
+
+proc error*[T](r: Result[T]): string =
+  if r.isErr:
+    return r.error
+  else:
+    raise newException(ValueError, "Called error on Ok result")
+
+proc value*[T](r: Result[T]): T =
+  if r.isOk:
+    return r.value
+  else:
+    raise newException(ValueError, "Called value on Err result")

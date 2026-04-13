@@ -6,7 +6,7 @@
 # Memory note: keep orchestration thin; do not duplicate config or lifecycle logic.
 # Flow: parse args -> resolve console mode -> validate -> load config -> emit startup report.
 
-import std/[os, strutils, options, json, times, tables, algorithm, threads]
+import std/[os, strutils, options, json, times, tables, algorithm, threadpool]
 import runtime/config
 import runtime/capabilities
 import runtime/concepts
@@ -529,13 +529,13 @@ proc launchDaemon(): int =
     echo "cosmos: daemon initialized"
     lc.printBanner()
     
-    let session = newIpcSession()
+    let session = newIpcSession(lc)
     
     # Start IPC server in a background thread
-    var ipcThread: Thread
-    createThread(ipcThread, proc() =
-      serveIpcTcp(session)
-    )
+    var ipcThread: Thread[IpcSession]
+    proc ipcServerThread(session: IpcSession) {.thread.} =
+      discard serveIpcTcp(session)
+    createThread(ipcThread, ipcServerThread, session)
     
     echo "cosmos: IPC server listening on " & ipcEndpointUri()
     
@@ -546,7 +546,7 @@ proc launchDaemon(): int =
       else:
         # In a real implementation, this would be the scheduler's frame loop
         # For now, we simulate the frame loop
-        executeFrame(lc.schedulerState, @[])
+        discard executeFrame(lc.schedulerState, @[])
         sleep(16) # ~60fps
         
   except CatchableError as err:
@@ -1089,7 +1089,8 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
         return (2, @["ipc serve: unknown argument '" & args[i] & "'", IpcServeHelpText])
 
     try:
-      let session = newIpcSession()
+      let lc = newRuntimeLifecycle()
+      let session = newIpcSession(lc)
       let handled = serveIpcTcp(session, host, port, maxRequests)
       return (0, @["ipc serve: handled " & $handled & " request(s)"])
     except ValueError as err:
@@ -1190,7 +1191,8 @@ proc runIpcCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] 
       except CatchableError as err:
         return (1, @["ipc request: transport failure - " & err.msg])
 
-    var session = newIpcSession()
+    let lc = newRuntimeLifecycle()
+    var session = newIpcSession(lc)
     if subscribeEvents.len > 0:
       discard handleRequest(session, %*{
         "id": subscribeRequestId,
@@ -1386,10 +1388,10 @@ proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[str
 
     # For all other commands, communicate with the daemon via IPC
     try:
-      let (method, params) = commandToIpcRequest(cmd)
+      let (`method`, params) = commandToIpcRequest(cmd)
       let requestNode = %*{
         "id": nextCliRequestId(),
-        "method": method,
+        "method": `method`,
         "params": params
       }
       let frames = sendIpcTcpRequest(IpcDefaultHost, IpcDefaultPort, requestNode)

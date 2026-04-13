@@ -70,9 +70,9 @@ proc parseArgs*(args: seq[string]): Result[ParsedCommand] =
     
     if "=" in flag:
       let parts = flag.split('=')
-      result.flags[parts[0]] = parts[1]
+      cmd.flags[parts[0]] = parts[1]
     else:
-      result.flags[flag] = "true"
+      cmd.flags[flag] = "true"
     i += 1
 
   if i >= args.len:

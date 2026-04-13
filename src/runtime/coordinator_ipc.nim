@@ -177,7 +177,7 @@ proc inspectPayload(session: IpcSession): JsonNode =
   }
 
 # Flow: Drain and clear queued push events in stable FIFO order.
-proc drainPushEvents*(session: IpcSession): seq[JsonNode]
+proc drainPushEvents*(session: IpcSession): seq[JsonNode] {.gcsafe.}
 
 # Flow: Handle one request envelope and return deterministic response envelope.
 proc handleRequest*(session: IpcSession, request: JsonNode): JsonNode =
@@ -291,14 +291,14 @@ proc handleRequest*(session: IpcSession, request: JsonNode): JsonNode =
     return errorResponse("unknown", "invalid_request", err.msg)
 
 # Flow: Dispatch one request into a response followed by queued push events.
-proc dispatchRequest*(session: IpcSession, request: JsonNode): seq[JsonNode] =
+proc dispatchRequest*(session: IpcSession, request: JsonNode): seq[JsonNode] {.gcsafe.} =
   let response = handleRequest(session, request)
   result = @[response]
   for eventNode in drainPushEvents(session):
     result.add(eventNode)
 
 # Flow: Parse one JSON request line and return JSON response/event lines.
-proc dispatchRequestLine*(session: IpcSession, line: string): seq[string] =
+proc dispatchRequestLine*(session: IpcSession, line: string): seq[string] {.gcsafe.} =
   let payload = line.strip
   if payload.len == 0:
     return @[$errorResponse("unknown", "invalid_request", "ipc: request frame must not be empty")]
@@ -314,7 +314,7 @@ proc dispatchRequestLine*(session: IpcSession, line: string): seq[string] =
 proc serveIpcTcp*(session: IpcSession,
                   host: string = IpcDefaultHost,
                   port: int = IpcDefaultPort,
-                  maxRequests: int = 0): int =
+                  maxRequests: int = 0): int {.gcsafe.} =
   ## maxRequests == 0 means serve until process termination.
   ## SECURITY: ipcEndpointUri validates that host is localhost-only.  The socket
   ## bind below is also pinned to "127.0.0.1" — keep it that way; never replace
@@ -364,7 +364,7 @@ proc sendIpcTcpRequest*(host: string,
     client.close()
 
 # Flow: Return queued push events and clear queue in one deterministic operation.
-proc drainPushEvents*(session: IpcSession): seq[JsonNode] =
+proc drainPushEvents*(session: IpcSession): seq[JsonNode] {.gcsafe.} =
   result = session.pushQueue
   session.pushQueue = @[]
 
