@@ -14,6 +14,7 @@ import runtime/coordinator_ipc
 import runtime/scanner
 import runtime/startapp
 import runtime/core
+import runtime/result
 import cosmos/thing/thing
 import cosmos/runtime/scheduler
 import cli_parser
@@ -1268,6 +1269,9 @@ proc commandToIpcRequest(cmd: ParsedCommand): tuple[`method`: string, params: Js
     return ("runtime.stop", params)
   of cvRestart:
     return ("runtime.restart", params)
+  of cvConsole:
+    # This case should never be reached due to the check above
+    raise newException(ValueError, "console: use interactive mode")
   of cvAdd:
     case cmd.noun
     of nnWatch:
@@ -1337,10 +1341,10 @@ proc handleConsoleInteractive() =
       echo renderFrames[0]["result"].getStr("render")
     
     stdout.write("> ")
-    stdout.flush()
+    stdout.flushFile()
     
     let input = readLine(stdin)
-    if input == nil or input.strip == "exit":
+    if input.strip == "exit":
       running = false
       continue
     
@@ -1356,17 +1360,17 @@ proc handleConsoleInteractive() =
     let dispatchFrames = sendIpcTcpRequest(IpcDefaultHost, IpcDefaultPort, dispatchReq)
     if dispatchFrames.len > 0:
       let res = dispatchFrames[0]["result"]
-      let lines = res["lines"].getArray()
+      let lines = res["lines"].getElems()
       for line in lines:
         echo line.getStr()
 
 # Flow: Run coordinator launch orchestration using Git-style CLI grammar.
 proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
   let parsed = parseArgs(args)
-  case parsed
-  of err(msg):
-    return (2, @[msg])
-  of ok(cmd):
+  if parsed.isErr:
+    return (2, @[parsed.error])
+  else:
+    let cmd = parsed.value
     if cmd.verb == cvStart:
       # Check if daemon is already running
       try:
