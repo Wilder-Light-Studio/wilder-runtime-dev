@@ -8,13 +8,13 @@ import std/[strutils, tables]
 import runtime/result
 
 type
-  CommandVerb = enum
+  CommandVerb* = enum
     cvStart, cvStop, cvRestart,
     cvAdd, cvRemove, cvList,
     cvMode, cvInspect, cvStep,
     cvConsole
     
-  CommandNoun = enum
+  CommandNoun* = enum
     nnWatch, nnThing, nnWorld, nnEvent, nnBus, nnNone
 
   ParsedCommand* = object

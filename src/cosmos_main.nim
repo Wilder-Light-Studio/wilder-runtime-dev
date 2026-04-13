@@ -1272,22 +1272,22 @@ proc commandToIpcRequest(cmd: ParsedCommand): tuple[`method`: string, params: Js
     case cmd.noun
     of nnWatch:
       if cmd.args.len == 0: raise newException(ValueError, "add watch: path required")
-      params["path"] = cmd.args[0]
+      params["path"] = %cmd.args[0]
       return ("runtime.addWatch", params)
     of nnThing:
       if cmd.args.len == 0: raise newException(ValueError, "add thing: bundle required")
-      params["bundle"] = cmd.args[0]
+      params["bundle"] = %cmd.args[0]
       return ("runtime.addThing", params)
     else: raise newException(ValueError, "add: expected noun watch or thing")
   of cvRemove:
     case cmd.noun
     of nnWatch:
       if cmd.args.len == 0: raise newException(ValueError, "remove watch: path required")
-      params["path"] = cmd.args[0]
+      params["path"] = %cmd.args[0]
       return ("runtime.removeWatch", params)
     of nnThing:
       if cmd.args.len == 0: raise newException(ValueError, "remove thing: id required")
-      params["id"] = cmd.args[0]
+      params["id"] = %cmd.args[0]
       return ("runtime.removeThing", params)
     else: raise newException(ValueError, "remove: expected noun watch or thing")
   of cvList:
@@ -1297,11 +1297,11 @@ proc commandToIpcRequest(cmd: ParsedCommand): tuple[`method`: string, params: Js
     else: raise newException(ValueError, "list: expected noun watch or thing")
   of cvMode:
     if cmd.args.len == 0: raise newException(ValueError, "mode: mode name required")
-    params["mode"] = cmd.args[0]
+    params["mode"] = %cmd.args[0]
     return ("runtime.setMode", params)
   of cvInspect:
     if cmd.args.len == 0: raise newException(ValueError, "inspect: target required")
-    params["target"] = cmd.args[0]
+    params["target"] = %cmd.args[0]
     return ("runtime.inspect", params)
   of cvStep:
     var count = 1
