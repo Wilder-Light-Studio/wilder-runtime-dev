@@ -10,7 +10,10 @@
 # Flow: validate request -> dispatch method -> build response -> queue subscribed events.
 
 import json
-import std/[strutils, algorithm, sets, net]
+import std/[strutils, algorithm, sets, net, os, tables]
+import runtime/core
+import runtime/bundle_loader
+import runtime/console
 
 const
   IpcVersion* = "ipc-v1"
@@ -24,12 +27,15 @@ type
     things*: seq[string]
     snapshotRevision*: int
     tick*: int
+    watchedPaths*: seq[string]
+    consoleSessions*: Table[string, ConsoleSession]
 
   IpcSession* = ref object
     state*: IpcServerState
     subscriptions*: HashSet[string]
     pushQueue*: seq[JsonNode]
     notificationLines*: seq[string]
+    lifecycle*: RuntimeLifecycle
 
 const
   IpcDefaultHost* = "127.0.0.1"
@@ -44,16 +50,19 @@ proc defaultIpcServerState*(): IpcServerState =
     reconciliation: "clean",
     things: @["Runtime", "World", "Scheduler"],
     snapshotRevision: 0,
-    tick: 0
+    tick: 0,
+    watchedPaths: @[],
+    consoleSessions: initTable[string, ConsoleSession]()
   )
 
 # Flow: Create a new in-memory IPC session with deterministic initial state.
-proc newIpcSession*(state: IpcServerState = defaultIpcServerState()): IpcSession =
+proc newIpcSession*(lc: RuntimeLifecycle, state: IpcServerState = defaultIpcServerState()): IpcSession =
   result = IpcSession(
     state: state,
     subscriptions: initHashSet[string](),
     pushQueue: @[],
-    notificationLines: @[]
+    notificationLines: @[],
+    lifecycle: lc
   )
 
 # Flow: Return true when host value is localhost-safe for this phase.
@@ -163,7 +172,8 @@ proc inspectPayload(session: IpcSession): JsonNode =
     "things": orderedThings,
     "reconciliation": session.state.reconciliation,
     "snapshotRevision": session.state.snapshotRevision,
-    "tick": session.state.tick
+    "tick": session.state.tick,
+    "watchedPaths": session.state.watchedPaths
   }
 
 # Flow: Drain and clear queued push events in stable FIFO order.
@@ -174,6 +184,7 @@ proc handleRequest*(session: IpcSession, request: JsonNode): JsonNode =
   try:
     let parsed = validateRequest(request)
     let requestMethod = parsed.requestMethod.toLowerAscii
+    let params = parsed.params
     case requestMethod
     of "pause", "runtime.pause":
       session.state.paused = true
@@ -200,8 +211,65 @@ proc handleRequest*(session: IpcSession, request: JsonNode): JsonNode =
       })
     of "inspect", "runtime.inspect":
       return successResponse(parsed.id, session.inspectPayload())
+    of "addWatch", "runtime.addWatch":
+      let path = params.getStr("path")
+      session.state.watchedPaths.add(path)
+      session.queueEvent("runtime.watchAdded", %*{"path": path})
+      return successResponse(parsed.id, %*{"status": "added", "path": path})
+    of "removeWatch", "runtime.removeWatch":
+      let path = params.getStr("path")
+      var newPaths: seq[string] = @[]
+      for p in session.state.watchedPaths:
+        if p != path: newPaths.add(p)
+      session.state.watchedPaths = newPaths
+      session.queueEvent("runtime.watchRemoved", %*{"path": path})
+      return successResponse(parsed.id, %*{"status": "removed", "path": path})
+    of "listWatch", "runtime.listWatch":
+      return successResponse(parsed.id, %*{"paths": session.state.watchedPaths})
+    of "addThing", "runtime.addThing":
+      let bundlePath = params.getStr("bundle")
+      let loadResult = loadCosmosBundle(bundlePath)
+      
+      if loadResult.loadStatus != tlsLoaded:
+        return errorResponse(parsed.id, "load_failure", 
+          "Hot-load failed: " & loadResult.errorMsg & 
+          " at " & loadResult.location & 
+          ". Expected a valid .cosmos bundle with manifest.json.")
+      
+      let thingId = loadResult.manifest.id
+      session.state.things.add(thingId) 
+      session.queueEvent("runtime.thingAdded", %*{"id": thingId, "version": loadResult.manifest.version})
+      return successResponse(parsed.id, %*{"status": "installed", "id": thingId})
+    of "removeThing", "runtime.removeThing":
+      let id = params.getStr("id")
+      var newThings: seq[string] = @[]
+      for t in session.state.things:
+        if t != id: newThings.add(t)
+      session.state.things = newThings
+      session.queueEvent("runtime.thingRemoved", %*{"id": id})
+      return successResponse(parsed.id, %*{"status": "removed", "id": id})
+    of "listThings", "runtime.listThings":
+      return successResponse(parsed.id, %*{"things": session.state.things})
+    of "setMode", "runtime.setMode":
+      let mode = params.getStr("mode")
+      session.queueEvent("runtime.modeChanged", %*{"mode": mode})
+      return successResponse(parsed.id, %*{"status": "mode set", "mode": mode})
+    of "attach", "runtime.attach":
+      let identity = params.getStr("identity")
+      let cs = newConsoleSession()
+      discard cs.cmdAttach(identity)
+      session.state.consoleSessions[parsed.id] = cs
+      return successResponse(parsed.id, %*{"status": "attached", "identity": identity})
+    of "console_dispatch", "runtime.console_dispatch":
+      let input = params.getStr("input")
+      let cs = session.state.consoleSessions.getOrDefault(parsed.id, newConsoleSession())
+      let output = cs.dispatch(input)
+      return successResponse(parsed.id, %*{"ok": output.ok, "lines": output.lines})
+    of "console_render", "runtime.console_render":
+      let cs = session.state.consoleSessions.getOrDefault(parsed.id, newConsoleSession())
+      return successResponse(parsed.id, %*{"render": cs.renderAll()})
     of "subscribe", "runtime.subscribe":
-      let names = parseEventNames(parsed.params)
+      let names = parseEventNames(params)
       for name in names:
         session.subscriptions.incl(name)
       return successResponse(parsed.id, %*{
@@ -209,7 +277,7 @@ proc handleRequest*(session: IpcSession, request: JsonNode): JsonNode =
         "count": session.subscriptions.card
       })
     of "unsubscribe", "runtime.unsubscribe":
-      let names = parseEventNames(parsed.params)
+      let names = parseEventNames(params)
       for name in names:
         session.subscriptions.excl(name)
       return successResponse(parsed.id, %*{

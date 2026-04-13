@@ -1,4 +1,4 @@
-﻿# Wilder Cosmos 0.4.0
+# Wilder Cosmos 0.4.0
 # Module name: Cosmos Main
 # Module Path: src/cosmos_main.nim
 # Summary: Thin CLI entrypoint for runtime startup coordinator launch contract and flags.
@@ -6,7 +6,7 @@
 # Memory note: keep orchestration thin; do not duplicate config or lifecycle logic.
 # Flow: parse args -> resolve console mode -> validate -> load config -> emit startup report.
 
-import std/[os, strutils, options, json, times, tables, algorithm]
+import std/[os, strutils, options, json, times, tables, algorithm, threads]
 import runtime/config
 import runtime/capabilities
 import runtime/concepts
@@ -16,6 +16,7 @@ import runtime/startapp
 import runtime/core
 import cosmos/thing/thing
 import cosmos/runtime/scheduler
+import cli_parser
 
 type
   RuntimeStartMode = enum
@@ -519,67 +520,39 @@ proc collectThingIdsFromPaths(paths: seq[string]): tuple[ids: seq[string], warni
       ids.add(name)
   (ids, warnings)
 
-# Flow: Execute explicit runtime startup command.
-proc runStartCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
+# Flow: Launch the runtime as a long-running daemon.
+proc launchDaemon(): int =
   try:
-    let opts = parseStartOptions(args)
-    let thingLoad = collectThingIdsFromPaths(opts.withPaths)
-
-    var overrides = RuntimeConfigOverrides()
-    overrides.logLevel = some(opts.logLevel)
-
-    let lifecycle = newRuntimeLifecycle()
-    startup(
-      lifecycle,
-      configPath = opts.configPath,
-      moduleNames = @[],
-      userThingIds = thingLoad.ids,
-      configOverrides = overrides,
-      capabilityProvides = @[],
-      capabilityWants = @[]
+    let lc = newRuntimeLifecycle()
+    startup(lc)
+    
+    echo "cosmos: daemon initialized"
+    lc.printBanner()
+    
+    let session = newIpcSession()
+    
+    # Start IPC server in a background thread
+    var ipcThread: Thread
+    createThread(ipcThread, proc() =
+      serveIpcTcp(session)
     )
-
-    case opts.runtimeMode
-    of rsmStep:
-      discard executeFrame(lifecycle.schedulerState, @[])
-    of rsmContinuous:
-      discard
-    of rsmPeriodic:
-      discard executeFrame(lifecycle.schedulerState, @[])
-
-    var loadedUserThings = 0
-    for thing in lifecycle.loadedThings:
-      if thing.loadStatus == tlsLoaded and not thing.isCosmosRoot:
-        inc loadedUserThings
-
-    var lines = @[
-      "cosmos: runtime started",
-      "cosmos: root thing created (" & lifecycle.cosmosRootId & ")",
-      "cosmos: scheduler initialized",
-      "cosmos: capability registry initialized",
-      "cosmos: user things loaded " & $loadedUserThings,
-      "cosmos: frame mode " &
-        (case opts.runtimeMode
-          of rsmStep: "step"
-          of rsmContinuous: "continuous"
-          of rsmPeriodic: "periodic")
-    ]
-    if loadedUserThings == 0:
-      lines.add("cosmos: empty startup active")
-    for warning in thingLoad.warnings:
-      lines.add(warning)
-    return (0, lines)
-  except ValueError as err:
-    if err.msg == "start: help-requested":
-      return (0, @[StartHelpText])
-    return (2, @[err.msg, StartHelpText])
-  except StartupError as err:
-    return (1, @[
-      "cosmos: startup halted",
-      "haltedAt=" & $err.haltedAt,
-      "reason=" & err.msg,
-      "recoveryGuidance=" & err.recoveryGuidance
-    ])
+    
+    echo "cosmos: IPC server listening on " & ipcEndpointUri()
+    
+    # Main loop: Frame execution
+    while true:
+      if session.state.paused:
+        sleep(100)
+      else:
+        # In a real implementation, this would be the scheduler's frame loop
+        # For now, we simulate the frame loop
+        executeFrame(lc.schedulerState, @[])
+        sleep(16) # ~60fps
+        
+  except CatchableError as err:
+    echo "cosmos: daemon fatal error - " & err.msg
+    return 1
+  return 0
 
 # Flow: Resolve effective console mode when --watch is set without explicit --console.
 proc resolveConsoleMode*(opts: var CoordinatorLaunchOptions) =
@@ -1281,134 +1254,158 @@ proc runNotifyCommand(args: seq[string]): tuple[exitCode: int, lines: seq[string
   except ValueError as err:
     return (2, @[err.msg, NotifyFormatHelpText])
 
-# Flow: Run coordinator launch orchestration and return exit code plus output lines.
+# Flow: Map a parsed Git-style command to an IPC method and parameters.
+proc commandToIpcRequest(cmd: ParsedCommand): tuple[method: string, params: JsonNode] =
+  if cmd.verb == cvConsole:
+    raise newException(ValueError, "console: use interactive mode")
+  var params = %*{}
+  case cmd.verb
+  of cvStart:
+    return ("runtime.start", params)
+  of cvStop:
+    return ("runtime.stop", params)
+  of cvRestart:
+    return ("runtime.restart", params)
+  of cvAdd:
+    case cmd.noun
+    of nnWatch:
+      if cmd.args.len == 0: raise newException(ValueError, "add watch: path required")
+      params["path"] = cmd.args[0]
+      return ("runtime.addWatch", params)
+    of nnThing:
+      if cmd.args.len == 0: raise newException(ValueError, "add thing: bundle required")
+      params["bundle"] = cmd.args[0]
+      return ("runtime.addThing", params)
+    else: raise newException(ValueError, "add: expected noun watch or thing")
+  of cvRemove:
+    case cmd.noun
+    of nnWatch:
+      if cmd.args.len == 0: raise newException(ValueError, "remove watch: path required")
+      params["path"] = cmd.args[0]
+      return ("runtime.removeWatch", params)
+    of nnThing:
+      if cmd.args.len == 0: raise newException(ValueError, "remove thing: id required")
+      params["id"] = cmd.args[0]
+      return ("runtime.removeThing", params)
+    else: raise newException(ValueError, "remove: expected noun watch or thing")
+  of cvList:
+    case cmd.noun
+    of nnWatch: return ("runtime.listWatch", params)
+    of nnThing: return ("runtime.listThings", params)
+    else: raise newException(ValueError, "list: expected noun watch or thing")
+  of cvMode:
+    if cmd.args.len == 0: raise newException(ValueError, "mode: mode name required")
+    params["mode"] = cmd.args[0]
+    return ("runtime.setMode", params)
+  of cvInspect:
+    if cmd.args.len == 0: raise newException(ValueError, "inspect: target required")
+    params["target"] = cmd.args[0]
+    return ("runtime.inspect", params)
+  of cvStep:
+    var count = 1
+    if cmd.flags.hasKey("--count"):
+      count = parseInt(cmd.flags["--count"])
+    params["count"] = %count
+    return ("runtime.step", params)
+
+# Flow: Handle interactive console session.
+proc handleConsoleInteractive() =
+  echo "Connecting to Cosmos Console..."
+  
+  # 1. Attach
+  let identity = "operator"
+  let attachReq = %*{
+    "id": "cli-attach",
+    "method": "runtime.attach",
+    "params": %*{"identity": identity}
+  }
+  discard sendIpcTcpRequest(IpcDefaultHost, IpcDefaultPort, attachReq)
+  
+  # 2. Interactive Loop
+  var running = true
+  while running:
+    # Render current state
+    let renderReq = %*{
+      "id": "cli-render",
+      "method": "runtime.console_render",
+      "params": %*{}
+    }
+    let renderFrames = sendIpcTcpRequest(IpcDefaultHost, IpcDefaultPort, renderReq)
+    if renderFrames.len > 0:
+      echo renderFrames[0]["result"].getStr("render")
+    
+    stdout.write("> ")
+    stdout.flush()
+    
+    let input = readLine(stdin)
+    if input == nil or input.strip == "exit":
+      running = false
+      continue
+    
+    if input.strip.len == 0:
+      continue
+      
+    # Dispatch command
+    let dispatchReq = %*{
+      "id": "cli-dispatch",
+      "method": "runtime.console_dispatch",
+      "params": %*{"input": input}
+    }
+    let dispatchFrames = sendIpcTcpRequest(IpcDefaultHost, IpcDefaultPort, dispatchReq)
+    if dispatchFrames.len > 0:
+      let res = dispatchFrames[0]["result"]
+      let lines = res["lines"].getArray()
+      for line in lines:
+        echo line.getStr()
+
+# Flow: Run coordinator launch orchestration using Git-style CLI grammar.
 proc runCoordinatorMain*(args: seq[string]): tuple[exitCode: int, lines: seq[string]] =
-  if args.len == 0:
-    return (0, @[CoordinatorHelpText])
+  let parsed = parseArgs(args)
+  case parsed
+  of err(msg):
+    return (2, @[msg])
+  of ok(cmd):
+    if cmd.verb == cvStart:
+      # Check if daemon is already running
+      try:
+        let check = sendIpcTcpRequest(IpcDefaultHost, IpcDefaultPort, %*{
+          "id": "ping",
+          "method": "runtime.ping",
+          "params": %*{}
+        })
+        if check.len > 0:
+          return (0, @["cosmos: daemon already active"])
+      except CatchableError:
+        # Daemon not running, proceed to launch
+        let exitCode = launchDaemon()
+        return (exitCode, @["cosmos: daemon launched successfully"])
 
-  if args[0] == "--help" or args[0] == "-h":
-    return (0, @[CoordinatorHelpText])
+    if cmd.verb == cvConsole:
+      handleConsoleInteractive()
+      return (0, @["cosmos: console session closed"])
 
-  if args[0] in ReservedCommands:
-    return (2, @["cosmos: command reserved but not implemented yet: " & args[0], CoordinatorHelpText])
-
-  if args[0] == "start":
-    return runStartCommand(args[1 .. ^1])
-
-  if args[0].startsWith("--"):
-    return (2, @["cosmos: explicit command required. Use: cosmos start [options]", CoordinatorHelpText])
-
-  if args.len > 0 and args[0] == "capabilities":
-    return runCapabilitiesCommand(args[1 .. ^1])
-  if args.len > 0 and args[0] == "ipc":
-    return runIpcCommand(args[1 .. ^1])
-  if args.len > 0 and args[0] == "notify":
-    return runNotifyCommand(args[1 .. ^1])
-  if args.len > 0 and args[0] == "scan":
-    return runScanCommand(args[1 .. ^1])
-  if args.len > 1 and args[0] == "capability" and args[1] == "conflicts":
-    return runCapabilityConflictsCommand(args[2 .. ^1])
-  if args.len > 1 and args[0] == "concept" and args[1] == "resolve":
-    return runConceptResolveCommand(args[2 .. ^1])
-  if args.len > 1 and args[0] == "concept" and args[1] == "show":
-    return runConceptShowCommand(args[2 .. ^1])
-  if args.len > 1 and args[0] == "concept" and args[1] == "validate":
-    return runConceptValidateCommand(args[2 .. ^1])
-  if args.len > 1 and args[0] == "concept" and args[1] == "export":
-    return runConceptExportCommand(args[2 .. ^1])
-  if args.len > 1 and args[0] == "concept" and args[1] == "registry":
-    return runConceptRegistryCommand(args[2 .. ^1])
-  if args.len > 0 and args[0] == "startapp":
-    return runStartAppCommand(args[1 .. ^1])
-  try:
-    var opts = parseCoordinatorOptions(args)
-
-    if opts.wantHelp:
-      return (0, @[CoordinatorHelpText])
-
-    resolveConsoleMode(opts)
-    validateCoordinatorOptions(opts)
-
-    # Load or build configuration
-    var modeVal = "development"
-    var transportVal = "json"
-    var logLevelVal = "info"
-    var endpointVal = "localhost"
-    var portVal = 7700
-    if opts.modeOverride.isSome:
-      modeVal = opts.modeOverride.get()
-    if opts.transport.isSome:
-      transportVal = opts.transport.get()
-    if opts.logLevel.isSome:
-      logLevelVal = opts.logLevel.get()
-    if opts.endpoint.isSome:
-      endpointVal = opts.endpoint.get()
-    if opts.port.isSome:
-      portVal = opts.port.get()
-
-    if opts.configPath.isSome:
-      # Load from config file (with CLI overrides)
-      let configPath = opts.configPath.get()
-      var overrides = RuntimeConfigOverrides()
-      if opts.modeOverride.isSome:
-        overrides.mode = opts.modeOverride
-      if opts.encryptionMode.isSome:
-        overrides.encryptionMode = opts.encryptionMode
-      if opts.logLevel.isSome:
-        overrides.logLevel = opts.logLevel
-      if opts.port.isSome:
-        overrides.port = opts.port
-      discard loadConfigWithOverrides(configPath, overrides)
-      modeVal = "from-config"
-    else:
-      # Build config from default profile with optional CLI overrides.
-      discard buildConfigFromCliParams(
-        mode = modeVal,
-        transport = transportVal,
-        logLevel = logLevelVal,
-        endpoint = endpointVal,
-        port = portVal,
-        encryptionMode = opts.encryptionMode,
-        recoveryEnabled = none[bool](),
-        operatorEscrow = none[bool]()
-      )
-
-    if opts.startupProvides.len > 0 or opts.startupWants.len > 0 or
-        opts.startupBindings.len > 0:
-      let startupResolution = resolveCapabilities(
-        opts.startupProvides,
-        opts.startupWants,
-        opts.startupBindings,
-        enforceBindingCoverage = opts.startupBindings.len > 0
-      )
-      assertFatalFree(startupResolution)
-
-    let branchName = case opts.consoleMode
-      of ccmDetach: "detach"
-      of ccmAttach: "attach"
-      of ccmAuto:   "auto"
-
-    let modeStr = modeVal
-
-    let configPathStr = if opts.configPath.isSome: opts.configPath.get()
-              else: "(runtime defaults)"
-
-    let report = CoordinatorStartupReport(
-      consoleBranch: branchName,
-      configPath:    configPathStr,
-      modeResolved:  modeStr,
-      exitCode:      0
-    )
-    return (0, @[
-      "cosmos: config loaded from " & report.configPath,
-      "cosmos: startup branch " & report.consoleBranch,
-      "cosmos: mode " & report.modeResolved,
-      "cosmos: capability gate passed"
-    ])
-  except ValueError as err:
-    return (2, @[err.msg, CoordinatorUsageText])
-  except CatchableError as err:
-    return (1, @["cosmos: launch failed - " & err.msg])
+    # For all other commands, communicate with the daemon via IPC
+    try:
+      let (method, params) = commandToIpcRequest(cmd)
+      let requestNode = %*{
+        "id": nextCliRequestId(),
+        "method": method,
+        "params": params
+      }
+      let frames = sendIpcTcpRequest(IpcDefaultHost, IpcDefaultPort, requestNode)
+      if frames.len == 0:
+        return (1, @["cosmos: no response from daemon"])
+      
+      var lines: seq[string] = @[]
+      for frame in frames:
+        lines.add(frame.pretty)
+      
+      let exitCode = if frames[0].hasKey("error"): 2 else: 0
+      return (exitCode, lines)
+    except ValueError as err:
+      return (2, @[err.msg])
+    except CatchableError as err:
+      return (1, @["cosmos: daemon communication failure - " & err.msg])
 
 when isMainModule:
   let (exitCode, lines) = runCoordinatorMain(commandLineParams())
