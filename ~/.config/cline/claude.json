@@ -1,0 +1,41 @@
+{
+  "name": "wilder-runtime-dev",
+  "version": "1.0.0",
+  "model": "claude-opus-4-5-20251019",
+  "temperature": 0.7,
+  "maxTokens": 30000,
+  "settings": {
+    "thinking": {
+      "enabled": true,
+      "threshold": 0.5
+    },
+    "tools": {
+      "enabled": true,
+      "maxRetries": 3
+    }
+  },
+  "ui": {
+    "theme": "dark",
+    "fontFamily": "system-ui"
+  },
+  "tools": [
+    {
+      "name": "wilder_cosmos_runtime",
+      "description": "Build and run the Wilder Cosmos runtime",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "Command to execute (e.g., 'build', 'run', 'test')"
+          },
+          "args": {
+            "type": "array",
+            "description": "Arguments to pass to the command"
+          }
+        },
+        "required": ["command"]
+      }
+    }
+  ]
+}
