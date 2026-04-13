@@ -5,6 +5,8 @@
 # Grammar: cosmos [flags] <verb> [noun] [args]
 
 import std/[strutils, options, tables]
+import runtime/core
+import runtime/result
 
 type
   CommandVerb = enum

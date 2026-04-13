@@ -69,3 +69,20 @@ nimble compliance
 - Module scaffolding: `scripts/dev/new_nim_module.ps1`
 - Release management: `scripts/ops/prepare_release.ps1`
 - CI/CD workflows: `.github/workflows/`
+
+## Runtime Architecture: The Daemon Model
+
+The Cosmos runtime employs a **Single Entry Point and Daemon Model**. 
+
+### The `cosmos` CLI
+All interactions with the runtime occur through the `cosmos` CLI. There is no separate "dev server" or alternate executable. This ensures that the runtime behaves identically in all environments (No Dev/Prod Divergence).
+
+### The Daemon
+The `cosmos start` command launches (or attaches to) a long-running daemon responsible for:
+- Booting the substrate and scheduler.
+- Running the frame loop.
+- Managing watched locations and installed "Things".
+- Exposing introspection surfaces via a stable IPC interface.
+
+### Empty Boot
+The runtime is designed for **Empty Boot**, meaning it can start in a completely empty state with no Things, constellations, or manifests.

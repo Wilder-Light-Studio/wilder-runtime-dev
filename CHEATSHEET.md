@@ -12,6 +12,30 @@ nimble buildRuntime    # Build release binary to bin/
 nimble cleanExe        # Remove generated .exe files
 ```
 
+## Core CLI (Git-Style)
+`cosmos <verb> [noun] [args]`
+
+### Daemon Lifecycle
+- `cosmos start` - Start or attach to the daemon
+- `cosmos stop` - Stop the daemon
+- `cosmos restart` - Restart the daemon
+
+### Watch Management
+- `cosmos add watch <path>` - Add directory to watch
+- `cosmos remove watch <path>` - Remove directory from watch
+- `cosmos list watch` - List all watched paths
+
+### Thing Management
+- `cosmos add thing <bundle.cosmos>` - Install a .cosmos bundle
+- `cosmos remove thing <id>` - Remove a Thing by ID
+- `cosmos list things` - List all installed Things
+
+### Introspection & Control
+- `cosmos mode <mode>` - Switch mode (step, aware, debug, encrypted, clear)
+- `cosmos inspect <target>` - Inspect runtime state
+- `cosmos console` - Enter interactive console session
+- `cosmos step [--count=N]` - Advance frame loop
+
 ## Testing
 
 ```powershell

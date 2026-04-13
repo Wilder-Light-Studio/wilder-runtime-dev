@@ -23,6 +23,8 @@
 
 import json
 import std/[strutils, algorithm, tables, os, options]
+
+import runtime/result
 import config
 import persistence
 import prefilter_table_generated

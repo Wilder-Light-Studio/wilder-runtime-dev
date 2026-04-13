@@ -7,6 +7,7 @@
 import json
 import std/[os, strutils, tables]
 import runtime/core
+import runtime/result
 
 type
   ThingManifest* = object
@@ -33,12 +34,24 @@ proc parseManifest(path: string): Result[ThingManifest, string] =
     if node.kind != JObject:
       return err("manifest.json must be a JSON object")
     
+    var deps: seq[string] = @[]
+    for x in node{"dependencies"}.getArray():
+      deps.add(x.getStr())
+
+    var caps: seq[string] = @[]
+    for x in node{"capabilities"}.getArray():
+      caps.add(x.getStr())
+
+    var eps = initTable[string, string]()
+    for k, v in node{"entryPoints"}.getObj():
+      eps[k] = v.getStr()
+
     result = ThingManifest(
       id: node{"id"}.getStr(""),
       version: node{"version"}.getStr(""),
-      dependencies: node{"dependencies"}.getArray().map(x => x.getStr()),
-      capabilities: node{"capabilities"}.getArray().map(x => x.getStr()),
-      entryPoints: node{"entryPoints"}.getObj().pairs.map(p => (p.key, p.val.getStr()))
+      dependencies: deps,
+      capabilities: caps,
+      entryPoints: eps
     )
     
     if result.id.len == 0:
@@ -80,13 +93,3 @@ proc loadCosmosBundle*(path: string): BundleLoadResult =
       location: bundleDir
     )
 
-# Helper for mapping JSON arrays to strings
-proc map[T, U](seq: seq[T], f: proc(T): U): seq[U] =
-  result = @[]
-  for x in seq:
-    result.add(f(x))
-
-# Helper for mapping JSON objects to tables
-proc map[K, V](pairs: seq[tuple[K, JsonNode]], f: proc(K, JsonNode): tuple[K, V]) =
-  # This is a simplified helper for the manifest parsing
-  # In a real project, I'd use a more robust mapping utility

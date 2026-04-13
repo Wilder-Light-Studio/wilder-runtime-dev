@@ -1,4 +1,4 @@
-﻿<p align="left">
+<p align="left">
   <img src="docs/assets/wilder-cosmos-v3.png" alt="Wilder Cosmos Logo" width="300"/>
 </p>
 
@@ -85,6 +85,23 @@ It includes:
 - examples and templates for new modules
 
 ## Quick Start
+
+### Single Entry Point
+Cosmos uses a single, stable entry point for all operations: the `cosmos` CLI.
+
+**Starting the Runtime:**
+The runtime operates as a long-running daemon. To start or attach to it:
+```bash
+cosmos start
+```
+
+**Git-Style CLI Grammar:**
+Cosmos uses an explicit, composable command structure: `cosmos <verb> [noun] [args]`
+- **Daemon:** `cosmos start`, `cosmos stop`, `cosmos restart`
+- **Watch Management:** `cosmos add watch /path/to/app`, `cosmos list watch`
+- **Thing Management:** `cosmos add thing screenkeys.cosmos`, `cosmos list things`
+- **Introspection:** `cosmos inspect world`, `cosmos console`
+- **Mode Switching:** `cosmos mode step`, `cosmos mode aware`
 
 ### Prerequisites
 
