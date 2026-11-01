@@ -15,6 +15,13 @@ instruments) are kept in separate projects. Cosmos stays a general runtime. The 
 projects use it through its public surface, such as Things, Bridges and IPC, and
 nothing audio-specific lives in this repo.
 
+**Audio/UI notes waiting for their own project** (move them when it exists):
+- [ui-vision.md](docs/enhancements/ui-vision.md): calm, spacious, fast UI with
+  accessibility built in, including high contrast, screen readers and keyboard-only
+  use.
+- [audio-nl-ring-buffer.md](docs/enhancements/audio-nl-ring-buffer.md): sketch of the
+  real-time audio boundary.
+
 ## Current Focus
 
 | Phase | Status | Summary |
@@ -88,8 +95,9 @@ Snapshot from 2026-11-01 (Nim 2.0.8, Windows):
 
 ## Next Tasks
 
-1. **MVP requirements:** factor what the MIDI editor, synth and kernel need. Sort
-   existing phases into keep, defer and drop.
+1. **MVP requirements:** drafted in
+   [MVP-REQUIREMENTS.md](docs/implementation/MVP-REQUIREMENTS.md). Review it and
+   settle its three open decisions.
 2. **Spec:** develop it from the MVP requirements, including kernel contracts and
    measurable latency targets.
 3. **Phased plan:** small, verifiable phases. Make a trustworthy test gate an early

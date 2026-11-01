@@ -3,6 +3,9 @@
 This document defines what must be true for the Wilder Cosmos Runtime to be correct.
 Specifications (how each requirement is made true) live in `docs/implementation/SPECIFICATION.md`.
 
+> **MVP scope:** [MVP-REQUIREMENTS.md](MVP-REQUIREMENTS.md) selects the subset of this
+> document that defines the MVP. This document is kept as the long-term reference.
+
 ---
 
 
