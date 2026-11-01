@@ -21,6 +21,8 @@ nothing audio-specific lives in this repo.
   use.
 - [audio-nl-ring-buffer.md](docs/enhancements/audio-nl-ring-buffer.md): sketch of the
   real-time audio boundary.
+- [audio-references.md](docs/enhancements/audio-references.md): inspiration sites for
+  building synths, starting with Vital.
 
 ## Current Focus
 
