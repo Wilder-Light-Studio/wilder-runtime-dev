@@ -10,6 +10,11 @@ and possibly a DAW. The two goals that drive every decision:
 - **Hardware feel:** low, consistent latency, with the OS kept off the hot path.
 - **Integration:** solutions are built by composing Things and systems.
 
+**Project boundary:** Cosmos and the audio projects (the real-time kernel and the
+instruments) are kept in separate projects. Cosmos stays a general runtime. The audio
+projects use it through its public surface, such as Things, Bridges and IPC, and
+nothing audio-specific lives in this repo.
+
 ## Current Focus
 
 | Phase | Status | Summary |
