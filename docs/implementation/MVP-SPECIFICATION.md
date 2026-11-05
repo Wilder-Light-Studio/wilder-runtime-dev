@@ -288,11 +288,23 @@ Instantiating a composite Concept creates a Thing whose children are one Thing p
 part, at scope paths under it (`cosmos.synth.filter`). Its wires connect them. A wire
 is a constrained wave, not a Thing (MVP-ONT-8), so it has no scope path.
 
-**Wire check.** Each wire runs from one PROVIDES on its origin to one WANTS on its
-destination. When the Concept loads, the capability graph compares their signatures
-with the check it already runs for every WANTS (`capabilities.nim`, MVP-INT-3). A
-mismatch, or a missing PROVIDES or WANTS, produces a structured diagnostic naming the
-wire. The Concept is then skipped with a warning (MVP-LIFE-3), and startup continues.
+**Wire form.** Each entry in WIRES names an origin and one or more destinations:
+
+```json
+{"from": "keys.notes", "to": ["osc", "display"]}
+```
+
+`from` uses the MVP-INT-1 reference form. `keys` carries every wave on its output, and
+`keys.notes` carries only the waves whose `provide` is `notes` (§4B.2). The output
+stays one stream, and the wire selects from it by `provide`. `to` lists the
+destinations, whose input receives those waves.
+
+**Wire check.** The origin's PROVIDES declare what its output can carry, and each
+destination's WANTS declare what its input accepts. When the Concept loads, the
+capability graph compares what the wire carries (one PROVIDES, or all of them) with
+each destination's WANTS, using the check it already runs for every WANTS
+(`capabilities.nim`, MVP-INT-3). If any destination can't accept something the wire
+carries, a structured diagnostic names the wire and that destination. The Concept is then skipped with a warning (MVP-LIFE-3), and startup continues.
 No wave travels on a wire that hasn't passed this check. The payload of each wave
 is still validated by the prefilter (MVP-VAL-3).
 Its own `wants` and `provides` are wired to its parts' ports. Other Things connect to

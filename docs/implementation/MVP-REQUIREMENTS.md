@@ -77,13 +77,18 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
     across the whole Cosmos, and every Thing with a matching sense perceives it. A
     falloff model may come later; the old projection radius
     (`Occurrence.projectionRadius`) is its hook.
-  - **A wire is a constrained wave, with a set origin and destination.** It goes only
-    to its destination instead of radiating, and the destination perceives it because
-    it's wired there. This keeps the original rule that wires are "designer-level
+  - **A wire is a constrained wave, with a set origin and destination.** It connects
+    one Thing's output to the input of one or more other Things (MVP-INT-6). Waves on
+    it go only to those destinations instead of radiating, and each destination
+    perceives them because it's wired there.
+  - **A wire names what it carries,** the same way consumers reference a provider
+    (MVP-INT-1): `Thing` carries the whole output, and `Thing.provide` carries only
+    that one PROVIDES. Like an output jack on a hardware module, each PROVIDES can be
+    wired on its own. This keeps the original rule that wires are "designer-level
     containment over Wave propagation" (REQUIREMENTS Ontology). An intermediary
     between two Things is a Thing in the middle, with a wire on each side.
-  - **A wire is checked before any wave travels on it.** Its destination must be
-    able to handle what its origin sends. A mismatch is a structured error, like any
+  - **A wire is checked before any wave travels on it.** Each destination must be
+    able to handle what the wire carries. A mismatch is a structured error, like any
     incompatible signature (MVP-INT-3), and the Concept that declares the wire is
     skipped with a warning (MVP-LIFE-3).
   - Perception is a Thing noticing a wave through one of its senses, or receiving one
