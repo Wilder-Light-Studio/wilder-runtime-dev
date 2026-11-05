@@ -50,6 +50,9 @@ nothing audio-specific lives in this repo.
   on Windows for now).
 - **Possible later target:** a stripped OS appliance. Leaning toward stripped Linux
   with PREEMPT_RT (prior art: Elk Audio OS, Bela). FreeBSD is the alternative.
+- **Appliance hardware:** a mini PC as the instrument module, such as a NUC (now made
+  by ASUS) or an AMD-based mini PC. Measure timing with `cyclictest` before
+  committing to a model.
 
 ### Test health
 
@@ -99,7 +102,8 @@ Snapshot from 2026-11-01 (Nim 2.0.8, Windows):
 
 1. **MVP requirements:** drafted in
    [MVP-REQUIREMENTS.md](docs/implementation/MVP-REQUIREMENTS.md). Review it and
-   settle its three open decisions.
+   settle its three open decisions. Settled 2026-11-05: port from config, a no-I/O
+   fast check, and `cosmos console` as the only console.
 2. **Spec:** develop it from the MVP requirements, including kernel contracts and
    measurable latency targets.
 3. **Phased plan:** small, verifiable phases. Make a trustworthy test gate an early

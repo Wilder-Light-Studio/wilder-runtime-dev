@@ -146,8 +146,9 @@ daemon model).*
 - **MVP-CLI-1** `cosmos` with no command, `--help` and `-h` print help, exit 0, and
   start nothing.
 - **MVP-CLI-2** `cosmos start` starts the daemon. It accepts `--mode
-  <step|continuous|periodic>`, `--config <path>`, `--with <path>` (repeatable) and
-  `--loglevel <info|warn|error|debug>`. Invalid values fail fast with usage text.
+  <step|continuous|periodic>`, `--config <path>`, `--with <path>` (repeatable),
+  `--loglevel <info|warn|error|debug>` and `--port <N>`. Invalid values fail fast with
+  usage text.
 - **MVP-CLI-3** If a daemon is already running, `cosmos start` reports that and exits
   0 without starting another.
 - **MVP-CLI-4** `cosmos stop` shuts the daemon down cleanly (MVP-LIFE-6) and releases
@@ -161,6 +162,9 @@ daemon model).*
   response envelopes. Request IDs are unique per invocation.
 - **MVP-CLI-8** Unknown commands, unknown flags and missing values exit non-zero with
   usage text.
+- **MVP-CLI-9** The daemon listens on, and every client command connects to, the port
+  from the loaded config (MVP-CFG-2: file, then `COSMOS_PORT`, then `--port`; default
+  7700). No command hard-codes a port.
 
 ## 9. Console
 
@@ -176,6 +180,9 @@ daemon model).*
   prompt.
 - **MVP-CON-5** `ls` output is one flat list, using the existing entry formats.
 - **MVP-CON-6** `watch` returns to the layout on `Ctrl+C`.
+- **MVP-CON-7** `cosmos console` is the only console entry point. It attaches to the
+  running daemon over IPC and accepts `--attach <identity>` and `--watch <path>`.
+  `console_main` is removed once its tests have moved to `cosmos console`.
 
 ## 10. Safety and stacking
 
@@ -205,8 +212,10 @@ principles.*
   untracked files.
 - **MVP-GATE-3** No test can hang. Tests that start a daemon use a free port and stop
   it themselves.
-- **MVP-GATE-4** A fast check (`nimble check-fast` or similar) runs the core suites in
-  under one minute on the development machine.
+- **MVP-GATE-4** A fast check (`nimble check-fast` or similar) runs, in under one
+  minute on the development machine, every test that opens no socket, starts no
+  process and starts no daemon. Membership follows that rule, not a list, so new tests
+  join automatically.
 - **MVP-GATE-5** A chapter or phase is marked complete only after its tests pass in
   the gate.
 - **MVP-DX-1** `cosmos startapp` creates a working Thing scaffold that `cosmos start
@@ -250,15 +259,22 @@ stays in place, but they're outside the MVP gate.
 | Portability to BSD, macOS and Haiku, and 7–10-year-old toolchains | Windows first, then Linux. |
 | Performance targets (startup under 2 s, frame rates) | Measure once the MVP is stable. |
 
-## Open decisions
+## Decisions
 
-Settle these before the spec:
+Settled 2026-11-05.
 
-1. **Daemon port in tests:** use a configurable `--port` on `start` (precedent:
-   `ipc serve --port`), or keep 7700 and have tests skip when it's taken.
-2. **Fast check contents:** which suites count as "core" for MVP-GATE-4.
-3. **Console in the daemon world:** keep `console_main` as a separate entrypoint, or
-   fold it into `cosmos console`.
+1. **Daemon port comes from config** (MVP-CLI-9). `config.nim` already resolves `port`
+   from file, `COSMOS_PORT` and overrides, with a default of 7700. The daemon and the
+   client commands ignored it and hard-coded `IpcDefaultPort`. Tests set `COSMOS_PORT`
+   to a free port. The rejected option, skipping tests when 7700 is busy, would let
+   tests skip silently and couldn't run them in parallel.
+2. **Fast check is a rule, not a list** (MVP-GATE-4). As of this decision, 41 of 46
+   test files qualify. The 5 that touch sockets, processes or the CLI entry are
+   `coordinator`, `cosmos_main_ipc_id`, `cosmos_main_path_safety`, `daemon_console`
+   and `console_status`.
+3. **One console: `cosmos console`** (MVP-CON-7). It already talks to the daemon over
+   IPC. `console_main` predates the daemon. Keeping both meant two ways in and two
+   sets of flags, including the `--config` mismatch with REQUIREMENTS.md.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\
