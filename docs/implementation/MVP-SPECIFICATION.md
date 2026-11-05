@@ -285,7 +285,16 @@ implementation is its control part. Its signal part runs in the audio kernel.
 ### 4B.3 Composition
 
 Instantiating a composite Concept creates a Thing whose children are one Thing per
-part, at scope paths under it (`cosmos.synth.filter`), plus one wire Thing per wire.
+part, at scope paths under it (`cosmos.synth.filter`). Its wires connect them. A wire
+is a constrained wave, not a Thing (MVP-ONT-8), so it has no scope path.
+
+**Wire check.** Each wire runs from one PROVIDES on its origin to one WANTS on its
+destination. When the Concept loads, the capability graph compares their signatures
+with the check it already runs for every WANTS (`capabilities.nim`, MVP-INT-3). A
+mismatch, or a missing PROVIDES or WANTS, produces a structured diagnostic naming the
+wire. The Concept is then skipped with a warning (MVP-LIFE-3), and startup continues.
+No wave travels on a wire that hasn't passed this check. The payload of each wave
+is still validated by the prefilter (MVP-VAL-3).
 Its own `wants` and `provides` are wired to its parts' ports. Other Things connect to
 those, not to the parts directly. `runtime.describe` can still show everything inside.
 A patch is a composite Concept, which is what compiles into the audio kernel's graph.

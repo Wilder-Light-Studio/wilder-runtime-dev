@@ -52,7 +52,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-ONT-4 | `ontology_test` | Partial | Perception filters (senses) are tested. There are no wires, and occurrence immutability isn't tested. |
 | MVP-ONT-5 | `lifecycle_test` | Verified | |
 | MVP-ONT-6 | `console_status_test` (cd tests) | Verified | |
-| MVP-ONT-7 | — | Missing | Modules, bundles and specialists are separate types today. The Cosmos root and Concepts aren't Things yet. There are no wires. |
+| MVP-ONT-7 | — | Missing | Modules, bundles and specialists are separate types today. The Cosmos root and Concepts aren't Things yet. |
 | MVP-ONT-8 | `ontology_test` | Partial | Waves, perception and occurrences exist as types, but `emitWave` is a stub and `filterOccurrence` accepts everything. Waves don't radiate and senses aren't declared yet. The code calls the history `RECORD`. There are no wires. |
 | MVP-ONT-9 | `scheduler_test` | Partial | Frames run in deterministic rounds with a digest, counted by `epoch`. Occurrences are emitted per event, not one per frame, and the history isn't a table of frame-to-changes rows. The console still shows `blip` and `morphos`. |
 | MVP-ONT-10 | — | Missing | Scope paths exist, but nothing limits what a Thing can act on to its natural scope, senses and wires. |

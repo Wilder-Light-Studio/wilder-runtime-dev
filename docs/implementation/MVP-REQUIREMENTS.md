@@ -39,9 +39,9 @@ to MVP-ONT-11 were decided on 2026-11-05. Where a rule changes the old docs, it'
 marked **Departs**.*
 
 **Naming.** Cosmos, Thing, Concept and World are capitalized: they're what exists.
-Everything else is lowercase. That covers the properties of the Cosmos (wave,
-perception, occurrence, history, frame, change) and Things made from Concepts (wire,
-module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
+Everything else is lowercase. That covers the properties of the Cosmos (wave, wire,
+perception, occurrence, history, frame, change) and Things made from Concepts (module,
+bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
 
 - **MVP-ONT-1** **One kind of entity.** What exists is a Thing. A Thing's interior is
   its World ("Thing and World are one primitive", SPECIFICATION §4.1). Waves,
@@ -67,21 +67,27 @@ module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PRO
     contains all other Things and is made from nothing.
   - Concepts are Things that serve as templates, like blueprints. Every other Thing is
     an instance of a Concept.
-  - Modules, bundles, bridges and wires are Things too, not separate kinds of unit.
+  - Modules, bundles and bridges are Things too, not separate kinds of unit.
   - **Departs** from the separate module, bundle and specialist types
     (REQUIREMENTS Module Contract; Delegation and Specialization). Folding that code
     in is later work.
-- **MVP-ONT-8** **Waves, perception, occurrences and the history are properties of the
-  Cosmos, not Things.**
+- **MVP-ONT-8** **Waves, wires, perception, occurrences and the history are properties
+  of the Cosmos, not Things.**
   - A wave is a message, and **waves are global.** A wave radiates from its source
     across the whole Cosmos, and every Thing with a matching sense perceives it. A
     falloff model may come later; the old projection radius
     (`Occurrence.projectionRadius`) is its hook.
-  - **Wires are local.** A wire is a Thing that carries waves directly from one Thing
-    to another, and can act as an intermediary between them.
-  - Perception is a Thing noticing a wave through one of its senses. A wire is a
-    standing perception made visible: it declares that one Thing perceives another's
-    waves.
+  - **A wire is a constrained wave, with a set origin and destination.** It goes only
+    to its destination instead of radiating, and the destination perceives it because
+    it's wired there. This keeps the original rule that wires are "designer-level
+    containment over Wave propagation" (REQUIREMENTS Ontology). An intermediary
+    between two Things is a Thing in the middle, with a wire on each side.
+  - **A wire is checked before any wave travels on it.** Its destination must be
+    able to handle what its origin sends. A mismatch is a structured error, like any
+    incompatible signature (MVP-INT-3), and the Concept that declares the wire is
+    skipped with a warning (MVP-LIFE-3).
+  - Perception is a Thing noticing a wave through one of its senses, or receiving one
+    along a wire.
   - An occurrence is what happened in one frame: a single historic event
     (immutable, MVP-ONT-4).
   - The history is the table of every occurrence in the Cosmos (MVP-ONT-9).
@@ -238,8 +244,8 @@ implementing them is the developer's main activity.*
     the same contract (see Deferred).
 - **MVP-INT-7** **Concepts compose.**
   - A Concept can be made of other Concepts: its parts and the wires between them.
-    Instantiating it creates a Thing whose World holds one Thing per part, plus its
-    wires (SPECIFICATION §4.1). Parts and wires are new.
+    Instantiating it creates a Thing whose World holds one Thing per part
+    (SPECIFICATION §4.1), connected by its wires (MVP-ONT-8). Parts and wires are new.
   - Only a Concept with no parts needs an implementation.
   - A composite Concept declares its own WANTS and PROVIDES and wires them to its
     parts. Other Things connect to it through that interface. Every connection is an
