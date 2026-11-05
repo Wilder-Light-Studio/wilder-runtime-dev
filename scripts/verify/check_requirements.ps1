@@ -10,14 +10,14 @@
 #>
 param(
   [string]$RequirementsPath = "docs/implementation/REQUIREMENTS.md",
-  [string]$MatrixPath = "docs/implementation/COMPLIANCE-MATRIX.md",
+  [string]$MatrixPath = "archive/docs/implementation/COMPLIANCE-MATRIX.md",
   [string]$GuidelinesPath = "docs/implementation/DEVELOPMENT-GUIDELINES.md",
   [string]$PullRequestTemplatePath = ".github/pull_request_template.md",
   [string]$PreReleaseWorkflowPath = ".github/workflows/pre_release_verify.yml",
   [string]$ReleaseArtifactsWorkflowPath = ".github/workflows/release_artifacts.yml",
-  [string]$ReleaseManifestScriptPath = "scripts/ops/generate_release_manifest.ps1",
-  [string]$ChecksumScriptPath = "scripts/ops/generate_artifact_checksums.ps1",
-  [string]$InstallerContractScriptPath = "scripts/ops/test_installer_contract.ps1"
+  [string]$ReleaseManifestScriptPath = "archive/scripts/ops/generate_release_manifest.ps1",
+  [string]$ChecksumScriptPath = "archive/scripts/ops/generate_artifact_checksums.ps1",
+  [string]$InstallerContractScriptPath = "archive/scripts/ops/test_installer_contract.ps1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -199,7 +199,7 @@ foreach ($pattern in $requiredPrTemplatePatterns) {
 }
 
 $requiredPrTemplateSnippets = @(
-  "docs/implementation/COMPLIANCE-MATRIX.md",
+  "archive/docs/implementation/COMPLIANCE-MATRIX.md",
   "nimble compliance",
   "nimble verify",
   "Summary, Simile, Memory note, and Flow"
@@ -275,7 +275,7 @@ foreach ($artifact in $requiredHeaderArtifacts) {
 $requiredCompletionArtifacts = @(
   "tests/unit/security_boundary_test.nim",
   "tests/unit/core_principles_test.nim",
-  "scripts/verify/test_validate_config_script.ps1"
+  "archive/scripts/verify/test_validate_config_script.ps1"
 )
 
 foreach ($artifact in $requiredCompletionArtifacts) {

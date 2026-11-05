@@ -198,7 +198,7 @@ nimble test
 
 If your module passes the tests, congratulations! You’ve built and registered your first module.
 
-See [examples/counter.nim](../../examples/counter.nim) for a full working example.
+See [examples/counter.nim](../../../examples/counter.nim) for a full working example.
 ## 5. Key APIs and Extension Points
 
 - **Runtime API:** See `src/runtime/api.nim` for core interfaces.
@@ -223,7 +223,7 @@ See [examples/counter.nim](../../examples/counter.nim) for a full working exampl
   - `cosmos.exe` — run the runtime
   - Custom scripts in `scripts/` (e.g., `build_binary.ps1`)
 - **GUI Tools:**
-  - (If available) See [docs/public/tools/](../tools/) for any graphical tools. If none, all development is CLI-based for now.
+  - There are no graphical tools yet. All development is CLI-based for now.
 
 
 ## 8. Troubleshooting & FAQ
@@ -262,7 +262,7 @@ A: See [docs/public/](../) or ask in the project chat/forum.
 
 - Explore more examples in the `examples/` directory.
 - Read the [DEVELOPMENT-GUIDELINES.md](../../implementation/DEVELOPMENT-GUIDELINES.md) for coding standards.
-- Review the [COMPLIANCE-MATRIX.md](../../implementation/COMPLIANCE-MATRIX.md) for requirements.
+- Review the [COMPLIANCE-MATRIX.md (archived)](../../../archive/docs/implementation/COMPLIANCE-MATRIX.md) for requirements.
 - Try building a more complex module or contribute improvements!
 
 ---

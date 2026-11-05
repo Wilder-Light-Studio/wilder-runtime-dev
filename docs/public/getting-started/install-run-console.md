@@ -2,7 +2,7 @@
 
 What this is. This page gives practical commands to build, test, and inspect the runtime locally.
 
-For packaged Windows installer usage, see `install-windows.md`.
+The packaged Windows installer is deferred. Its guide is archived at `archive/docs/public/getting-started/install-windows.md`.
 
 ## Prerequisites
 

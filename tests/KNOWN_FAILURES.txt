@@ -1,0 +1,8 @@
+# Test files expected to fail, with the reason and the phase that fixes them.
+# Read by scripts/verify/run_tests.ps1. A listed file that starts passing fails the
+# gate, so remove its line when it's fixed. Details: docs/implementation/MVP-COMPLIANCE-MATRIX.md
+
+tests/integration/coordinator_test.nim                  CLI routing lost in f71f93a; `start` never returns (Phase 2, spec §3 and §6)
+tests/integration/daemon_console_test.nim               console session forgotten between requests (Phase 2, spec §5)
+tests/integration/cosmos_main_ipc_id_test.nim       `ipc` subcommand unrouted since f71f93a (Phase 2, spec §6)
+tests/unit/cli_parser_test.nim                      parser reads flags only before the verb (Phase 2, spec §6)

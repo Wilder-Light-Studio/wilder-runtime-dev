@@ -70,12 +70,9 @@ proc loadCosmosBundle*(path: string): BundleLoadResult =
   if trimmedPath.len == 0:
     return BundleLoadResult(loadStatus: tlsSkippedMalformed, errorMsg: "empty path")
 
-  # For now, we treat .cosmos as a directory. 
-  # In a full implementation, this would handle zip/tar archives.
-  let bundleDir = if trimmedPath.endsWith(".cosmos"):
-                    trimmedPath.replace(".cosmos", "")
-                  else:
-                    trimmedPath
+  # A bundle is a directory, used at the path as given (for example `hello.cosmos/`).
+  # Archive bundles (zip/tar) are not supported yet.
+  let bundleDir = trimmedPath
 
   if not dirExists(bundleDir):
     return BundleLoadResult(

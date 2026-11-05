@@ -4,15 +4,24 @@ Quick context recovery — read this first when returning after a break.
 
 ## Purpose
 
-Cosmos is the foundation for a set of personal music tools: a MIDI editor, a synth,
-and possibly a DAW. The two goals that drive every decision:
+Cosmos is a general way to build things in a logical manner suited to a
+Neurodivergent (ND), ADHD mind: one kind of entity, uniform Concepts, visible wires,
+no hidden behaviour, and a record of what happened. It's for building anything. The
+first use is a set of personal music tools: a MIDI editor, a synth, and possibly a
+DAW. The first planned non-music build is a port of the user's rhyming dictionary
+app.
 
-- **Hardware feel:** low, consistent latency, with the OS kept off the hot path.
-- **Integration:** solutions are built by composing Things and systems.
+The goals that drive every decision:
+
+- **Logical, ND-friendly building:** explicit over implicit, little to remember,
+  everything inspectable by a person or an AI.
+- **Integration:** solutions are built by composing Concepts into systems of Things.
+- **Hardware feel (for the music tools):** low, consistent latency, with the OS kept
+  off the hot path.
 
 **Project boundary:** Cosmos and the audio projects (the real-time kernel and the
 instruments) are kept in separate projects. Cosmos stays a general runtime. The audio
-projects use it through its public surface, such as Things, Bridges and IPC, and
+projects use it through its public surface, such as Things, bridges and IPC, and
 nothing audio-specific lives in this repo.
 
 **Audio/UI notes waiting for their own project** (move them when it exists):
@@ -28,7 +37,7 @@ nothing audio-specific lives in this repo.
 
 | Phase | Status | Summary |
 |-------|--------|---------|
-| **MVP re-scope** | 📅 Next | Revisit and factor MVP requirements, develop the spec, prepare a phased plan |
+| **MVP re-scope** | 🔄 Active | Requirements, spec and matrix drafted; Phase 1 gate mostly done. Next: review, then Phase 2 |
 | **Phase XF** | ⏸ Paused | Cosmos Encryption Spectrum — waiting on the MVP re-scope |
 | **Phase XE** | ⏸ Paused | Humane Offline Licensing — likely deferred for single-user use |
 
@@ -41,7 +50,7 @@ nothing audio-specific lives in this repo.
 - **Two layers:**
   - **Real-time audio kernel (not built yet):** small, never allocates/locks/waits,
     sample-accurate MIDI timing, runs a precompiled flat audio graph.
-  - **Cosmos layer (mostly built):** Things, Waves, capability graph, persistence,
+  - **Cosmos layer (mostly built):** Things, waves, capability graph, persistence,
     undo, console.
 - **Patches compile into the kernel:** Things plus wires are compiled into the
   kernel's graph and swapped in at a block boundary. This follows the prefilter's
@@ -56,22 +65,19 @@ nothing audio-specific lives in this repo.
 
 ### Test health
 
-Snapshot from 2026-11-01 (Nim 2.0.8, Windows):
+Snapshot from 2026-11-05 (Nim 2.0.8, Windows). Per-file results and every
+requirement's status are in
+[MVP-COMPLIANCE-MATRIX.md](docs/implementation/MVP-COMPLIANCE-MATRIX.md).
 
-- **Overall:** 575 checks pass, 6 fail, and 5 files don't compile.
-- **The gate is incomplete:** 22 test files are not wired into `nimble test`.
-- **`nimble test` can't finish on a fresh clone:**
-  - `doc_compliance_test` needs `.github/ND_DOCS_CHECKLIST.md`, but `.gitignore`
-    excludes `.github`.
-  - `coordinator_test` hangs: `start` runs the real daemon on fixed port 7700,
-    which never exits.
-- **Compile errors:**
-  - `coordinator_ipc_test`: the `newIpcSession` signature changed.
-  - `daemon_console_test`: `import threads` is invalid in Nim 2.
-  - `bundle_loader_test` and `cli_parser_test`: they call names that are no longer
-    declared.
-- **Failures:** `cosmos_main_ipc_id_test` (2), `status_memory_test` (2),
-  `console_status_test` (1).
+- **`nimble test` passes:** it finds all 50 test files itself and runs each with a
+  90-second limit. 46 pass. 4 are known failures, listed with reasons in
+  `tests/KNOWN_FAILURES.txt`, and all four are fixed by Phase 2.
+- **Fixed on 2026-11-05:** five compile errors; two real bugs they had hidden (the
+  bundle loader looked in the wrong folder, and status invariants were checked then
+  ignored); a test expecting the old "config required" rule; the missing ND
+  checklist, now at `docs/implementation/ND_DOCS_CHECKLIST.md`.
+- **Not yet checked:** a run from a fresh clone, and `nimble compliance`, which
+  still looks for `.github` files that don't exist.
 
 ### Known issues
 
@@ -80,16 +86,13 @@ Snapshot from 2026-11-01 (Nim 2.0.8, Windows):
   Their handlers still exist in `cosmos_main.nim`, but nothing calls them.
 - **`cosmos stop` doesn't stop the daemon:** the daemon loop is `while true`, and the
   IPC server has no stop path.
-- **Missing build and CI files:** `.gitignore` excludes `build/` and `.github`, so
-  `scripts/build/*.ps1` (used by `nimble buildRuntime`) and the CI workflows are not
-  in the repo.
-- **Requirements stale against the daemon design:**
-  - Reserved commands: `inspect`, `stop` and `list` are now real commands.
-  - `console_main --config`: the requirements say it's required; the code makes it
-    optional.
-- **Plan contradictions:** `docs/implementation/PLAN.md` lists phases XA, XB, XC and
-  XE twice with conflicting statuses, and `docs/PLAN.md` (the mirror) has drifted
-  from it.
+- **Missing build and CI files:** `scripts/build/*.ps1` and the `.github` CI workflows
+  exist nowhere, neither on disk nor in history. `buildRuntime` now calls `nim`
+  directly and `.gitignore` anchors `/build/`. `cleanExe`, the release tasks and
+  `check_requirements.ps1` still point at the missing files.
+- **The daemon's IPC side isn't connected to the runtime:** it keeps its own `things`
+  list and `tick` counter, `start` ignores flags and config, and console sessions
+  don't stay attached. See MVP-SPECIFICATION §3–§5.
 - **Version numbers disagree** across the nimble file and README (0.1.0), the
   changelog (0.9.6 / 0.9.9.9) and this file (0.9.10).
 - **Home-made encryption:** `encrypted_record.nim` uses a custom XOR/SHA-256 cipher
@@ -100,26 +103,34 @@ Snapshot from 2026-11-01 (Nim 2.0.8, Windows):
 
 ## Next Tasks
 
-1. **MVP requirements:** drafted in
-   [MVP-REQUIREMENTS.md](docs/implementation/MVP-REQUIREMENTS.md). Review it and
-   settle its three open decisions. Settled 2026-11-05: port from config, a no-I/O
-   fast check, and `cosmos console` as the only console.
-2. **Spec:** develop it from the MVP requirements, including kernel contracts and
-   measurable latency targets.
-3. **Phased plan:** small, verifiable phases. Make a trustworthy test gate an early
-   phase.
-4. **Fix the test gate** (diagnosed, not started): restore CLI routing, add a real
-   daemon stop path, wire every test into `nimble test`, and make tests clone-safe.
-5. **Measure this machine:** run LatencyMon, then a WASAPI-exclusive sine wave at the
-   smallest stable buffer.
+1. **Close the MVP doc gaps** (one pass; small choices proposed for approval):
+   - Requirements: give persisted "records" another name (the record is now the
+     Cosmos's history); say where senses are declared; define the one manifest
+     format (the bundle loader's `id`/`version`/`capabilities` vs WHO/WHY/WANTS/
+     PROVIDES); state that operators and AI act through the Cosmos's interface;
+     update the "module" wording in Lifecycle; refresh the header date.
+   - Spec: add the how for MVP-ONT-7 to ONT-11 (Concepts and the Cosmos as Things,
+     folding in modules/bundles/specialists, wires, the tick-to-morphos record, scope
+     enforcement, removing `overrideDeltas`, WHY from the Concept).
+   - Phases: place that work in a phase, and revisit constraint C1, since Concepts
+     and composition are what the audio project needs first.
+2. **Confirm:** full AI parity (CLI and MCP) and the foreground daemon.
+3. **Write the phased plan** from spec §9.
+4. **Finish Phase 1:** run the gate from a fresh clone; make `nimble compliance` stop
+   depending on the missing `.github` files.
+5. **Audio project:** decide whether to use an existing engine (Faust or the
+   SuperCollider server) instead of writing a kernel from scratch (suggested
+   2026-11-05). Then run LatencyMon and a WASAPI-exclusive sine test at the smallest
+   stable buffer. Those numbers become the latency targets.
 
 ## Quick Commands
 
 ```
 nimble verify          # Full gate: compliance + all tests
-nimble test            # Run all tests
+nimble test            # Run every test file, each with a 90 s limit
+nimble checkFast       # Same, minus tests that use sockets or processes
 nimble compliance      # Requirements compliance check only
-nimble buildRuntime    # Build release binary to bin/ (scripts/build is currently missing)
+nimble buildRuntime    # Build release binary to bin/
 ```
 
 ## Session Log
@@ -128,3 +139,5 @@ nimble buildRuntime    # Build release binary to bin/ (scripts/build is currentl
 
 - 2026-04-09: Added ND-friendly repo administration infrastructure (STATUS, CHEATSHEET, script help, VS Code tasks).
 - 2026-11-01: Evaluated project state and ran the full test suite; set purpose (personal music tools, hardware-feel kernel). Next: MVP requirements → spec → phased plan.
+- 2026-11-05: Settled the three MVP decisions; wrote MVP-SPECIFICATION (plausibility constraints, daemon, IPC, AI access) and MVP-COMPLIANCE-MATRIX (79 requirement rows). Ontology decided: everything that exists is a Thing, the Cosmos is the self-existent root, wires are Things, waves/occurrences/record are properties of the Cosmos, time advances in ticks with one morphos per tick. Phase 1: `nimble test` now discovers and time-limits every test; 46 pass, 4 known failures. Next: review, finish Phase 1, then Phase 2.
+- 2026-11-05 (later): Archived 36 superseded, deferred or contradicted files to `archive/` (tracked, original paths kept); stopped tracking 22 build leftovers; rewrote the implementation doc index; fixed links. Recorded: Thing WHY comes from its Concept and can be overridden; a wire is a standing perception; no inheritance through containment.

@@ -187,7 +187,7 @@ Release notes should use the safe template at:
 - Codeberg CI/CD: `.woodpecker.yml` provides:
   - push/pull-request CI for `main`
   - tag-driven `v*` release staging (Linux artifact generation and dist packaging)
-- Release operator playbook: `docs/public/runtime/release-tooling-guide.md`
+- Release operator playbook: `archive/docs/public/runtime/release-tooling-guide.md`
 
 ## Repository Map
 
@@ -226,12 +226,12 @@ If you are approaching the project for the first time, start with:
 - [docs/index.md](docs/index.md)
 - [docs/public/index.md](docs/public/index.md)
 - [docs/implementation/REQUIREMENTS.md](docs/implementation/REQUIREMENTS.md)
-- [docs/implementation/SPECIFICATION-NIM.md](docs/implementation/SPECIFICATION-NIM.md)
-- [docs/implementation/PLAN.md](docs/implementation/PLAN.md)
-- [docs/implementation/IMPLEMENTATION-DETAILS.md](docs/implementation/IMPLEMENTATION-DETAILS.md)
+- [docs/implementation/MVP-SPECIFICATION.md](docs/implementation/MVP-SPECIFICATION.md)
+- [archive/docs/implementation/PLAN.md (archived)](archive/docs/implementation/PLAN.md)
+- [archive/docs/implementation/IMPLEMENTATION-DETAILS.md (archived)](archive/docs/implementation/IMPLEMENTATION-DETAILS.md)
 - [docs/implementation/DEVELOPMENT-GUIDELINES.md](docs/implementation/DEVELOPMENT-GUIDELINES.md)
-- [docs/implementation/MODULES.md](docs/implementation/MODULES.md)
-- [Application Developer Getting Started Guide](getting-started/app-developer-guide.md)
+- [archive/docs/implementation/MODULES.md (archived)](archive/docs/implementation/MODULES.md)
+- [Application Developer Getting Started Guide](docs/public/getting-started/app-developer-guide.md)
 
 ## Development Workflow
 

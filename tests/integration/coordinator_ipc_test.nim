@@ -10,6 +10,7 @@ import unittest
 import json
 import std/strutils
 import ../../src/runtime/coordinator_ipc
+import ../../src/runtime/core
 
 suite "coordinator IPC endpoint and request schema":
   test "endpoint enforces localhost host and valid port":
@@ -20,21 +21,21 @@ suite "coordinator IPC endpoint and request schema":
       discard ipcEndpointUri("localhost", 0)
 
   test "invalid request returns invalid_request error envelope":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     let response = handleRequest(session, %*{"method": "pause", "params": {}})
     check response.hasKey("error")
     check response["error"]["code"].getStr() == "invalid_request"
 
 suite "coordinator IPC method behavior":
   test "pause and resume mutate paused state":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     let pauseResp = handleRequest(session, %*{"id": "1", "method": "pause", "params": {}})
     check pauseResp["result"]["paused"].getBool()
     let resumeResp = handleRequest(session, %*{"id": "2", "method": "resume", "params": {}})
     check resumeResp["result"]["paused"].getBool() == false
 
   test "step and snapshot advance counters deterministically":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     let stepResp = handleRequest(session, %*{"id": "1", "method": "step", "params": {}})
     check stepResp["result"]["tick"].getInt() == 1
     let snapResp = handleRequest(session, %*{"id": "2", "method": "snapshot", "params": {}})
@@ -42,7 +43,7 @@ suite "coordinator IPC method behavior":
     check snapResp["result"]["snapshotId"].getStr() == "snapshot-1"
 
   test "inspect includes required deterministic state fields":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     let response = handleRequest(session, %*{"id": "1", "method": "inspect", "params": {}})
     check response.hasKey("result")
     check response["result"].hasKey("paused")
@@ -52,14 +53,14 @@ suite "coordinator IPC method behavior":
     check response["result"].hasKey("reconciliation")
 
   test "unknown method returns method_not_found error":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     let response = handleRequest(session, %*{"id": "1", "method": "does.not.exist", "params": {}})
     check response.hasKey("error")
     check response["error"]["code"].getStr() == "method_not_found"
 
 suite "coordinator IPC subscriptions and notifications":
   test "subscribed event is queued and drained":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     discard handleRequest(session, %*{
       "id": "sub",
       "method": "subscribe",
@@ -76,7 +77,7 @@ suite "coordinator IPC subscriptions and notifications":
     check line.contains("[INFO]")
 
   test "dispatch request returns response and queued event frames":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     discard handleRequest(session, %*{
       "id": "sub",
       "method": "subscribe",
@@ -88,7 +89,7 @@ suite "coordinator IPC subscriptions and notifications":
     check frames[1]["event"].getStr() == "runtime.paused"
 
   test "dispatch request line rejects malformed JSON with invalid_request":
-    let session = newIpcSession()
+    let session = newIpcSession(newRuntimeLifecycle())
     let lines = dispatchRequestLine(session, "{not-json")
     check lines.len == 1
     let response = parseJson(lines[0])

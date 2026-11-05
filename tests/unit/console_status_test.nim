@@ -347,11 +347,10 @@ suite "console_status placeholder suite":
 # ── console cli entrypoint ───────────────────────────────────────────────────
 
 suite "console cli entrypoint":
-  test "missing --config exits non-zero and prints usage":
+  test "missing --config starts on defaults (MVP-CFG-1)":
     let (code, lines) = runConsoleMain(@[])
-    check code != 0
-    check lines.len >= 2
-    check "--config" in lines.join(" ")
+    check code == 0
+    check "ready" in lines.join(" ")
 
   test "config + attach launches successfully":
     setupTest("console_main_launch_attach")

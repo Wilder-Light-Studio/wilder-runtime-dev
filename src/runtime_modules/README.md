@@ -17,7 +17,7 @@ Typical uses:
 If a module is optional, experimental, or intended to be replaceable without
 being treated as core runtime behavior, it belongs in `src/modules/` instead.
 
-See `docs/implementation/MODULES.md` for the full rationale.
+See `archive/docs/implementation/MODULES.md` for the full rationale.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

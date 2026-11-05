@@ -19,7 +19,7 @@ Use this guide when:
 ## Standard Development Loop
 
 1. Read the affected requirement sections in docs/implementation/REQUIREMENTS.md.
-2. Update docs/implementation/COMPLIANCE-MATRIX.md with intended verification artifacts.
+2. Update archive/docs/implementation/COMPLIANCE-MATRIX.md with intended verification artifacts.
 3. Implement code changes.
 4. Add or update tests.
 5. Run compliance and verification tasks.
@@ -74,12 +74,12 @@ When editing requirements:
 - add or update one diagram for complex flow changes,
 - add or update chapter module flowcharts for every touched module in
   `docs/implementation/ChapterX/MODULE-FLOWCHARTS.md`,
-- update docs/implementation/COMPLIANCE-MATRIX.md in the same change set,
+- update archive/docs/implementation/COMPLIANCE-MATRIX.md in the same change set,
 - confirm scripts/verify/check_requirements.ps1 still passes,
 - if a requirement involves data handling or validation, update SPECIFICATION.md
   section 24 (including §24.9–§24.14 for validating prefilter work).
 - if validating prefilter semantics change, update docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md,
-  docs/implementation/PLAN.md (Chapter 2C), and docs/implementation/COMPLIANCE-MATRIX.md in the same change set.
+  archive/docs/implementation/PLAN.md (Chapter 2C), and archive/docs/implementation/COMPLIANCE-MATRIX.md in the same change set.
 
 ## Code Comment Contract
 

@@ -779,7 +779,7 @@ These artifacts enable consistent, reproducible unit and integration tests requi
   - `endpoint` must be a non-empty string.
 - Sane defaults must be provided for all fields; the schema must remain explicit and strict
   even when defaults are applied.
-- The configuration workflow must be: edit `config/runtime.cue`, export config JSON, validate the export against the Cue schema, then load the validated JSON into `RuntimeConfig`.
+- The configuration workflow must be: edit `archive/config/runtime.cue`, export config JSON, validate the export against the Cue schema, then load the validated JSON into `RuntimeConfig`.
 - The repository must provide a validation script for exported config that exits non-zero on schema violation.
 - Configuration overrides must be supported with this precedence order, from lowest to highest:
   1. Config file
@@ -1384,7 +1384,7 @@ All checks should run in local development and CI.
 
 - A compliance check script must fail the build if required requirement sections,
   command examples, or compliance guidance are missing.
-- A requirement-to-test matrix must exist at `docs/implementation/COMPLIANCE-MATRIX.md` and map
+- A requirement-to-test matrix must exist at `archive/docs/implementation/COMPLIANCE-MATRIX.md` and map
   requirement areas to verification methods and artifacts.
 - The compliance check script must validate code comment requirements for `.nim` files,
   including header tags and per-proc `Flow` coverage.

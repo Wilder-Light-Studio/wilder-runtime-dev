@@ -6,7 +6,7 @@
 nimcache/
 nimblecache/
 htmldocs/
-build/
+/build/
 *.pdb
 *.ilk
 
@@ -16,7 +16,6 @@ build/
 *.so
 *.a
 *.o
-archive/
 nimble.develop
 nimble.paths
 nimbledeps
@@ -26,3 +25,7 @@ nimble.lock
 tests/tmp/
 tmp/
 dist/
+
+# ---> local build info and stray tool config
+/bin/
+/~/

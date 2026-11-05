@@ -12,7 +12,7 @@ proc setupBundle(dir: string, manifestContent: string) =
   writeFile(dir & "/manifest.json", manifestContent)
 
 proc teardownBundle(dir: string) =
-  rmDir(dir, recursive = true)
+  removeDir(dir)
 
 proc testLoadValidBundle() =
   let bundleDir = "test_valid.cosmos"
@@ -43,7 +43,7 @@ proc testLoadMissingManifest() =
     assert res.loadStatus == tlsSkippedMalformed
     assert "manifest.json not found" in res.errorMsg
   finally:
-    rmDir(bundleDir, recursive = true)
+    removeDir(bundleDir)
 
 proc testLoadMalformedJson() =
   let bundleDir = "test_malformed.cosmos"

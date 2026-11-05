@@ -3,8 +3,9 @@
 # Module Path: tests/unit/cli_parser_test.nim
 # Summary: Unit tests for the Git-style CLI grammar parser.
 
-import std/[os, strutils]
+import std/[os, strutils, tables]
 import cli_parser
+import runtime/result
 import unittest
 
 proc testParseStart() =

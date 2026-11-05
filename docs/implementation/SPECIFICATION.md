@@ -14,7 +14,7 @@ This is the canonical implementation specification.
 Normative source order:
 1. docs/implementation/REQUIREMENTS.md
 2. docs/implementation/SPECIFICATION.md
-3. docs/implementation/PLAN.md
+3. archive/docs/implementation/PLAN.md
 
 Interpretation rules:
 - REQUIREMENTS define what must be true.
@@ -1750,7 +1750,7 @@ type
 - A missing config file must halt startup with a structured error.
 
 ### 21.5 Validation Workflow
-- Source of truth is `config/runtime.cue`.
+- Source of truth is `archive/config/runtime.cue`.
 - Exported config must be validated against the Cue schema before runtime load.
 - The repository must provide a validation script that exits non-zero on schema violation.
 
@@ -1769,7 +1769,7 @@ type
 # 22. Messaging System Specification
 
 **REQ:** Wave Serialization Requirements
-**Schema format:** Protobuf (`.proto` file at `config/proto/messaging.proto`) and JSON as encoding patterns.
+**Schema format:** Protobuf (`.proto` file at `archive/config/proto/messaging.proto`) and JSON as encoding patterns.
 
 ### 22.1 WaveEnvelope Fields
 
@@ -1838,7 +1838,7 @@ proc decode*(s: Serializer, data: seq[byte]): WaveEnvelope
 - Used for: filesystem bridge, debug mode, and fallback when Protobuf is unavailable.
 
 ### 23.4 Protobuf Serializer
-- Schema defined in `config/proto/messaging.proto`.
+- Schema defined in `archive/config/proto/messaging.proto`.
 - Must round-trip all `WaveEnvelope` and payload types.
 - Used for: production mode (`transport = "protobuf"`).
 
@@ -2939,7 +2939,7 @@ remain consistent with `docs/implementation/REQUIREMENTS.md` (Phase XF) and
 
 ## Part III. Plan
 
-Execution sequencing and delivery tracking are maintained in docs/implementation/PLAN.md.
+Execution sequencing and delivery tracking are maintained in archive/docs/implementation/PLAN.md.
 Use this order for implementation work:
 1. Confirm or update REQUIREMENTS.
 2. Implement against this SPECIFICATION.

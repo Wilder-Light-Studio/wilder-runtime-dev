@@ -1,0 +1,43 @@
+# Neurodivergent (ND) Documentation Checklist
+
+Use this checklist when adding or changing a module, test or document. The full rules
+are in [COMMENT_STYLE.md](COMMENT_STYLE.md) and
+[DEVELOPMENT-GUIDELINES.md](DEVELOPMENT-GUIDELINES.md).
+`tests/unit/doc_compliance_test.nim` checks parts of it automatically.
+
+This file replaces `.github/ND_DOCS_CHECKLIST.md`, which the test referenced but which
+was never committed.
+
+## Module Header
+
+- [ ] The first lines name the module: `Wilder Cosmos <version>`, `Module name`,
+      `Module Path`.
+- [ ] `Summary`, `Simile`, `Memory note` and `Flow` lines are present.
+- [ ] Every proc has a `# Flow:` comment directly above it.
+- [ ] The module ends with the standard footer (COMMENT_STYLE.md §7).
+
+## Acronym Expansion
+
+- [ ] "Neurodivergent (ND)" is spelled out on first use in every file.
+- [ ] Every other acronym is spelled out on first use, for example Model Context
+      Protocol (MCP).
+- [ ] ND always means Neurodivergent, never non-deterministic.
+
+## Plain Language
+
+- [ ] Short sentences, plain words, one idea per sentence.
+- [ ] No figurative or emotional language in procedural text.
+- [ ] Determinism is stated wherever it matters ("deterministic" or
+      "non-deterministic", written in full).
+
+## Review Sign-Off
+
+- [ ] The relevant tests pass in `nimble test`.
+- [ ] STATUS.md reflects the change if it affects the current state or next tasks.
+- [ ] The compliance matrix is updated if a requirement's status changed.
+
+---
+*&copy; 2026 Wilder. All rights reserved.*\
+*Contact: teamwilder@wildercode.org*\
+*Licensed under the Wilder Foundation License 1.0.*\
+*See LICENSE for details.*

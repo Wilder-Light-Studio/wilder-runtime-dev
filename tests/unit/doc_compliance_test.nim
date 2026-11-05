@@ -38,7 +38,7 @@ const persistContent    = staticRead("../../src/runtime/persistence.nim")
 const validationContent = staticRead("../../src/runtime/validation.nim")
 const platformContent   = staticRead("../../src/cosmos/utils/platform.nim")
 
-const checklistContent  = staticRead("../.github/ND_DOCS_CHECKLIST.md")
+const checklistContent  = staticRead("../../docs/implementation/ND_DOCS_CHECKLIST.md")
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 

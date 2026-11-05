@@ -6,8 +6,8 @@ What this is. This section defines the Cosmos primitives and world-model terms u
 
 - `primitives.md`
 - `interrogative-manifest.md`
-- `status-and-memory.md`
-- `world-ledger-and-world-graph.md`
+- `status-and-memory.md` (archived: deferred)
+- `world-ledger-and-world-graph.md` (archived: deferred)
 - `scheduler-and-tempo.md`
 
 ---

@@ -77,10 +77,10 @@ This guide provides best practices, patterns, and practical steps for AI builder
 
 ## 5. Advanced Topics
 
-- **Ontology and Capabilities:** See [ontology.nim](../../runtime/ontology.nim) and [capabilities.nim](../../runtime/capabilities.nim).
-- **Persistence and Reconciliation:** See [persistence.nim](../../runtime/persistence.nim).
-- **Scheduler and Tempo:** See [scheduler.nim](../../runtime/scheduler.nim) and [tempo.nim](../../runtime/tempo.nim).
-- **Security and Encryption:** See [security.nim](../../runtime/security.nim) and [encryption_mode.nim](../../runtime/encryption_mode.nim).
+- **Ontology and Capabilities:** See [ontology.nim](../../../src/runtime/ontology.nim) and [capabilities.nim](../../../src/runtime/capabilities.nim).
+- **Persistence and Reconciliation:** See [persistence.nim](../../../src/runtime/persistence.nim).
+- **Scheduler and Tempo:** See [scheduler.nim](../../../src/cosmos/runtime/scheduler.nim) and [tempo.nim](../../../src/cosmos/tempo/tempo.nim).
+- **Security and Encryption:** See [security.nim](../../../src/runtime/security.nim) and [encryption_mode.nim](../../../src/runtime/encryption_mode.nim).
 
 ---
 
@@ -96,10 +96,10 @@ This guide provides best practices, patterns, and practical steps for AI builder
 
 ## 7. Further Reading
 
-- [COMPLIANCE-MATRIX](../../implementation/COMPLIANCE-MATRIX.md)
-- [IMPLEMENTATION-DETAILS](../../implementation/IMPLEMENTATION-DETAILS.md)
-- [PLAN](../../implementation/PLAN.md)
-- [WALKTHROUGH](../../../tests/WALKTHROUGH.md)
+- [COMPLIANCE-MATRIX (archived)](../../../archive/docs/implementation/COMPLIANCE-MATRIX.md)
+- [IMPLEMENTATION-DETAILS (archived)](../../../archive/docs/implementation/IMPLEMENTATION-DETAILS.md)
+- [PLAN (archived)](../../../archive/docs/implementation/PLAN.md)
+- [WALKTHROUGH (archived)](../../../archive/tests/WALKTHROUGH.md)
 
 ---
 

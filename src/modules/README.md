@@ -18,7 +18,7 @@ If a module must ship as part of the runtime, initialize deterministically at
 startup, or carry stronger stability guarantees, it belongs in
 `src/runtime_modules/` instead.
 
-See `docs/implementation/MODULES.md` for the full distinction.
+See `archive/docs/implementation/MODULES.md` for the full distinction.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

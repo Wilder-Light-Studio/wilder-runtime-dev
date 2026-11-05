@@ -34,7 +34,7 @@ These are conceptual primitives and safety-net notes only — they do not change
 
 If you'd like, I can:
 
-- move or copy selected entries into `docs/implementation/IMPLEMENTATION-DETAILS.md` or `REQUIREMENTS.md` when ready
+- move or copy selected entries into `archive/docs/implementation/IMPLEMENTATION-DETAILS.md` or `REQUIREMENTS.md` when ready
 - create cross-references from the runtime docs to this ledger
 
 ---

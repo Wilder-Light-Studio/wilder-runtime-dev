@@ -161,7 +161,9 @@ proc validateStatus*(status: JsonNode, schema: StatusSchema): bool =
         raise newException(ValueError,
           "status validation error: field '" & field.name & "' expected type '" & field.fieldType & "'")
 
-      discard evaluateInvariant(field.name, value, field.invariant)
+      if not evaluateInvariant(field.name, value, field.invariant):
+        raise newException(ValueError,
+          "status validation error: field '" & field.name & "' violates invariant '" & field.invariant & "'")
 
   true
 
