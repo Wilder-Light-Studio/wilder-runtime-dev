@@ -40,12 +40,12 @@ marked **Departs**.*
 
 **Naming.** Cosmos, Thing, Concept and World are capitalized: they're what exists.
 Everything else is lowercase. That covers the properties of the Cosmos (wave,
-perception, occurrence, record, frame, wink, smile, morphos) and Things made from Concepts (wire,
+perception, occurrence, history, frame, change) and Things made from Concepts (wire,
 module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
 
 - **MVP-ONT-1** **One kind of entity.** What exists is a Thing. A Thing's interior is
   its World ("Thing and World are one primitive", SPECIFICATION §4.1). Waves,
-  perception, occurrences and the record are properties of the Cosmos (MVP-ONT-8).
+  perception, occurrences and the history are properties of the Cosmos (MVP-ONT-8).
   Everything else is a pattern made from these. **Departs** from "five primitives":
   only the Thing is an entity.
 - **MVP-ONT-2** A Concept exists with only **WHO** (identity) and **WHY** (purpose).
@@ -71,7 +71,7 @@ module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PRO
   - **Departs** from the separate module, bundle and specialist types
     (REQUIREMENTS Module Contract; Delegation and Specialization). Folding that code
     in is later work.
-- **MVP-ONT-8** **waves, perception, occurrences and the record are properties of the
+- **MVP-ONT-8** **Waves, perception, occurrences and the history are properties of the
   Cosmos, not Things.**
   - A wave is a message, and **waves are global.** A wave radiates from its source
     across the whole Cosmos, and every Thing with a matching sense perceives it. A
@@ -82,21 +82,26 @@ module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PRO
   - Perception is a Thing noticing a wave through one of its senses. A wire is a
     standing perception made visible: it declares that one Thing perceives another's
     waves.
-  - An occurrence is a single historic event (immutable, MVP-ONT-4).
-  - The record is the history of the Cosmos.
+  - An occurrence is what happened in one frame: a single historic event
+    (immutable, MVP-ONT-4).
+  - The history is the table of every occurrence in the Cosmos (MVP-ONT-9).
 - **MVP-ONT-9** **Time advances in frames.**
   - A frame is complete when one round of changes to every Thing is complete. This is
     the scheduler's frame (REQUIREMENTS Scheduler).
-  - **The record is the table of the Cosmos's history.** Each row is an
-    **occurrence**: what happened and when.
-    - The **wink** is the key: when it happened.
-    - The **smile** is the value: what happened (one change).
-    - Every occurrence happens within one frame, and a frame can hold many.
-  - The **morphos** is all the smiles in the record.
+  - **The history is the table of everything that happened in the Cosmos, with one
+    row per frame.** Each row is an **occurrence**: what happened and when.
+    - The key is the **frame**: when it happened, in Cosmos time. Cosmos time is
+      virtual and counted in frames, never clock time. The code's frame counter is
+      `epoch`.
+    - The value is the frame's **changes**: everything that happened during that
+      frame.
+  - **Departs** from the code's per-event occurrences (`emitOccurrence`): those
+    become changes within their frame's occurrence.
   - Frames are not the audio clock. The audio kernel keeps its own sample clock, and
     a bridge maps between the two.
-  - "Wink" replaces "blip" from COSMOS_UNINTEGRATED_TERMS.md (the console's `blip`
-    field is renamed later). "Item" is not a term.
+  - These are standard terms on purpose; this is the event-log pattern. The earlier
+    names wink, smile, morphos and blip (COSMOS_UNINTEGRATED_TERMS.md) are retired.
+    The console's `blip` and `morphos` fields are renamed later.
 - **MVP-ONT-10** **Scope is what a Thing can act on.**
   - A Thing's natural scope is itself and its interior: its parts and their
     descendants. Siblings and ancestors are outside it.
@@ -167,16 +172,16 @@ Thing that extends the runtime (MVP-ONT-7).*
 - **MVP-VAL-1** All public procedures validate input at the boundary and fail fast.
 - **MVP-VAL-2** The prefilter table is generated ahead of time from canonical sources,
   never copied by hand. It's activated before any input is accepted.
-- **MVP-VAL-3** Only validated payloads reach Thing code or become domain occurrences.
-- **MVP-VAL-4** A prefilter failure produces a redacted, deterministic failure
-  occurrence. Invalid payload bytes are never shown.
+- **MVP-VAL-3** Only validated payloads reach Thing code or become changes in the history.
+- **MVP-VAL-4** A prefilter failure is recorded in the history as a redacted,
+  deterministic failure change. Invalid payload bytes are never shown.
 
 ## 5. Scheduler
 
 *Source: Scheduler Requirements, Tempo Types.*
 
-- **MVP-SCH-1** The same state plus the same occurrences always produces the same
-  frame result (replayable).
+- **MVP-SCH-1** The same state plus the same waves always produces the same frame
+  result (replayable).
 - **MVP-SCH-2** No Thing can use unbounded time in a frame. Things yield
   cooperatively.
 - **MVP-SCH-3** A failing Thing is isolated from the others. A Thing that fails
@@ -251,7 +256,7 @@ implementing them is the developer's main activity.*
   CLI flags.
 - **MVP-CFG-3** Every value, whatever its source, passes the same validation. Invalid
   config is rejected at load time with a structured error.
-- **MVP-CFG-4** Subsystems receive one loaded config record and never read config
+- **MVP-CFG-4** Subsystems receive one loaded config object and never read config
   files themselves.
 
 ## 8. Daemon, CLI and IPC
@@ -366,8 +371,8 @@ awaiting confirmation.*
   with its parameters, its result and whether it changes state, so a client needs no
   separate documentation.
 - **MVP-AI-4** **Same gates:** AI requests pass the same validation as every other
-  request. Every change is an occurrence recorded with its `origin` identity. There is
-  no bypass and no AI-only path.
+  request. Every change is recorded in the history with its `origin` identity. There
+  is no bypass and no AI-only path.
 - **MVP-AI-5** A Thing's PROVIDES can be invoked over IPC (`runtime.call`), through the
   prefilter.
 - **MVP-AI-7** **The Cosmos has an interface too.** The Cosmos root is a Thing like any

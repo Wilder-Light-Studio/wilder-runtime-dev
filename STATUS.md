@@ -6,7 +6,7 @@ Quick context recovery — read this first when returning after a break.
 
 Cosmos is a general way to build things in a logical manner suited to a
 Neurodivergent (ND), ADHD mind: one kind of entity, uniform Concepts, visible wires,
-no hidden behaviour, and a record of what happened. It's for building anything. The
+no hidden behaviour, and a history of what happened. It's for building anything. The
 first use is a set of personal music tools: a MIDI editor, a synth, and possibly a
 DAW. The first planned non-music build is a port of the user's rhyming dictionary
 app.
@@ -108,19 +108,17 @@ requirement's status are in
      and wires are local; one manifest shape (WHO as id, VERSION, ten
      interrogatives, SENSES, IMPLEMENTATION or PARTS/WIRES); operators act through
      the Cosmos interface; "module" wording; header date.
-   - **Naming:** settled on 2026-11-05 and written into MVP-ONT-9:
-     - the record is the table;
-     - an occurrence is one row, what happened and when: a wink (key, when) plus a
-       smile (value, what);
-     - a frame can hold many occurrences;
-     - the morphos is all smiles;
-     - "frame" replaces "tick";
-     - saved data is a "persisted entry".
+   - **Naming:** settled on 2026-11-05 and written into MVP-ONT-9, using standard
+     terms. The history is a table with one row per frame:
+     - the key is the frame, in Cosmos time (virtual, never clock time);
+     - the value is that frame's changes;
+     - an occurrence is a whole row, what happened and when.
 
-     "Wink" replaces the ledger's "blip".
+     Retired: wink, smile, morphos, blip, tick and "record" (as the history's
+     name). Saved data is a "persisted entry".
    - **Spec:** add the how for MVP-ONT-7 to ONT-11 (Concepts and the Cosmos as
      Things, folding in modules/bundles/specialists, wires, global waves and
-     senses, the record's keys and values, scope enforcement, removing
+     senses, the frame-to-changes history, scope enforcement, removing
      `overrideDeltas`, WHY from the Concept).
    - **Phases:** place that work, and revisit constraint C1.
 2. **Confirm:** full AI parity (CLI and MCP) and the foreground daemon.
@@ -150,3 +148,4 @@ nimble buildRuntime    # Build release binary to bin/
 - 2026-11-01: Evaluated project state and ran the full test suite; set purpose (personal music tools, hardware-feel kernel). Next: MVP requirements → spec → phased plan.
 - 2026-11-05: Settled the three MVP decisions; wrote MVP-SPECIFICATION (plausibility constraints, daemon, IPC, AI access) and MVP-COMPLIANCE-MATRIX (79 requirement rows). Ontology decided: everything that exists is a Thing, the Cosmos is the self-existent root, wires are Things, waves/occurrences/record are properties of the Cosmos, time advances in ticks with one morphos per tick. Phase 1: `nimble test` now discovers and time-limits every test; 46 pass, 4 known failures. Next: review, finish Phase 1, then Phase 2.
 - 2026-11-05 (later): Archived 36 superseded, deferred or contradicted files to `archive/` (tracked, original paths kept); stopped tracking 22 build leftovers; rewrote the implementation doc index; fixed links. Recorded: Thing WHY comes from its Concept and can be overridden; a wire is a standing perception; no inheritance through containment.
+- 2026-11-05 (evening): Completed MVP requirements: waves global, wires local; one manifest shape; operator scope. Settled time and history naming on standard terms (history = one row per frame, frame -> changes; occurrence = a row); retired wink, smile, morphos, blip and tick. Next: the spec's how for the ontology, then the phased plan.

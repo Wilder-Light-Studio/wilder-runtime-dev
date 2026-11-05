@@ -4,10 +4,12 @@ A minimal, stable ledger of metaphysical terms coined during the Cosmos design w
 
 These are conceptual primitives and safety-net notes only — they do not change runtime requirements.
 
-**Integrated on 2026-11-05** into MVP-REQUIREMENTS (MVP-ONT-9). **blip** is renamed
-**wink**: the key of a row in the record (when). **smile** is the row's value (what
-happened, one change). An **occurrence** is a complete row: what happened and when. The **record** is the table of
-occurrences. The **morphos** is all smiles. Those entries below are kept for history.
+**Integrated on 2026-11-05** into MVP-REQUIREMENTS (MVP-ONT-9), using standard terms.
+The history is a table with one row per frame. The key is the **frame**, in Cosmos
+time (this replaces **blip**, also briefly called **wink**). The value is that
+frame's **changes** (this replaces **smile**). An **occurrence** is a whole row. The
+**history** replaces **record** and **RECORD**. **morphos** is retired. The entries
+below are kept for history.
 
 ## Metaphysical Primitives
 

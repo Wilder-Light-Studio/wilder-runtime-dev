@@ -197,7 +197,7 @@ same rule as MVP-INT-1: declare once, reference everywhere.
 |---|---|
 | `runtime.methods` | The method table: name, summary, params, result, mutates. |
 | `runtime.describe` `{target}` | A Thing descriptor: id, scope path, manifest, WANTS, PROVIDES with signatures, tempo, status, child ids. |
-| `runtime.call` `{thing, provide, args}` | Builds an occurrence, validates it through the prefilter, delivers it in the next frame and returns the result. A validation failure returns the redacted failure occurrence (MVP-VAL-4). |
+| `runtime.call` `{thing, provide, args}` | Builds a wave to the Thing, validates it through the prefilter, delivers it in the next frame and returns the result. A validation failure returns the redacted failure change (MVP-VAL-4). |
 
 `runtime.listThings` returns short descriptors (id, scope path, WHY), not just names.
 
@@ -215,7 +215,7 @@ duplicated.
 
 Every request has an origin identity: the attached console identity, `params.origin`,
 or `cli` by default. The MCP bridge sets `mcp:<client name>`. The origin is recorded on
-the occurrences and persisted entries a request produces (MVP-PER-2 already carries `origin`), so
+the changes and persisted entries a request produces (MVP-PER-2 already carries `origin`), so
 any change, by a person or an AI, can be traced to who made it.
 
 ### 4A.4 CLI for AI
@@ -270,7 +270,7 @@ An implementation exchanges one JSON object per line:
 - **Input:** waves delivered to it, in the shape `runtime.call` uses: `provide`,
   `args`, plus `from` and `frame`.
 - **Output:** waves it emits, `{"provide", "args"}`, and results, `{"result"}`.
-- **Error:** `{"code", "message"}`. The Cosmos records each one as an occurrence. A
+- **Error:** `{"code", "message"}`. The Cosmos records each one as a change in the history. A
   crash or a malformed line suspends the Thing (MVP-SCH-3) and never stops the
   Cosmos (MVP-SAFE-1).
 
