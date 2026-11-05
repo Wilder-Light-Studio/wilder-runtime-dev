@@ -4,6 +4,8 @@
 
 Configuration loading and validation. Parses Cue-exported JSON config, validates fail-fast, enforces mode/log constraints, and supports CLI/environment overrides with **file < environment < CLI** precedence.
 
+**MVP status:** config is optional and is plain JSON; Cue is no longer used (MVP-CFG-1, MVP-CFG-2). Encryption modes and Protobuf transport are deferred, and the MVP stores data unencrypted. Until Phase 2, the daemon ignores the configured port.
+
 ---
 
 ## Types

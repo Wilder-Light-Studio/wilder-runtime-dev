@@ -25,6 +25,8 @@ Selection is made from runtime transport configuration.
 
 In current code, Protobuf serializer methods raise errors when generated bindings are unavailable. This is an explicit stop, not a silent fallback.
 
+The MVP uses JSON only. Protobuf transport and serializer switching are deferred.
+
 ---
 *&copy; 2026 Wilder. All rights reserved.*\
 *Contact: teamwilder@wildercode.org*\

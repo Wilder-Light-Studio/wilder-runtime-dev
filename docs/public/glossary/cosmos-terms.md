@@ -1,44 +1,72 @@
 # Cosmos Terms
 
-What this is. This page is a compact glossary for terms used in runtime and concept documentation.
+What this is. This page is a compact glossary for terms used in runtime and concept
+documentation. The rules behind the model terms are in
+[MVP-REQUIREMENTS.md](../../implementation/MVP-REQUIREMENTS.md) section 1.
 
-- Concept: Immutable template whose universal minimum is identity plus WHY.
-- Thing/World/Scope: One primitive viewed through identity, interior, and visibility lenses.
-- Occurrence: Immutable interior truth and the only mechanism of change.
-- Wave: Externalized Occurrence in the medium; ambient, undirected, and non-coercive communication physics.
-- Perception: Local awareness event produced by matching conditions.
-- RECORD: Atomic temporal unit of internal change; internalized Occurrence.
-- Interrogative Manifest: Optional declarative contract surface. WHO and WHY are required. WHAT, WHERE, WHEN, HOW, NEEDS, WANTS, and PROVIDES are optional world-defined lenses.
-- Status: Structured state fields attached to a Thing.
-- Status Schema: Versioned declaration of status fields and invariants.
-- Invariant: Rule that must remain true at validation points.
-- Memory Model: Categories and limits for stored runtime information.
-- State Memory: Persisted status state.
-- Perception Memory: Bounded queue of perception events.
-- Temporal Memory: Frame and epoch counters.
-- Module Memory: Memory budget assigned to a module.
-- World Ledger: Append-only record of declared references and claims.
-- World Graph: Node and edge view built from declared references.
-- Claim: Declared relational assertion in the world model.
-- Reference: Explicit typed edge between Things.
-- Epoch: Shared frame identifier used for deterministic ordering.
-- Tempo: Timing mode for execution cadence.
-- Scheduler: Runtime component that orders execution within frame semantics.
-- Runtime Lifecycle: Ordered startup and shutdown sequence.
-- Reconciliation: Startup process that resolves layered persistence state.
-- Prefilter: Validation gate that blocks unvalidated ingress.
-- Validation Record: Signature-linked structural validation definition.
-- Validation Mask: Precomputed bit-level structure expectation.
-- Payload Mask: Runtime-computed structural observation for inbound payload.
-- Module Registry: Runtime table of statically registered modules.
-- Kernel Module: Built-in module with stronger startup and compatibility expectations.
-- Loadable Module: Optional module loaded after kernel pass in deterministic order.
-- Host Bindings: Runtime-provided functions exposed to modules.
-- Startup Error: Structured startup failure with halted step and recovery guidance.
-- Envelope: Serialized wrapper containing payload plus metadata and checksum.
-- Checksum: Digest used to verify payload integrity.
-- Transport: Configured serialization channel selection.
-- Precept (legacy): Deprecated communication vocabulary from earlier drafts; use Wave instead.
+## The Model
+
+- Thing: The only kind of entity. Everything that exists is a Thing.
+- World: A Thing's inside: the Things it contains. A Thing and its World are one.
+- Cosmos: The root Thing, created by the runtime, with no parent.
+- Concept: A Thing that serves as a template. Every other Thing is made from one.
+- Scope: What a Thing can act on: itself and what it contains.
+- Scope path: A Thing's dot-separated address, such as `cosmos.synth.filter`.
+- Manifest: The `manifest.json` file that declares a Concept.
+- Interrogatives: The manifest's uppercase fields: WHO, WHAT, WHY, WHERE, WHEN, HOW,
+  REQUIRES, WANTS, PROVIDES and WITH. WHO and WHY are required.
+- WANTS / PROVIDES: What a Thing accepts and what it offers, with signatures.
+- Part: A Concept used inside a composite Concept.
+- Wave: A message. Waves spread across the whole Cosmos to every matching sense.
+- Sense: A kind of wave a Thing perceives, matched by exact name.
+- Wire: A wave constrained to a set origin and set destinations.
+- Perception: A Thing noticing a wave through a sense, or receiving one on a wire.
+- Frame: One round of changes to every Thing. Cosmos time is counted in frames.
+- Change: One thing that happened during a frame, such as a wave or a state change.
+- Occurrence: One row of the history: a frame and its changes. Never changes.
+- History: The table of everything that happened, with one row per frame.
+- Origin: Who caused a change: a Thing, a person or an AI client.
+- Epoch: The code's name for the frame counter.
+
+## The Runtime
+
+- Rhythm: When a Thing acts: Event, Periodic, Continuous, Manual or Sequence.
+  `TempoKind` in code until a later rename.
+- Frame rate: How fast the daemon runs frames in `periodic` mode.
+- Scheduler: Runs frames in a deterministic order with a time budget per Thing.
+- Runtime lifecycle: The fixed startup and shutdown order.
+- Startup error: A structured failure saying where startup halted, why, and how to
+  recover.
+- Prefilter: The validation gate every input passes before anything acts on it.
+- Validation record / mask: The precomputed structure a payload is checked against.
+- Reconciliation: Rebuilding state at startup from the persistence layers.
+- Persisted entry: One saved item, with its checksum, origin and frame.
+- Envelope: A saved or sent payload wrapped with metadata and a checksum.
+- Capability graph: The match between every Thing's WANTS and other Things' PROVIDES.
+- Daemon: The running Cosmos, started by `cosmos start`.
+- IPC: The localhost connection the `cosmos` command, console and MCP use to reach the
+  daemon.
+- Method table: The one list of daemon operations. It drives the CLI, the console and
+  MCP.
+- Module: A Thing that extends the runtime.
+- Bundle: A folder holding a Concept's `manifest.json`.
+
+## Retired Terms
+
+- RECORD: was the name for an internalized occurrence. Now: a change in the history.
+- wink, smile, morphos, blip, tick: earlier names for time and change. Now: frame,
+  change, occurrence.
+- Five primitives: now one entity (the Thing) plus properties of the Cosmos.
+- Context inheritance and overrides: retired. Nothing is inherited.
+- Precept: older word for wave.
+- Tempo (as a Thing's timing): now rhythm. Tempo keeps its musical meaning, speed.
+
+## Deferred Terms
+
+- World Ledger, Claim, Reference: deferred until real Things need them.
+- Memory categories: kept in code, not part of the MVP.
+- Specialist, Delegation: kept in code, not part of the MVP.
+- Encryption mode: deferred. The MVP stores data unencrypted.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

@@ -2,6 +2,11 @@
 
 What this is. This page walks through writing and registering a minimal module using the repository conventions.
 
+Runtime modules are how you extend the runtime today. In the MVP, modules become
+Things, and from Phase 3 the main way to build is Concepts declared in a
+`manifest.json` ([interrogative-manifest.md](../concepts/interrogative-manifest.md)).
+[examples/counter.nim](../../../examples/counter.nim) is a complete working module.
+
 ## Goal
 
 Create a small module that can be registered with metadata and loaded deterministically.

@@ -1,81 +1,55 @@
 # Install, Run, And Explore Console
 
-What this is. This page gives practical commands to build, test, and inspect the runtime locally.
+What this is. This page gives practical commands to build, test and run the runtime
+locally.
 
-The packaged Windows installer is deferred. Its guide is archived at `archive/docs/public/getting-started/install-windows.md`.
+There's no installer: the MVP builds from source on one machine. The old installer
+guide is archived at `archive/docs/public/getting-started/install-windows.md`.
 
 ## Prerequisites
 
-- Nim 1.6 or newer
-- Nimble
-- PowerShell on Windows for helper scripts
+- Windows 11 (the MVP's target; Linux follows)
+- Nim 2.0.8 and Nimble
+- PowerShell, for the repository scripts
 
-## Core Commands
-
-```powershell
-nimble build
-nimble compliance
-nimble testCompile
-nimble test
-nimble verify
-```
-
-## Console Entry
-
-The console entrypoint supports:
-
-- `--config <path>` (required)
-- `--mode <dev|debug|prod>`
-- `--attach <identity>`
-- `--watch <path>` (requires `--attach`)
-- `--log-level <trace|debug|info|warn|error>`
-- `--port <N>` (1–65535)
-- `--help`/`-h`
-
-Examples:
+## Build and Test
 
 ```powershell
-# Minimal
-nim c -r src/console_main.nim -- --config config/runtime.json
-
-# Full attach with overrides
-nim c -r src/console_main.nim -- --config config/runtime.json --attach local-dev --mode dev --log-level debug --watch /thing/a
+nimble buildRuntime    # build bin/cosmos.exe
+nimble verify          # the full gate: compliance check, then every test
+nimble checkFast       # quicker (about 20 s): skips daemon tests
 ```
 
-Coordinator entrypoint supports startup plus optional console launch:
+The gate ends with `Gate passed.` when every test passes or is a listed known failure
+(`tests/KNOWN_FAILURES.txt`). If a test fails, its build and run logs are in
+`tests/tmp/gate/logs/`.
 
-- `--config <path>` (required)
-- `--mode <dev|debug|prod>`
-- `--console <auto|attach|detach>`
-- `--watch <path>` (attached console mode only)
-- `--daemonize`
-- `--log-level <trace|debug|info|warn|error>`
-- `--port <N>` (1–65535)
-- `--help`/`-h`
+## Run the Daemon
 
-Examples:
+`cosmos start` runs the daemon in the terminal you start it from:
 
 ```powershell
-# Minimal
-nim c -r src/cosmos_main.nim -- --config config/runtime.json
-
-# Full start with watchable console session
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --watch /thing/a --console attach --mode dev --log-level debug
+bin\cosmos.exe start
 ```
 
-Pass `--help` to either entrypoint to see the full flag reference.
-If launch arguments are invalid, the entrypoint exits non-zero and prints usage.
-If startup halts, operator output includes halt step, reason, and recovery guidance.
+Open a second terminal for everything else:
+
+```powershell
+bin\cosmos.exe inspect world
+bin\cosmos.exe console
+```
+
+To stop the daemon today, close its terminal or press `Ctrl+C` there. Until Phase 2,
+`cosmos stop`, `list`, `add`, `remove` and `mode` fail with "method not found".
+
+The [Runtime CLI Guide](runtime-cli-guide.md) lists every command, what it does today
+and what Phase 2 changes.
 
 ## What To Look For
 
-- lifecycle completion lines
-- startup halt reason and recovery guidance if startup fails
-- deterministic module load ordering
-
-## Uncertainty Note
-
-Exact config export and invocation wrappers can vary by local setup. Use repository scripts and the current `README.md` command list as primary guidance.
+- the startup banner, showing each startup step in order;
+- if startup halts: the step it halted at, the reason and recovery guidance;
+- `cosmos: daemon already active` if a daemon is already running on the port.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

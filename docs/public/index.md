@@ -13,9 +13,9 @@ What this is. This is the newcomer-facing documentation set for understanding an
 
 ## Sections
 
-- Getting Started: what Cosmos is, runtime shape, install and run, first module tutorial.
-- Concepts: core ontology and world model terms.
-- Runtime: prefilter, serialization, persistence, startup, config, transport, hardening, release tooling guide.
+- Getting Started: what Cosmos is, runtime shape, build and run, the CLI, the AI builder guide, first module tutorial.
+- Concepts: Things, Concepts, waves, wires, frames and the history.
+- Runtime: prefilter, serialization, persistence, startup, config, transport, hardening.
 - Modules: authoring workflow, lifecycle, boundaries, best practices.
 - API Reference: public types, procedures, and constants for every runtime module.
 - Glossary: short definitions for Cosmos terms.

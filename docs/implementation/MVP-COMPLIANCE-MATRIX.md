@@ -97,7 +97,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-SCH-1 | `scheduler_test` | Verified | |
 | MVP-SCH-2 | `scheduler_test` | Verified | |
 | MVP-SCH-3 | `scheduler_test` | Verified | |
-| MVP-SCH-4 | `scheduler_test` | Partial | The five tempo kinds exist. Validation at load isn't tested. |
+| MVP-SCH-4 | `scheduler_test` | Partial | The five rhythms exist (still `TempoKind` in code). Validation at load isn't tested. |
 
 ## 6. Integration
 
@@ -164,7 +164,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-GATE-1 | `run_tests.ps1` | Verified | Tests are discovered, not listed. All 50 run. |
 | MVP-GATE-2 | `doc_compliance_test` | Passing | `nimble verify` passed from a fresh clone on 2026-11-05 (compliance passed; 46 pass, 4 known). Checked by hand, not by a test in the gate. `nimble compliance` no longer reads `.github` or archived files. |
 | MVP-GATE-3 | `run_tests.ps1` | Verified | Every file has a 90-second limit. `coordinator_test` hits it and is a known failure. |
-| MVP-GATE-4 | `nimble checkFast` | Partial | Skips socket and process tests. Over one minute until `coordinator_test` stops using its full limit (Phase 2). |
+| MVP-GATE-4 | `nimble checkFast` | Passing | Skips daemon tests (files importing `net`, `osproc` or `cosmos_main`). 22 s for 46 files on 2026-11-05, with tests built and run in parallel. Timed by hand, not by a test in the gate. |
 | MVP-GATE-5 | — | — | A process rule, enforced by this matrix. |
 | MVP-DX-1 | — | Missing | `startapp` writes `cosmos.toml`, but the loader reads `manifest.json`. |
 | MVP-DX-2 | — | Passing | Checked by hand. |
@@ -197,8 +197,8 @@ prove stay Failing until Phase 2 fixes it.
 | Status | Rows |
 |---|---|
 | Verified | 33 |
-| Passing | 2 |
-| Partial | 16 |
+| Passing | 3 |
+| Partial | 15 |
 | Failing | 6 |
 | False pass | 1 |
 | Gap | 4 |

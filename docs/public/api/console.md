@@ -4,6 +4,8 @@
 
 Three-layer console with 20 commands and an attach/detach protocol. Provides a runtime navigator and debugger with status bar, scope line, and prompt layers.
 
+**MVP status:** the MVP keeps a reduced command set (MVP-CON-2), and `cosmos console` is the only entry point (MVP-CON-7). The status fields `blip` and `morphos` are retired names and will be renamed (MVP-ONT-9).
+
 ---
 
 ## Types

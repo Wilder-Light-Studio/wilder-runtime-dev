@@ -2,61 +2,58 @@
 
 Copy-paste reference for everyday tasks. No context needed.
 
-## Core Commands
+## The Gate
 
 ```powershell
-nimble verify          # Full gate: compliance + all tests
-nimble test            # Run all tests (compile-check + execute)
-nimble compliance      # Requirements compliance check only
-nimble buildRuntime    # Build release binary to bin/
-nimble cleanExe        # Remove generated .exe files
+nimble verify          # Full gate: compliance check, then every test
+nimble test            # Every test file under tests/, each with a 90 s limit
+nimble checkFast       # Same, minus daemon tests: about 20 s
+nimble compliance      # Compliance check only (docs, matrix, header comments)
+nimble buildRuntime    # Build bin/cosmos.exe
 ```
 
-## Core CLI (Git-Style)
-`cosmos <verb> [noun] [args]`
+`nimble test` ends with `Gate passed.` when every file passes or is a listed known
+failure. Known failures and their reasons are in `tests/KNOWN_FAILURES.txt`.
 
-### Daemon Lifecycle
-- `cosmos start` - Start or attach to the daemon
-- `cosmos stop` - Stop the daemon
-- `cosmos restart` - Restart the daemon
-
-### Watch Management
-- `cosmos add watch <path>` - Add directory to watch
-- `cosmos remove watch <path>` - Remove directory from watch
-- `cosmos list watch` - List all watched paths
-
-### Thing Management
-- `cosmos add thing <bundle.cosmos>` - Install a .cosmos bundle
-- `cosmos remove thing <id>` - Remove a Thing by ID
-- `cosmos list things` - List all installed Things
-
-### Introspection & Control
-- `cosmos mode <mode>` - Switch mode (step, aware, debug, encrypted, clear)
-- `cosmos inspect <target>` - Inspect runtime state
-- `cosmos console` - Enter interactive console session
-- `cosmos step [--count=N]` - Advance frame loop
-
-## Testing
+Tests build and run in parallel, so results print in the order they finish. Daemon
+tests (files importing `net`, `osproc` or `cosmos_main`) take turns. To run one at a
+time instead:
 
 ```powershell
-# Run a single test file
-nim c -r tests/unit/api_tests.nim
-
-# Compile-check only (no execution)
-nim c --compileOnly tests/unit/api_tests.nim
-
-# Guided walkthrough (archived; written for the April 2026 commands)
-.\archive\scripts\verify\test-walkthrough.ps1 -TestCategory quick
-.\archive\scripts\verify\test-walkthrough.ps1 -TestCategory foundation
-.\archive\scripts\verify\test-walkthrough.ps1 -TestCategory chapter2
-.\archive\scripts\verify\test-walkthrough.ps1 -TestCategory all
+.\scripts\verify\run_tests.ps1 -Jobs 1
 ```
 
-### Which test do I run?
+### Which check do I run?
 
-- **"Did I break anything?"** → `nimble test`
-- **"Just my module"** → `nim c -r tests/unit/<module>_test.nim`
+- **"Did I break anything?"** → `nimble verify`
 - **"Quick sanity check"** → `nimble checkFast`
+- **"Just one test file"** → `nim c -r tests/unit/<name>_test.nim`
+- **"Why did a test fail?"** → read `tests/tmp/gate/logs/<name>.*`
+
+## The cosmos Command
+
+`cosmos <verb> [noun] [args]`. Start the daemon in one terminal, then use a second
+terminal for everything else.
+
+| Command | Does |
+|---|---|
+| `cosmos start` | Run the daemon in this terminal (port 7700) |
+| `cosmos stop` | Ask the daemon to stop |
+| `cosmos list things` | List loaded Things |
+| `cosmos list watch` | List watched paths |
+| `cosmos add thing <bundle>` | Load a bundle folder |
+| `cosmos remove thing <id>` | Remove a Thing |
+| `cosmos add watch <path>` / `remove watch <path>` | Watch or stop watching a path |
+| `cosmos inspect <target>` | Show runtime state |
+| `cosmos step` | Advance one frame |
+| `cosmos mode <step\|continuous\|periodic>` | Change how frames run |
+| `cosmos console` | Open an interactive console |
+
+**Until Phase 2 lands:** only `start`, `inspect`, `step` and `console` reach the
+daemon. The others, including `stop`, fail with "method not found" (close the
+daemon's terminal to stop it). `--help` exits with an error, and the port can't be
+changed. The [Runtime CLI Guide](docs/public/getting-started/runtime-cli-guide.md)
+has the details.
 
 ## Create a New Module
 
@@ -79,49 +76,37 @@ Or run without arguments for interactive mode:
 .\scripts\dev\new_nim_module.ps1
 ```
 
+Every Nim file needs the header lines (Summary, Simile, Memory note, Flow) and a
+`# Flow:` comment before each `proc`. `nimble compliance` checks both.
+
 ## Development Loop
 
-1. Read the affected requirement section in `docs/implementation/REQUIREMENTS.md`
-2. Update `archive/docs/implementation/COMPLIANCE-MATRIX.md`
-3. Implement code
-4. Add or update tests
-5. Run `nimble verify`
-
-## Release
-
-```powershell
-nimble release         # Full release: update README + verify + build + package
-nimble testRelease     # Quick release: update README + tests (skip compliance)
-nimble releaseArtifacts  # Build binary + package release artifacts
-```
+1. Read the requirement in `docs/implementation/MVP-REQUIREMENTS.md`
+2. Change the code and its tests
+3. Update the requirement's row in `docs/implementation/MVP-COMPLIANCE-MATRIX.md`
+4. Run `nimble verify`
 
 ## Scripts Reference
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/build/build_binary.ps1` | Compile release binary to bin/ |
-| `scripts/build/clean_exes.ps1` | Remove all generated .exe files |
-| `scripts/dev/new_nim_module.ps1` | Scaffold a new Nim module from template |
-| `scripts/dev/add_flow_comments.ps1` | Add Flow comments to source files |
-| `scripts/verify/check_requirements.ps1` | Validate requirements compliance gates |
-| `archive/scripts/verify/validate_config.ps1` | Validate runtime config against Cue schema |
-| `archive/scripts/verify/test-walkthrough.ps1` | Guided manual QA testing walkthrough |
-| `archive/scripts/verify/test_validate_config_script.ps1` | Tests for the config validation script |
-| `archive/scripts/ops/prepare_release.ps1` | Create dist/v\<version\> release artifacts |
-| `archive/scripts/ops/generate_release_manifest.ps1` | Generate release manifest JSON |
-| `archive/scripts/ops/generate_artifact_checksums.ps1` | Generate SHA-256 checksums for artifacts |
-| `archive/scripts/ops/test_installer_contract.ps1` | Test installer directory contract |
-| `archive/scripts/ops/update-readme-version.ps1` | Sync README version from nimble file |
+| `scripts/verify/run_tests.ps1` | The test gate behind `nimble test` and `nimble checkFast` |
+| `scripts/verify/check_requirements.ps1` | The compliance check behind `nimble compliance` |
+| `scripts/dev/new_nim_module.ps1` | Scaffold a new Nim module from a template |
+| `scripts/dev/add_flow_comments.ps1` | Add Flow comments to a fixed list of older files |
+
+Release, installer and Cue-config scripts are archived under `archive/scripts/`:
+the MVP builds from source on one machine.
 
 ## Key Paths
 
 | What | Where |
 |------|-------|
 | Project status | `STATUS.md` |
-| Requirements | `docs/implementation/REQUIREMENTS.md` |
-| Specification | `docs/implementation/SPECIFICATION.md` |
-| Plan (canonical) | `archive/docs/implementation/PLAN.md` |
-| Compliance matrix | `archive/docs/implementation/COMPLIANCE-MATRIX.md` |
+| MVP requirements | `docs/implementation/MVP-REQUIREMENTS.md` |
+| MVP specification | `docs/implementation/MVP-SPECIFICATION.md` |
+| Compliance matrix | `docs/implementation/MVP-COMPLIANCE-MATRIX.md` |
+| Known test failures | `tests/KNOWN_FAILURES.txt` |
 | Dev guidelines | `docs/implementation/DEVELOPMENT-GUIDELINES.md` |
-| Test quick ref | `archive/tests/QUICK-REFERENCE.md` |
-| Test walkthrough | `archive/tests/WALKTHROUGH.md` |
+| Long-term reference | `docs/implementation/REQUIREMENTS.md`, `SPECIFICATION.md` |
+| Superseded material | `archive/` |

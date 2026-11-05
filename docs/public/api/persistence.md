@@ -4,6 +4,8 @@
 
 Three-layer bridge implementation with deterministic validation. Provides transaction management, layer reconciliation, snapshot export/import, and stream blob handling.
 
+**MVP status:** data is stored unencrypted (MVP-SAFE-6), and the encryption-mode code is deferred. From Phase 3 the RECORD layer stores the history: one entry per frame, key `frame-<N>` (MVP-SPECIFICATION §4C.5). "RECORD" is renamed later.
+
 ---
 
 ## Constants

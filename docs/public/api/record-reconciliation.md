@@ -4,6 +4,8 @@
 
 Metadata-only reconciliation for sovereign encrypted RECORD copy sets. Compares chain evidence across three copies using structural metadata tuples without decrypting payloads.
 
+**MVP status:** deferred. Encrypted RECORD copies are outside the MVP, which stores data unencrypted. The code remains but isn't part of the MVP gate.
+
 ---
 
 ## Types

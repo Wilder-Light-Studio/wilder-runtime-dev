@@ -16,15 +16,16 @@ What this is. This page provides a minimal authoring pattern for module code and
 5. Register with the module registry.
 6. Add tests under `tests/`.
 
-## Single Source Of Truth: Code-Defined Contracts
+## One Manifest Form
 
-Cosmos-native modules define their contract in code.
+Today, Cosmos-native modules define their contract in code, and external processes use
+a handwritten manifest.
 
-- The code contract is authoritative.
-- Any manifest for a native module is generated from that code contract.
-- Native modules should not depend on hand-maintained manifest files.
-
-This preserves the MVP guarantee that native module behavior and declared contract do not drift apart.
+The MVP changes this (MVP-INT-5): every Concept, native or external, is declared the
+same way, in one `manifest.json`
+([interrogative-manifest.md](../concepts/interrogative-manifest.md)). Nim code may
+still generate that file, but the file is the declaration. The code-defined path
+remains until Phase 3 moves modules over.
 
 ## Wrapping External Processes With Hand-Written Manifests
 
@@ -44,8 +45,11 @@ These integrations should be wrapped as Things using handwritten manifests.
 
 ## Manifest Guidance
 
-- Native modules: manifest optional at authoring time and generated from code when needed.
+- Native modules: today, the contract is in code. From Phase 3, a manifest, which code
+  may generate.
 - External processes: handwritten manifest required.
+- Implementations talk only through input, output and error, one JSON message per
+  line (MVP-INT-6). In the MVP they're written in Nim, or C where needed.
 
 ## Determinism Reminder
 

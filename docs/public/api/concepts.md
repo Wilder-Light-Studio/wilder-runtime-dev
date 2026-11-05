@@ -4,6 +4,8 @@
 
 In-memory Concept registry with effective-source resolution. Programmatic Concepts override manual Concepts when both exist, preserving both sources while picking one effective contract.
 
+**MVP status:** "programmatic overrides manual" is retired. The MVP has one manifest form for every Concept (MVP-INT-5). This code changes in Phase 3, and Concepts become Things at `cosmos.concepts.<WHO>` (MVP-SPECIFICATION §4C.1).
+
 ---
 
 ## Constants

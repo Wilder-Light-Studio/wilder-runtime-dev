@@ -4,6 +4,8 @@
 
 Deterministic startup and shutdown lifecycle management. Implements a 9-step startup sequence with gates and reconciliation, followed by graceful shutdown with snapshot export.
 
+**MVP status:** the MVP startup order is in MVP-LIFE-1: config, envelope, reconcile, migrate, prefilter, modules, root, scheduler, capability registry, user Things, frame loop. A Thing's timing type is now called its rhythm (MVP-SCH-4).
+
 ---
 
 ## Types

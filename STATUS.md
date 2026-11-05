@@ -72,6 +72,10 @@ requirement's status are in
 - **`nimble test` passes:** it finds all 50 test files itself and runs each with a
   90-second limit. 46 pass. 4 are known failures, listed with reasons in
   `tests/KNOWN_FAILURES.txt`, and all four are fixed by Phase 2.
+- **The gate runs in parallel:** files are built and run up to one per processor at a
+  time, with daemon tests taking turns. The full gate takes 96 s (was about 210 s;
+  90 s of it is `coordinator_test` waiting out its limit until Phase 2), and
+  `nimble checkFast` takes 22 s (was about 210 s). `-Jobs 1` runs one at a time.
 - **Fixed on 2026-11-05:** five compile errors; two real bugs they had hidden (the
   bundle loader looked in the wrong folder, and status invariants were checked then
   ignored); a test expecting the old "config required" rule; the missing ND
@@ -97,8 +101,14 @@ requirement's status are in
 - **The daemon's IPC side isn't connected to the runtime:** it keeps its own `things`
   list and `tick` counter, `start` ignores flags and config, and console sessions
   don't stay attached. See MVP-SPECIFICATION §3–§5.
-- **Version numbers disagree** across the nimble file and README (0.1.0), the
-  changelog (0.9.6 / 0.9.9.9) and this file (0.9.10).
+- **Most daemon methods return "method not found"** (found 2026-11-05):
+  `handleRequest` in `coordinator_ipc.nim` lowercases the method name before looking
+  it up, but the names it looks for have capitals. So `addThing`, `removeThing`,
+  `listThings`, `addWatch`, `removeWatch`, `listWatch` and `setMode` can never match,
+  and `ping` and `stop` aren't handled at all. Only `step`, `inspect`, `pause`,
+  `resume`, `snapshot`, `attach` and `subscribe` work. Fixed by Phase 2.
+- **Version numbers disagree** across the nimble file (0.1.0), the changelog
+  (0.9.6 / 0.9.9.9) and this file (0.9.10). The README no longer shows one.
 - **Home-made encryption:** `encrypted_record.nim` uses a custom XOR/SHA-256 cipher
   with a deterministic nonce. Replace it with a vetted library before relying on any
   privacy guarantee.
@@ -123,7 +133,7 @@ foreground daemon. The session log has the details.
 ```
 nimble verify          # Full gate: compliance + all tests
 nimble test            # Run every test file, each with a 90 s limit
-nimble checkFast       # Same, minus tests that use sockets or processes
+nimble checkFast       # Same, minus daemon tests (about 20 s)
 nimble compliance      # Requirements compliance check only
 nimble buildRuntime    # Build release binary to bin/
 ```
@@ -142,3 +152,5 @@ nimble buildRuntime    # Build release binary to bin/
 - 2026-11-05 (late): Revised C1: Phases 1 to 3 are committed (Cosmos is for building anything, so Concepts, waves and wires can't wait on audio). Phase 4 waits until a project needs it. Next: confirm AI parity and the foreground daemon, then the phased plan.
 - 2026-11-05 (late): Confirmed full AI parity (CLI and MCP in the MVP) and the foreground daemon. MVP docs complete. Next: finish Phase 1, then the phased plan.
 - 2026-11-05 (late): Finished Phase 1. `nimble compliance` now checks the MVP docs (one matrix row per requirement) instead of `.github` and archived files; added missing header and Flow comments to seven files; `nimble verify` passed from a fresh clone (46 pass, 4 known). Next: the phased plan, then Phase 2.
+- 2026-11-05 (late): Updated all docs to the MVP: rewrote the README, cheatsheet, docs index, getting-started guides, concept pages and glossary; added MVP status notes to the API and runtime pages; removed `.github` and archived-matrix references from the development guidelines; added a CHANGELOG entry. Renamed tempo to rhythm in the ontology (MVP-SCH-4; code rename later). Found that the daemon lowercases method names, so most CLI commands return "method not found". Measured the gate: about 3.5 min (111 s building, 90 s in coordinator_test). Next: decide on test fixes and speed-ups, then the phased plan.
+- 2026-11-05 (late): Made the test gate parallel: builds and runs up to one file per processor, daemon tests (imports of net, osproc or cosmos_main) take turns, results print as they finish, `-Jobs 1` restores one at a time. Full gate 96 s (was about 210 s); `checkFast` 22 s (was about 210 s), so MVP-GATE-4 is now Passing. `cosmos_main` added to the fast-check rule. Next: fix the known failures as the start of Phase 2.

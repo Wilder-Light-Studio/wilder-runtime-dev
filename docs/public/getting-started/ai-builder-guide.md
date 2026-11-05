@@ -1,86 +1,107 @@
-# Wilder Cosmos Runtime — AI Builder Developer Guide
+# Wilder Cosmos — AI Builder Developer Guide
 
-**Last updated:** 2026-04-10
+**Last updated:** 2026-11-05
 
 ---
 
 ## Purpose
 
-This guide provides best practices, patterns, and practical steps for AI builders and advanced developers working with the Wilder Cosmos Runtime. It covers core concepts, extensibility, and Neurodivergent (ND)-friendly documentation and code style.
+This guide is for AI builders and for developers working alongside AI. In Cosmos, AI
+is a first-class user: it can discover, inspect and operate everything a person can,
+through the same surface. This guide covers the model, how an AI reaches the runtime,
+and the conventions for working in the code. It follows the Neurodivergent (ND)
+documentation style used across the project.
 
 ---
 
-## 1. Core Concepts
+## 1. The Model
 
-- **Thing / World / Scope:** The fundamental primitives for identity, containment, and visibility.
-- **Wave:** The only communication physics; all interactions are wave-based.
-- **Occurrence:** Immutable internal truth; the atomic unit of change.
-- **Perception:** Local awareness event; how Things interpret Waves.
-- **RECORD:** Internalized Occurrence; atomic state change.
-- **Module System:** Extensible runtime via modules with clear boundaries.
-- **Persistence:** Three-layer storage (primary, txlog, snapshot) with deterministic reconciliation.
+- **Thing:** the only kind of entity. The Cosmos is the root Thing.
+- **Concept:** a Thing that serves as a template. Every other Thing is made from one.
+- **Wave:** a message that reaches every Thing with a matching sense.
+- **Wire:** a wave constrained to a set origin and set destinations.
+- **Frame:** one round of changes. The history has one row per frame.
+- **Scope:** a Thing acts only on itself and what it contains. Nothing is inherited.
 
----
-
-## 2. Getting Started
-
-1. **Clone the repository and install dependencies.**
-2. **Read the following docs first:**
-   - [REQUIREMENTS](../../implementation/REQUIREMENTS.md)
-   - [SPECIFICATION](../../implementation/SPECIFICATION.md)
-   - [COMMENT_STYLE](../../implementation/COMMENT_STYLE.md)
-   - [DEVELOPMENT-GUIDELINES](../../implementation/DEVELOPMENT-GUIDELINES.md)
-3. **Run compliance and verification:**
-   - `nimble compliance`
-   - `nimble verify`
-4. **Explore the examples:**
-   - `examples/counter.nim`
+[Concepts](../concepts/primitives.md) explains each one. The rules are in
+[MVP-REQUIREMENTS.md](../../implementation/MVP-REQUIREMENTS.md) section 1.
 
 ---
 
-## 3. Best Practices for AI Builders
+## 2. How an AI Reaches Cosmos
 
-- **ND-Friendly Writing:**
-  - Expand every acronym on first use (e.g., Neurodivergent (ND)).
+There's one surface: the daemon's method table. The `cosmos` command, the console and
+the Model Context Protocol (MCP) bridge are all thin clients of it, so there's no
+human-only path and no AI-only path (MVP-AI-1 to MVP-AI-7).
+
+| Want to | Use |
+|---|---|
+| See every operation | `cosmos methods` |
+| Learn about a Thing | `cosmos describe <target>` |
+| Invoke what a Thing PROVIDES | `cosmos call <thing> <provide> --args-json <json>` |
+| Operate the runtime itself | `describe cosmos`, then `call cosmos <operation>` |
+| Work through MCP | `cosmos mcp`: one tool per method, such as `cosmos_describe` |
+
+- Every command prints a JSON response and never asks a question.
+- Exit codes: `0` success, `1` no daemon or a timeout, `2` a usage or daemon error.
+- Every request passes the same validation as a person's, and every change is
+  recorded in the history with its origin, such as `mcp:<client name>`.
+
+**Status:** this surface is built in Phase 2. Today only `cosmos start`, `inspect`,
+`step` and `console` reach the daemon. See the
+[Runtime CLI Guide](runtime-cli-guide.md).
+
+---
+
+## 3. Getting Started in the Code
+
+1. Clone the repository and run `nimble verify`. It should end with `Gate passed.`
+2. Read, in order:
+   - [STATUS.md](../../../STATUS.md): where things stand.
+   - [MVP-REQUIREMENTS.md](../../implementation/MVP-REQUIREMENTS.md): what must be
+     true.
+   - [MVP-SPECIFICATION.md](../../implementation/MVP-SPECIFICATION.md): how it's
+     built.
+   - [MVP-COMPLIANCE-MATRIX.md](../../implementation/MVP-COMPLIANCE-MATRIX.md): what's
+     proven.
+   - [DEVELOPMENT-GUIDELINES.md](../../implementation/DEVELOPMENT-GUIDELINES.md) and
+     [COMMENT_STYLE.md](../../implementation/COMMENT_STYLE.md).
+3. Look at [examples/counter.nim](../../../examples/counter.nim) for a working module.
+
+---
+
+## 4. Conventions
+
+- **ND-friendly writing:**
+  - Expand every acronym on first use, such as Neurodivergent (ND).
   - Use plain, direct language and short sentences.
   - Avoid figurative or emotional language in procedural docs.
-- **Modular Design:**
-  - Use the module template in `src/style_templates/cosmos_runtime_module.nim`.
-  - Keep modules focused and boundaries explicit.
-- **Determinism:**
-  - Always state when an API or function is deterministic or not.
-  - Avoid hidden side effects.
-- **Testing:**
-  - Use the test module template in `src/style_templates/test_module.nim`.
-  - Keep tests executable and complete.
-- **Documentation:**
-  - Follow the COMMENT_STYLE and DEVELOPMENT-GUIDELINES for all public APIs and docs.
-  - Add similes, memory notes, and explicit flows to module headers.
-- **Extensibility:**
-  - Register new modules via the runtime module system.
-  - Use clear, versioned interfaces.
-- **Compliance:**
-  - Update the compliance matrix and run all checks before submitting PRs.
+- **Explicit over implicit:** no hidden behaviour, no inheritance, no side effects
+  a reader can't see.
+- **Determinism:** say whether a procedure is deterministic. Replayability is a
+  requirement (MVP-SCH-1).
+- **Header comments:** every Nim file has Summary, Simile, Memory note and Flow lines,
+  and a `# Flow:` comment before each `proc`. `nimble compliance` checks both.
+- **Validation:** public procedures validate input at the boundary and fail fast.
+- **Templates:** new modules start from `templates/cosmos_runtime_module.nim`, new
+  tests from `templates/test_module.nim`, or use `scripts/dev/new_nim_module.ps1`.
+- **Proof:** a change counts when its requirement's matrix row is updated and
+  `nimble verify` passes.
 
 ---
 
-## 4. Example: Creating a New Module
+## 5. Where Things Live
 
-1. Copy `src/style_templates/cosmos_runtime_module.nim` to `src/runtime_modules/your_module.nim`.
-2. Replace placeholders with your module’s name, version, and logic.
-3. Implement `initModule` and `cleanupModule`.
-4. Register your module in the runtime.
-5. Add tests using the test module template.
-6. Document all public APIs and flows.
-
----
-
-## 5. Advanced Topics
-
-- **Ontology and Capabilities:** See [ontology.nim](../../../src/runtime/ontology.nim) and [capabilities.nim](../../../src/runtime/capabilities.nim).
-- **Persistence and Reconciliation:** See [persistence.nim](../../../src/runtime/persistence.nim).
-- **Scheduler and Tempo:** See [scheduler.nim](../../../src/cosmos/runtime/scheduler.nim) and [tempo.nim](../../../src/cosmos/tempo/tempo.nim).
-- **Security and Encryption:** See [security.nim](../../../src/runtime/security.nim) and [encryption_mode.nim](../../../src/runtime/encryption_mode.nim).
+- **Things and waves:** [thing.nim](../../../src/cosmos/thing/thing.nim),
+  [wave.nim](../../../src/cosmos/wave/wave.nim).
+- **Scope and capabilities:** [ontology.nim](../../../src/runtime/ontology.nim),
+  [capabilities.nim](../../../src/runtime/capabilities.nim).
+- **Manifest:** [manifest.nim](../../../src/cosmos/core/manifest.nim).
+- **Scheduler and rhythm:** [scheduler.nim](../../../src/cosmos/runtime/scheduler.nim),
+  [tempo.nim](../../../src/cosmos/tempo/tempo.nim) (renamed later).
+- **Persistence:** [persistence.nim](../../../src/runtime/persistence.nim).
+- **Daemon and IPC:** [coordinator_ipc.nim](../../../src/runtime/coordinator_ipc.nim),
+  [cosmos_main.nim](../../../src/cosmos_main.nim).
 
 ---
 
@@ -90,17 +111,10 @@ This guide provides best practices, patterns, and practical steps for AI builder
 - [ ] Short, direct sentences
 - [ ] Determinism noted for all APIs
 - [ ] Examples are executable
-- [ ] Compliance checks pass
+- [ ] `nimble verify` passes
 
 ---
-
-## 7. Further Reading
-
-- [COMPLIANCE-MATRIX (archived)](../../../archive/docs/implementation/COMPLIANCE-MATRIX.md)
-- [IMPLEMENTATION-DETAILS (archived)](../../../archive/docs/implementation/IMPLEMENTATION-DETAILS.md)
-- [PLAN (archived)](../../../archive/docs/implementation/PLAN.md)
-- [WALKTHROUGH (archived)](../../../archive/tests/WALKTHROUGH.md)
-
----
-
-*Licensed under the Wilder Foundation License 1.0.*
+*&copy; 2026 Wilder. All rights reserved.*\
+*Contact: teamwilder@wildercode.org*\
+*Licensed under the Wilder Foundation License 1.0.*\
+*See LICENSE for details.*

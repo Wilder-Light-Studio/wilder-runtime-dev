@@ -4,6 +4,8 @@
 
 Deterministic coordinator IPC request/response/event handling. Validates IPC requests, mutates bounded session state, and emits structured responses and events over JSON-lines TCP.
 
+**MVP status:** this state is the daemon's own copy, not connected to the runtime; Phase 2 replaces it with the real lifecycle state (MVP-SPECIFICATION §3 and §4). Known bug: request methods are lowercased before lookup, so every method name with a capital letter (`addThing`, `listThings`, `setMode` and others) returns `method_not_found`. `tick` becomes the frame, and `tempoHz` the frame rate.
+
 ---
 
 ## Constants

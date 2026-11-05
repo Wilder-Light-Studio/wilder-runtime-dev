@@ -4,19 +4,26 @@ What this is. This page is the entry point for documentation in this repository.
 
 ## Start Here
 
-- New to the project: `docs/public/index.md`
-- Windows installation walkthrough: `archive/docs/public/getting-started/install-windows.md`
-- Building or reviewing internals: `docs/implementation/index.md`
-- Governing requirements: `docs/implementation/REQUIREMENTS.md`
-- Implementation specification: `docs/implementation/SPECIFICATION.md`
-- Licensing phase requirements/spec: `docs/implementation/REQUIREMENTS.md` (Phase XE), `docs/implementation/SPECIFICATION.md` (§19F), `docs/implementation/SPECIFICATION.md` (§8)
-- Execution plan: `archive/docs/implementation/PLAN.md`
-- Improvement roadmap: `archive/docs/implementation/ROADMAP.md`
+- New to the project: [../README.md](../README.md), then [public/index.md](public/index.md)
+- Where things stand: [../STATUS.md](../STATUS.md)
+- Building or reviewing internals: [implementation/README.md](implementation/README.md)
+- What must be true: [MVP-REQUIREMENTS.md](implementation/MVP-REQUIREMENTS.md)
+- How it's built, and in which phase: [MVP-SPECIFICATION.md](implementation/MVP-SPECIFICATION.md)
+- What's proven so far: [MVP-COMPLIANCE-MATRIX.md](implementation/MVP-COMPLIANCE-MATRIX.md)
+
+The full [REQUIREMENTS.md](implementation/REQUIREMENTS.md) and
+[SPECIFICATION.md](implementation/SPECIFICATION.md) are the long-term reference.
+Where they disagree with the MVP files, the MVP files govern. Superseded plans and
+deferred features are in [../archive/](../archive/README.md).
 
 ## Documentation Lanes
 
-- Public lane (`docs/public/`): newcomer and developer onboarding, concept framing, runtime behavior overviews, module authoring guidance, and glossary.
-- Implementation lane (`docs/implementation/`): chapter-specific deep technical walkthroughs, plans, and flowcharts.
+- Public lane (`docs/public/`): newcomer and developer onboarding, the Cosmos model,
+  runtime behaviour, module authoring, the API reference and the glossary.
+- Implementation lane (`docs/implementation/`): requirements, specification,
+  compliance matrix and working guides.
+- Enhancements (`docs/enhancements/`): notes waiting for their own projects, such as
+  the audio and UI ideas.
 
 ## Structure
 
@@ -29,7 +36,9 @@ docs/
     concepts/
     runtime/
     modules/
+    api/
     glossary/
+  enhancements/
   assets/
 ```
 

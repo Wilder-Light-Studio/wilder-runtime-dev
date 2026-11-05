@@ -6,6 +6,25 @@ Current development line: `0.9.9.9`
 
 Current preview tag: `v0.9.9.9-wip`
 
+## Unreleased - MVP Re-scope (November 2026)
+
+- Purpose restated: Cosmos is a general way to build things logically, suited to a
+  Neurodivergent (ND), ADHD mind. Personal music tools are the first use and live in
+  their own projects.
+- New MVP requirements, specification and compliance matrix in
+  `docs/implementation/` govern current work. The full REQUIREMENTS.md and
+  SPECIFICATION.md stay as the long-term reference.
+- Model settled: everything that exists is a Thing; Concepts are templates; waves are
+  global and wires are constrained waves; time advances in frames, with one history
+  row per frame; nothing is inherited; AI is a first-class user (CLI and MCP).
+- Naming: standard terms replace wink, smile, morphos, blip, tick and RECORD (as the
+  history's name); a Thing's timing type is now its rhythm, not its tempo.
+- Phase 1 done: `nimble test` discovers every test and time-limits each one, known
+  failures are listed rather than hidden, `nimble compliance` checks the MVP docs, and
+  the gate passes from a fresh clone.
+- Superseded and deferred material moved to `archive/`.
+- Docs rewritten to match: README, cheatsheet, guides, concepts and glossary.
+
 ## v0.9.6 - In Progress
 
 This development line reflects the current package version and the active work in

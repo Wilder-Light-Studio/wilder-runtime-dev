@@ -2,280 +2,163 @@
   <img src="docs/assets/wilder-cosmos-v3.png" alt="Wilder Cosmos Logo" width="300"/>
 </p>
 
-# Wilder Cosmos - A Runtime Foundation
+# Wilder Cosmos
 
-Wilder Cosmos Runtime is a Nim-based runtime for deterministic world-state
-execution, boundary validation, structured messaging, and layered
-reconciliation.
+Cosmos is a way to build things logically, in a style suited to a Neurodivergent
+(ND), ADHD mind: one kind of entity, uniform Concepts, visible wires, no hidden
+behaviour, and a history of everything that happened. It's written in Nim.
 
-This repository is the development home for the runtime itself. It combines
-  unit/
-  integration/
-  uat/
-the implementation, the requirements and specification documents that define
-correctness, and the tests used to verify progress.
-  proto/
-scripts/
-  dev/
-  build/
-  verify/
-  ops/
-templates/
-**Version:** 0.1.0
+It's for building anything. The first use is a set of personal music tools (a MIDI
+editor and a synth), which live in their own projects and use Cosmos through its
+public surface. Nothing audio-specific lives in this repository.
 
 Contact: [teamwilder@wildercode.org](mailto:teamwilder@wildercode.org)
 
-## Architecture At A Glance
+## The Model
 
-```mermaid
-flowchart LR
-  A[Config] --> B[Runtime Core]
-  B --> C[Validation]
-  C --> D[Messaging]
-  C --> E[Persistence]
-  B --> F[Runtime Modules]
-  B --> G[Optional Modules]
-  E --> H[Reconciliation]
-```
+- **Everything that exists is a Thing.** The Cosmos is the root Thing. A Thing's
+  inside is its World, and its scope is itself and what it contains.
+- **Concepts are templates.** A Concept is a Thing that serves as a blueprint, and
+  every other Thing is made from one. Concepts compose: a Concept can be built from
+  other Concepts and the wires between them.
+- **Things talk only through waves.** A wave spreads across the whole Cosmos to every
+  Thing with a matching sense. A wire is a wave constrained to a set origin and set
+  destinations.
+- **Time advances in frames.** The history has one row per frame: what happened, and
+  when, in Cosmos time.
+- **Explicit over implicit, always.** Nothing is inherited from a parent. A Thing
+  knows only what its Concept declares, what it senses and what is wired to it.
+- **AI is a first-class user.** Everything a person can do through the command line
+  or console, an AI can do through the command line or the Model Context Protocol
+  (MCP).
 
-At a high level, the runtime loads typed configuration, brings up the core
-lifecycle, validates data at boundaries, routes messages, reconciles
-persistence layers, and then opens the module surface.
+The full rules are in [MVP-REQUIREMENTS.md](docs/implementation/MVP-REQUIREMENTS.md).
 
-## What It Is
+## Status
 
-Wilder Cosmos Runtime is designed to support systems that need:
+Cosmos is being re-scoped to a Minimum Viable Product (MVP). [STATUS.md](STATUS.md)
+always has the current state and the next tasks.
 
-- deterministic startup and lifecycle sequencing
-- fail-fast validation at public boundaries
-- structured message envelopes and transport abstraction
-- multi-layer persistence with reconciliation on load and recovery
-- explicit module boundaries and typed runtime APIs
+| Phase | Scope | State |
+|---|---|---|
+| 1. Trustworthy gate | Every test runs, nothing hangs, passes from a fresh clone | Done |
+| 2. Daemon, CLI and AI access | `cosmos start`/`stop`, IPC, console, MCP | Next |
+| 3. The startapp loop | Concepts, waves, wires, the history | Committed |
+| 4. Close remaining gaps | Whatever the matrix still shows | When a project needs it |
 
-The project is guided by a requirements-first workflow. The runtime behavior is
-defined in the documentation before it is considered complete in code.
+**What works today:** the runtime core is built and tested: startup and shutdown,
+three-layer persistence, the validating prefilter, the frame scheduler, capability
+resolution and the console's command logic.
 
-## Project Status
+**What doesn't yet:** the daemon's command line is partly broken. Phase 2 fixes it.
 
-The project is in active development.
-
-Current implemented foundations include:
-
-- public runtime API types and validation helpers
-- runtime configuration loading and validation
-- JSON and Protobuf-oriented serialization foundations
-- message envelope dispatch and validation
-- validation prefilter foundations
-- runtime lifecycle scaffolding for startup sequencing
-
-Planned and expanding areas include deeper persistence behavior, broader
-integration coverage, startup enforcement, and release hardening.
-
-## Why This Repository Exists
-
-This repository keeps the code and the governing documents in one place so the
-runtime can be developed with traceable intent.
-
-It includes:
-
-- source code for runtime and cosmos modules
-- verification tests and harnesses
-- requirements, plans, and implementation notes
-- scripts for compliance checks and scaffolding
-- examples and templates for new modules
+- `cosmos start` runs the daemon, but `stop`, `list`, `add`, `remove` and `mode` fail
+  with "method not found". Only `inspect`, `step` and `console` reach it.
+- The daemon keeps its own list of Things, separate from the runtime.
+- `cosmos --help`, `startapp`, `capabilities`, `concept`, `scan`, `ipc` and `notify`
+  aren't reachable.
+- The port is fixed at 7700.
 
 ## Quick Start
 
-### Single Entry Point
-Cosmos uses a single, stable entry point for all operations: the `cosmos` CLI.
-
-**Starting the Runtime:**
-The runtime operates as a long-running daemon. To start or attach to it:
-```bash
-cosmos start
-```
-
-**Git-Style CLI Grammar:**
-Cosmos uses an explicit, composable command structure: `cosmos <verb> [noun] [args]`
-- **Daemon:** `cosmos start`, `cosmos stop`, `cosmos restart`
-- **Watch Management:** `cosmos add watch /path/to/app`, `cosmos list watch`
-- **Thing Management:** `cosmos add thing screenkeys.cosmos`, `cosmos list things`
-- **Introspection:** `cosmos inspect world`, `cosmos console`
-- **Mode Switching:** `cosmos mode step`, `cosmos mode aware`
-
 ### Prerequisites
 
-Install:
+- Windows 11 (the MVP's target; Linux follows)
+- Nim 2.0.8 and Nimble
+- PowerShell, for the repository scripts
 
-- Nim 1.6 or newer
-- Nimble
-- PowerShell for the repository scripts on Windows
-
-### Common Commands
-
-Build and run the compliance gate:
+### Build and test
 
 ```powershell
-nimble buildRuntime
+nimble buildRuntime    # build bin/cosmos.exe
+nimble verify          # the full gate: compliance check, then every test
 ```
 
-Run compliance checks only:
+The gate should end with `Gate passed.`: 46 tests pass and 4 are known failures,
+listed with reasons in `tests/KNOWN_FAILURES.txt`. Phase 2 fixes all four.
+
+### Run
+
+`cosmos start` runs the daemon in the terminal you start it from. Use a second
+terminal for other commands.
 
 ```powershell
-nimble compliance
+bin\cosmos.exe start
 ```
 
-Compile-check the test suites:
+The [Runtime CLI Guide](docs/public/getting-started/runtime-cli-guide.md) lists
+every command, what it does today and what Phase 2 changes.
 
-```powershell
-nimble testCompile
-```
+## Documentation
 
-Run tests:
+| Read this | For |
+|---|---|
+| [STATUS.md](STATUS.md) | Where things stand and what's next |
+| [CHEATSHEET.md](CHEATSHEET.md) | Copy-paste commands |
+| [MVP-REQUIREMENTS.md](docs/implementation/MVP-REQUIREMENTS.md) | What must be true |
+| [MVP-SPECIFICATION.md](docs/implementation/MVP-SPECIFICATION.md) | How it's built |
+| [MVP-COMPLIANCE-MATRIX.md](docs/implementation/MVP-COMPLIANCE-MATRIX.md) | Which requirements are proven, by which tests |
+| [docs/public/index.md](docs/public/index.md) | Guides, concepts and API reference |
+| [DEVELOPMENT-GUIDELINES.md](docs/implementation/DEVELOPMENT-GUIDELINES.md) | How to work in this repository |
 
-```powershell
-nimble test
-```
-
-Run the full verification flow:
-
-```powershell
-nimble verify
-```
-
-Build and stage release artifacts locally:
-
-```powershell
-nimble releaseArtifacts
-```
-
-## Binary Distribution Safety
-
-To reduce platform trust and policy risk, this repository does not place direct `.exe`
-download links in primary documentation.
-
-Use this release pattern instead:
-
-1. Publish artifacts through GitHub Releases.
-2. Include checksum evidence (`SHA256SUMS`) for every release.
-3. Include a release summary (`RELEASE-SUMMARY.md`) for traceability.
-4. If signing secrets are configured, include signature evidence (`SHA256SUMS.sig`).
-
-Verification examples:
-
-```powershell
-# Windows PowerShell checksum verification
-Get-FileHash .\cosmos-windows-amd64.exe -Algorithm SHA256
-```
-
-```bash
-# Linux/macOS checksum verification
-sha256sum cosmos-linux-amd64
-```
-
-Release notes should use the safe template at:
-
-- `.github/release_notes_template.md`
-
-## CI/CD
-
-- GitHub CI: `.github/workflows/ci.yml` runs compile/test gates on pushes and pull requests to `main`.
-- GitHub pre-release verify: `.github/workflows/pre_release_verify.yml` runs compliance and verify gates on push/PR and manual dispatch.
-- GitHub release matrix: `.github/workflows/release_artifacts.yml` runs on `v*` tags and manual dispatch; it builds cross-platform artifacts, verifies checksums, and publishes a GitHub Release.
-- GitHub release promotion: `.github/workflows/promote_release.yml` promotes a preview release tag to a stable tag and republishes assets with promotion notes.
-- GitHub CD fallback: `.github/workflows/cd_release.yml` is a manual Windows-only fallback staging workflow.
-- Codeberg CI/CD: `.woodpecker.yml` provides:
-  - push/pull-request CI for `main`
-  - tag-driven `v*` release staging (Linux artifact generation and dist packaging)
-- Release operator playbook: `archive/docs/public/runtime/release-tooling-guide.md`
+The full [REQUIREMENTS.md](docs/implementation/REQUIREMENTS.md) and
+[SPECIFICATION.md](docs/implementation/SPECIFICATION.md) are kept unchanged as the
+long-term reference. Where they disagree with the MVP files, the MVP files govern.
+Superseded material is in [archive/](archive/README.md).
 
 ## Repository Map
 
 ```text
 src/
-  cosmos/
-  examples/
-  modules/
-  runtime/
-  runtime_modules/
-  style_templates/
-
+  cosmos/          Things, waves, scheduler, rhythm (tempo/), manifest
+  runtime/         lifecycle, persistence, validation, IPC, console, config
+  modules/         runtime modules
+  cosmos_main.nim  the cosmos command
 tests/
+  unit/  integration/  uat/
+  KNOWN_FAILURES.txt
 docs/
-config/
-proto/
+  implementation/  requirements, specification, compliance matrix
+  public/          guides, concepts, API reference
 scripts/
+  dev/             scaffolding helpers
+  verify/          the gate (run_tests.ps1, check_requirements.ps1)
+templates/         module and header templates
 examples/
-templates/
+archive/           superseded and deferred material, kept for reference
 ```
-
-Useful starting points:
-
-- `src/runtime/api.nim`
-- `src/runtime/config.nim`
-- `src/runtime/validation.nim`
-- `src/runtime/serialization.nim`
-- `src/runtime/messaging.nim`
-- `src/runtime/persistence.nim`
-- `src/runtime/core.nim`
-
-## Documentation
-
-If you are approaching the project for the first time, start with:
-
-- [docs/index.md](docs/index.md)
-- [docs/public/index.md](docs/public/index.md)
-- [docs/implementation/REQUIREMENTS.md](docs/implementation/REQUIREMENTS.md)
-- [docs/implementation/MVP-SPECIFICATION.md](docs/implementation/MVP-SPECIFICATION.md)
-- [archive/docs/implementation/PLAN.md (archived)](archive/docs/implementation/PLAN.md)
-- [archive/docs/implementation/IMPLEMENTATION-DETAILS.md (archived)](archive/docs/implementation/IMPLEMENTATION-DETAILS.md)
-- [docs/implementation/DEVELOPMENT-GUIDELINES.md](docs/implementation/DEVELOPMENT-GUIDELINES.md)
-- [archive/docs/implementation/MODULES.md (archived)](archive/docs/implementation/MODULES.md)
-- [Application Developer Getting Started Guide](docs/public/getting-started/app-developer-guide.md)
 
 ## Development Workflow
 
-The standard repository workflow is:
+1. Read the requirement you're changing in
+   [MVP-REQUIREMENTS.md](docs/implementation/MVP-REQUIREMENTS.md).
+2. Change the code and its tests.
+3. Update the requirement's row in the compliance matrix.
+4. Run `nimble verify`.
 
-1. Read the affected requirement sections.
-2. Update compliance mappings when requirements change.
-3. Implement code changes.
-4. Add or update tests.
-5. Run verification commands.
-6. Record evidence in the pull request.
-
-The compliance gate script is located at
-`scripts/verify/check_requirements.ps1`.
+A phase is complete only when its tests pass in the gate. Continuous integration is
+deferred while the MVP targets one machine. The Codeberg `.woodpecker.yml` predates
+the MVP and isn't part of the gate.
 
 ## Module Scaffolding
 
-Header templates live under `templates/headers/`.
-
-To generate a new Nim module with the expected project header structure, use:
+To create a Nim module with the project's header comments (Summary, Simile, Memory
+note, Flow), run without arguments for interactive mode:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/new_nim_module.ps1 -Kind runtime -Name API -RelativePath src/runtime/api.nim -Summary "Public runtime API types and input validation framework." -Simile "API is the contract between modules and the runtime." -MemoryNote "All types are validated at boundaries; private procs assume correctness." -Flow "Public proc input -> validate -> fail-fast on error -> proceed with private implementation."
+.\scripts\dev\new_nim_module.ps1
 ```
 
-Supported `-Kind` values:
-
-- `runtime`
-- `cosmos`
-- `test`
-- `example`
-- `style`
+Header templates live in `templates/headers/`. The
+[CHEATSHEET](CHEATSHEET.md) shows the full form with every argument.
 
 ## License
 
-This project is licensed under the **Wilder Foundation License 1.0**.
-
-Read the full license text in [LICENSE](LICENSE).
+This project is licensed under the **Wilder Foundation License 1.0**. Read the full
+license text in [LICENSE](LICENSE).
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\
 *Contact: teamwilder@wildercode.org*\
 *Licensed under the Wilder Foundation License 1.0.*\
 *See LICENSE for details.*
-
-
-

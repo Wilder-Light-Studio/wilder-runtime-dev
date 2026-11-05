@@ -4,36 +4,41 @@ What this is. This page explains the runtime at a high level so you can orient q
 
 ## Startup Sequence
 
-The implemented lifecycle runs in strict order:
+Startup runs in a fixed order (MVP-LIFE-1):
 
-1. Load configuration.
-2. Initialize persistence backend.
-3. Load runtime envelope.
-4. Reconcile layers.
-5. Run migrations.
-6. Activate validating prefilter.
-7. Load modules in deterministic order.
-8. Initialize scheduler, tempo, and world graph.
-9. Open ingress and run frames.
+1. Load configuration (optional: defaults are used if there's none).
+2. Load the runtime envelope.
+3. Reconcile the persistence layers.
+4. Run migrations.
+5. Activate the validating prefilter.
+6. Load runtime modules.
+7. Create the Cosmos root Thing.
+8. Start the scheduler.
+9. Build the capability registry.
+10. Load user Things.
+11. Run the frame loop.
 
-No partial startup is allowed. On failure, startup halts with a structured error.
+A failed step halts startup with a structured error saying where it stopped, why,
+and how to recover. A malformed user Thing is skipped with a warning and never stops
+startup. Starting with no user Things at all is fine.
 
-## Main Subsystems
+## Main Parts
 
-- Runtime core: lifecycle control and startup gates.
-- Validation and prefilter: admission control before dispatch.
-- Serialization: envelope wrap and unwrap with checksums.
-- Persistence: layered state, txlog, and snapshots.
-- Messaging: structured envelopes across module boundaries.
-- Modules: kernel and loadable registrations.
+- **Runtime core:** the startup and shutdown order and its gates.
+- **Validating prefilter:** checks every input before anything acts on it.
+- **Scheduler:** runs frames in a deterministic order, with a time budget per Thing.
+- **Persistence:** primary state, an append-only transaction log, and snapshots.
+- **Capabilities:** matches what each Thing WANTS to what other Things PROVIDE.
+- **Daemon and IPC:** the running Cosmos, reached over localhost by the `cosmos`
+  command, the console and, from Phase 2, MCP.
 
 ## Mental Model
 
-Think of the runtime as an airlock system:
+Think of the runtime as an airlock:
 
-- outer door: ingress request enters
-- pressure check: prefilter validates shape and route
-- inner door: only validated payload reaches dispatch
+- outer door: input arrives;
+- pressure check: the prefilter validates its shape and route;
+- inner door: only validated input reaches a Thing or becomes a change in the history.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

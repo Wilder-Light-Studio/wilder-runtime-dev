@@ -104,7 +104,7 @@ detach code. A background mode is deferred.
   replayable (MVP-SCH-1) and removes the shared-state race.
 - **`--mode step`:** start paused. Each `runtime.step` runs exactly one scheduler frame.
 - **`--mode continuous`:** run frames back to back, yielding between them.
-- **`--mode periodic`:** run frames at the configured tempo.
+- **`--mode periodic`:** run frames at the configured frame rate.
 - `runtime.inspect`, `runtime.listThings` and the console read the lifecycle's real
   state, not an IPC-side copy.
 
@@ -198,7 +198,7 @@ same rule as MVP-INT-1: declare once, reference everywhere.
 | Method | Returns |
 |---|---|
 | `runtime.methods` | The method table: name, summary, params, result, mutates. |
-| `runtime.describe` `{target}` | A Thing descriptor: id, scope path, manifest, WANTS, PROVIDES with signatures, tempo, status, child ids. |
+| `runtime.describe` `{target}` | A Thing descriptor: id, scope path, manifest, WANTS, PROVIDES with signatures, rhythm, status, child ids. |
 | `runtime.call` `{thing, provide, args}` | Builds a wave to the Thing, validates it through the prefilter, delivers it in the next frame and returns the result. A validation failure returns the redacted failure change (MVP-VAL-4). |
 
 `runtime.listThings` returns short descriptors (id, scope path, WHY), not just names.
@@ -336,7 +336,7 @@ cosmos.hello            a Thing made from hello
 - **Concepts.** Loading a bundle (§3.4) registers its manifest in the Concept
   registry (`concepts.nim`) and creates a Concept Thing at `cosmos.concepts.<WHO>`.
   Its status is its manifest, so `runtime.describe` shows it like any Thing. A
-  Concept Thing is a template: it has no tempo, never runs in a frame and receives
+  Concept Thing is a template: it has no rhythm, never runs in a frame and receives
   no waves.
 - **The `concepts` Thing** is made from a built-in Concept the runtime declares (WHO
   `concepts`, WHY "holds the Concepts loaded in this Cosmos"). That Concept sits under
@@ -506,10 +506,16 @@ which nothing in `src/` reads. Drop them unless something starts reading them.
   `tests/` except `tests/harness.nim`. Adding a file adds it to the gate.
 - **No hangs (MVP-GATE-3).** Each file runs under a 90-second limit. Hitting the limit
   is a failure.
-- **Fast check (MVP-GATE-4).** `nimble checkFast` skips tests that import `net` or
-  `osproc` (sockets and processes). Tests stay in their existing folders.
-  `coordinator_test` starts the daemon without importing either, so until Phase 2 it
-  still runs in the fast check and uses its full time limit.
+- **Daemon tests are found by a rule.** A file that imports `net`, `osproc` or
+  `cosmos_main` can open sockets, start processes or start the daemon, so it's a
+  daemon test. Tests stay in their existing folders.
+- **Parallel (2026-11-05).** Files are built and run up to one per processor at a
+  time. Daemon tests can reach the daemon's port, so they run one at a time, alongside
+  the others. `-Jobs 1` runs everything one at a time. Results print as each file
+  finishes. On the development machine: 96 s for the full gate (most of it
+  `coordinator_test` waiting out its limit until Phase 2), down from about 210 s.
+- **Fast check (MVP-GATE-4).** `nimble checkFast` skips daemon tests: 22 s for 46
+  files on the development machine.
 - **Daemon tests.** Start `cosmos start` as a subprocess with `COSMOS_PORT` set to a
   free port. Wait up to 5 seconds for `runtime.ping`. Run the test. Stop the daemon
   with `runtime.stop`, and kill the process if it hasn't exited within 5 seconds.

@@ -2,15 +2,15 @@
 # Module name: counter
 # Module Path: examples/counter.nim
 #
-# Summary: Counter module â€” minimal example of a loadable Cosmos Runtime module.
-# Simile: Like a tally counter at a turnstile â€” one input increments the count;
+# Summary: Counter module — minimal example of a loadable Cosmos Runtime module.
+# Simile: Like a tally counter at a turnstile — one input increments the count;
 #   the current total is always readable.
 # Memory note: keep state in the ModuleContext config field; never hold module
 #   state in a global variable.
 # Flow: register module -> initCounter sets default state -> handleCounter
 #   increments on "increment" message -> state is returned as JSON.
 ## counter.nim
-## Example counter module â€” demonstrates the module registration pattern.
+## Example counter module — demonstrates the module registration pattern.
 ## Copy this file as a starting point for your own Cosmos Runtime module.
 
 ## Example usage:
@@ -30,7 +30,7 @@ let counterMeta* = ModuleMetadata(
   schemaVersion: 1,
   memoryCap: 1 * 1024 * 1024,  ## 1 MiB cap.
   resourceBudget: 100,          ## 100 ticks per frame.
-  description: "Counter module â€” increments a counter on each message."
+  description: "Counter module — increments a counter on each message."
 )
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.

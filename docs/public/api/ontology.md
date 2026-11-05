@@ -4,6 +4,8 @@
 
 Deterministic scope, context, override, and reference resolution. Resolves downward-only context by walking ancestors and manages semantic scope paths under Cosmos.
 
+**MVP status:** context inheritance and overrides are retired: nothing flows from a parent Thing to its children (MVP-ONT-11). `applyOverrides`, the ancestor merge in `resolveContext` and `Thing.overrideDeltas` are removed in Phase 3 (MVP-SPECIFICATION §4C.7). Scope paths stay as they are.
+
 ---
 
 ## Constants

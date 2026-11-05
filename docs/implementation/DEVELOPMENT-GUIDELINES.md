@@ -18,12 +18,13 @@ Use this guide when:
 
 ## Standard Development Loop
 
-1. Read the affected requirement sections in docs/implementation/REQUIREMENTS.md.
-2. Update archive/docs/implementation/COMPLIANCE-MATRIX.md with intended verification artifacts.
+1. Read the affected requirement in docs/implementation/MVP-REQUIREMENTS.md.
+2. Check its row in docs/implementation/MVP-COMPLIANCE-MATRIX.md.
 3. Implement code changes.
 4. Add or update tests.
-5. Run compliance and verification tasks.
-6. Include evidence in the pull request.
+5. Update the matrix row and, if needed, tests/KNOWN_FAILURES.txt.
+6. Run compliance and verification tasks, and record the evidence in the commit or
+   pull request.
 
 Example commands:
 
@@ -34,9 +35,9 @@ nimble verify
 ```
 
 Expected outcome:
-- compliance script reports pass,
-- test compile checks pass,
-- no missing compliance matrix mappings.
+- compliance script reports pass, including one matrix row per MVP requirement,
+- every test passes or is a listed known failure, and the gate ends with
+  `Gate passed.`
 
 ## Input Validation Practices
 
@@ -72,14 +73,11 @@ When editing requirements:
 - add or update terms if new terminology appears,
 - add at least one concrete command or behavioral example,
 - add or update one diagram for complex flow changes,
-- add or update chapter module flowcharts for every touched module in
-  `docs/implementation/ChapterX/MODULE-FLOWCHARTS.md`,
-- update archive/docs/implementation/COMPLIANCE-MATRIX.md in the same change set,
-- confirm scripts/verify/check_requirements.ps1 still passes,
-- if a requirement involves data handling or validation, update SPECIFICATION.md
-  section 24 (including §24.9–§24.14 for validating prefilter work).
-- if validating prefilter semantics change, update docs/implementation/Chapter2/VALIDATION-FIREWALL-REQUIREMENTS.md,
-  archive/docs/implementation/PLAN.md (Chapter 2C), and archive/docs/implementation/COMPLIANCE-MATRIX.md in the same change set.
+- give a new requirement an `MVP-…` ID and a row in
+  docs/implementation/MVP-COMPLIANCE-MATRIX.md in the same change set,
+- say how it's met in docs/implementation/MVP-SPECIFICATION.md, and mark any change
+  to the long-term REQUIREMENTS.md or SPECIFICATION.md as **Departs**,
+- confirm scripts/verify/check_requirements.ps1 still passes.
 
 ## Code Comment Contract
 
@@ -122,7 +120,7 @@ For each `.nim` file:
 ## PR Evidence Checklist
 
 For each requirement area touched in a PR:
-- Requirement reference: section title in docs/implementation/REQUIREMENTS.md
+- Requirement reference: `MVP-…` ID in docs/implementation/MVP-REQUIREMENTS.md
 - Implementation reference: file path and proc/type name
 - Verification reference: test file or validation script
 - Outcome: pass/fail with short evidence note
@@ -131,9 +129,7 @@ Example evidence row:
 
 | Requirement | Implementation | Verification | Outcome |
 | --- | --- | --- | --- |
-| Console Subsystem Requirements | src/runtime/console.nim printRuntimeStatus | tests/unit/console_status_test.nim | Pass (compile check) |
-
-Use .github/pull_request_template.md for all pull requests and complete every required section.
+| MVP-CON-1 | src/runtime/console.nim renderAll | tests/unit/console_status_test.nim | Pass (gate) |
 
 ## Development Flow Diagram
 
@@ -151,13 +147,10 @@ graph TD
 
 ## CI Workflow Behavior
 
-Pre-release verification workflow:
-- `.github/workflows/pre_release_verify.yml` runs on push to `main` and `release/**`, on pull requests targeting `main`, and by manual dispatch.
-- It must run `nimble compliance` and `nimble verify`.
-
-Release artifact workflow:
-- `.github/workflows/release_artifacts.yml` runs on `v*` tags and by manual dispatch.
-- It must build the full cross-platform matrix, run installer contract checks, generate checksums, and publish manifest metadata.
+Continuous integration (CI) and release workflows are deferred while the MVP targets
+one machine (MVP-SPECIFICATION §8). The gate is run locally with `nimble verify`,
+and a change counts only once it passes there. The Codeberg `.woodpecker.yml`
+predates the MVP and isn't part of the gate.
 
 ## Requirement-to-Test Update Diagram
 

@@ -1,219 +1,139 @@
 # Runtime CLI Guide
 
-What this is. This page walks you through the two CLI entrypoints — starting the runtime and connecting a console — as well as attaching to and detaching from a live session.
+What this is. This page lists every `cosmos` command: what it does today, and what
+Phase 2 changes. Phase 2's design is in
+[MVP-SPECIFICATION.md](../../implementation/MVP-SPECIFICATION.md) §3 to §6.
 
 ---
 
-## The Two Entrypoints
+## One Command, One Daemon
 
-The runtime ships with two separate entry programs.
+Everything goes through one program, `cosmos` (`src/cosmos_main.nim`, built to
+`bin/cosmos.exe`). Its grammar is `cosmos <verb> [noun] [args]`.
 
-| Entrypoint | Source | Purpose |
-|---|---|---|
-| `cosmos` | `src/cosmos_main.nim` | Start the runtime. Optionally launch a console. |
-| `console_main` | `src/console_main.nim` | Connect a console to an already-running instance. |
+- `cosmos start` runs the daemon: the running Cosmos. It stays in the terminal you
+  start it from.
+- Every other command is a client. It connects to the daemon over localhost, sends
+  one request and prints the response.
+- The console is a client too.
 
-Use `cosmos` to bring up a new instance. Use `console_main` when the runtime is already running and you want to inspect or interact with it.
-
----
-
-## Starting the Runtime
-
-Build and run the coordinator entrypoint:
-
-```powershell
-nim c -r src/cosmos_main.nim -- --config config/runtime.json
-```
-
-This starts the runtime in detached mode — no console is launched. The runtime completes startup and runs.
-
-### Console modes
-
-Use `--console` to choose how the console behaves at startup:
-
-```powershell
-# No console (default — same as not passing --console)
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --console detach
-
-# Start runtime then launch an attached console automatically
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --console auto
-
-# Start runtime and open the console ready for explicit attach
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --console attach
-```
-
-### Daemonize
-
-`--daemonize` runs the runtime in detached/background mode. It cannot be combined with `--console attach` — that combination is rejected at startup.
-
-```powershell
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --daemonize
-```
-
-### Watch flag shorthand
-
-If you pass `--watch` without an explicit `--console` flag, console mode resolves contextually:
-
-- With `--daemonize`: resolves to **detach** (watch is then incompatible — startup fails; pass `--console attach` explicitly if you want watch with a console)
-- Without `--daemonize`: resolves to **attach** automatically
-
-```powershell
-# Resolves to attach mode; starts watch on /thing/a when connected
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --watch /thing/a
-```
-
-### Override flags
-
-```powershell
-nim c -r src/cosmos_main.nim -- --config config/runtime.json --mode dev --log-level debug --port 8080 --console attach
-```
-
-`--mode` accepts `dev`, `debug`, or `prod`. `--log-level` accepts `trace`, `debug`, `info`, `warn`, or `error`. `--port` must be in range 1-65535. Overrides apply on top of the config file and environment; they do not alter the file itself.
-
-### Inline help
-
-```powershell
-nim c -r src/cosmos_main.nim -- --help
-```
-
-Prints the full flag reference with examples and exits 0. Works in any argument order, including before or after invalid flags.
+People and AI use the same commands. Every command prints a JSON response and never
+asks a question, so a script or an AI agent can drive the runtime from a shell.
 
 ---
 
-## Starting a Console Session
+## Commands
 
-Use `console_main` to connect to a runtime that is already running.
+| Command | What it does | Today | After Phase 2 |
+|---|---|---|---|
+| `cosmos start` | Run the daemon in this terminal | Works. Port fixed at 7700; flags ignored | Accepts `--mode`, `--config`, `--with`, `--loglevel`, `--port` |
+| `cosmos stop` | Stop the daemon cleanly | Fails: "method not found" | Finishes the frame, shuts down, frees the port |
+| `cosmos list things` | List loaded Things | Fails: "method not found" (see below) | Lists real Things with id, scope path and WHY |
+| `cosmos add thing <bundle>` | Load a bundle folder | Fails: "method not found" | Loads into the runtime |
+| `cosmos remove thing <id>` | Remove a Thing | Fails: "method not found" | Removes from the runtime |
+| `cosmos add watch <path>`, `remove watch`, `list watch` | Manage watched paths | Fail: "method not found" | Work |
+| `cosmos inspect <target>` | Show runtime state | Works, but shows the daemon's own copy, not the runtime | Shows the runtime's real state |
+| `cosmos step` | Advance one frame | Counts, without running a frame | Runs exactly one frame |
+| `cosmos mode <step\|continuous\|periodic>` | Change how frames run | Fails: "method not found" | Validated and applied |
+| `cosmos console` | Open the interactive console | Opens, but forgets you between commands | Keeps the session (see below) |
+| `cosmos --help` | Show usage | Prints usage, but exits with an error | Prints usage, exits 0, starts nothing |
+| `cosmos restart` | — | Accepted | Removed until it's designed |
 
-```powershell
-nim c -r src/console_main.nim -- --config config/runtime.json
-```
+### Why "method not found"
 
-This opens the console in an unattached state. You can then attach interactively (see below).
+The daemon lowercases each request's method name before looking it up, but the names
+it looks for have capitals (`addThing`, `listThings`, `setMode`). So every method with
+a capital letter fails, and only `step`, `inspect`, `pause`, `resume`, `snapshot`,
+`attach` and `subscribe` get through. `ping` and `stop` aren't handled at all. Found
+on 2026-11-05; Phase 2 fixes it.
 
-### Auto-attach on launch
+### Unreachable today
 
-Pass `--attach <identity>` to attach immediately on startup:
+`startapp`, `capabilities`, `concept`, `scan`, `ipc` and `notify` still exist in the
+code, but the command line stopped routing to them in April 2026. Phase 2 reconnects
+them.
 
-```powershell
-nim c -r src/console_main.nim -- --config config/runtime.json --attach operator
-```
+### New in Phase 2
 
-### Watch on launch
+| Command | What it does |
+|---|---|
+| `cosmos methods` | List every daemon operation, its inputs and whether it changes anything |
+| `cosmos describe <target>` | Describe any Thing, including the Cosmos itself |
+| `cosmos call <thing> <provide> [--args-json <json>]` | Invoke something a Thing PROVIDES |
+| `cosmos mcp` | Serve every operation as a Model Context Protocol (MCP) tool |
 
-Pass `--watch` together with `--attach` to open into watch mode directly:
+`describe` then `call` works the same on every Thing, and on the Cosmos: its PROVIDES
+are the runtime's own operations, such as `step` and `stop`.
 
-```powershell
-nim c -r src/console_main.nim -- --config config/runtime.json --attach operator --watch /thing/a
-```
+### Exit codes
 
-`--watch` requires `--attach`. Without an identity, the flag is rejected.
-
-### Override flags
-
-```powershell
-nim c -r src/console_main.nim -- --config config/runtime.json --attach operator --mode dev --log-level debug --port 8080
-```
-
-### Inline help
-
-```powershell
-nim c -r src/console_main.nim -- --help
-```
+- `0`: success.
+- `1`: no daemon, a timeout or a connection failure. Nothing waits more than 2
+  seconds (from Phase 2).
+- `2`: a usage error, or an error response from the daemon.
 
 ---
 
-## Attaching to a Running Session
+## The Console
 
-Once the console is open, use the `attach` command:
+`cosmos console` opens an interactive session with the daemon. After Phase 2 it
+accepts `--attach <identity>` (default `operator`) and `--watch <path>`.
 
-```
-attach <identity>
-```
+The layout has three lines, in this order: a status bar, the current scope and the
+prompt.
 
-Example:
+### Attaching
+
+Most commands need an attached identity:
 
 ```
 attach operator
 ```
 
-What attach does:
-- Sets your identity for the session.
-- Grants default `read` permission.
-- Clears any previous session state (path, watch state, cached permissions).
-- Unlocks all introspection commands: `ls`, `cd`, `info`, `peek`, `watch`, `state`, `specialists`, `delegations`, `world`, and more.
-
-### Permissions
-
-The default permission is `read`. Additional permissions can be granted at attach time:
+Attaching sets your identity, grants `read` permission, clears any earlier session
+state and unlocks the inspection commands.
 
 | Permission | What it allows |
 |---|---|
-| `read` | State introspection, navigation, `ls`, `info`, `peek`, `state` |
-| `write` | Mutations — `set`, `call`, `run` |
-| `admin` | Instance management — `attach`, `detach`, `instances` |
+| `read` | Inspection and navigation: `ls`, `cd`, `pwd`, `info`, `peek`, `state`, `world`, `watch` |
+| `write` | Changes |
+| `admin` | Managing sessions |
 
-### Capabilities
+### Commands
 
-Capabilities inform the console how your client behaves. They are set at attach time:
-
-| Capability | Effect |
+| Command | Does |
 |---|---|
-| `ansi` | Enables ANSI colour and cursor codes in output |
-| `fullscreen` | Enables `watch` full-screen mode |
-| `mouse` | Reserved; not active today |
+| `ls` | List what's in the current scope |
+| `cd <path>` | Change the current scope (changes nothing else) |
+| `pwd` | Show the current scope |
+| `info <target>`, `peek <target>`, `state <target>` | Inspect a Thing |
+| `world` | Show the current World |
+| `watch <path>` | Follow a Thing live; `Ctrl+C` returns to the layout |
+| `attach <identity>`, `detach` | Start or end a session |
+| `help`, `clear`, `exit` | Help, clear the screen, leave |
 
----
+`attach`, `help`, `clear` and `exit` work without an attached identity. Every other
+command says clearly that it needs one.
 
-## Detaching
+### Detaching
 
-Run the `detach` command from an active session:
-
-```
-detach
-```
-
-What detach clears:
-- Session identity
-- Permissions and capabilities
-- Current navigation path
-- Prompt state
-- Active watch state
-
-The console remains open and can be re-attached. The runtime is not affected.
-
-### Confirmed output
-
-On success:
-
-```
-detached: operator
-```
-
-If no session is attached:
-
-```
-error: detach: no session attached
-```
+`detach` cancels watches, clears the session and resets the scope and prompt. `exit`
+detaches and then closes the console.
 
 ---
 
 ## Quick Reference
 
-| Goal | Command |
+| Task | Command |
 |---|---|
-| Start runtime, no console | `cosmos --config <path>` |
-| Start runtime, auto console | `cosmos --config <path> --console auto` |
-| Start runtime, ready to attach | `cosmos --config <path> --console attach` |
-| Start runtime in background | `cosmos --config <path> --daemonize` |
-| Connect console only | `console_main --config <path>` |
-| Connect and auto-attach | `console_main --config <path> --attach <identity>` |
-| Connect and watch | `console_main --config <path> --attach <identity> --watch <path>` |
-| Attach in session | `attach <identity>` |
-| Detach in session | `detach` |
-| See all flags | `cosmos --help` / `console_main --help` |
+| Start the daemon | `cosmos start` |
+| Stop the daemon | `Ctrl+C` in its terminal (`cosmos stop` from Phase 2) |
+| See what's loaded | `cosmos list things` |
+| Inspect | `cosmos inspect world` |
+| Open the console | `cosmos console` |
 
 ---
-*Copyright 2026 Wilder. All rights reserved.*
-*Contact: teamwilder@wildercode.org*
-*Licensed under the Wilder Foundation License 1.0.*
+*&copy; 2026 Wilder. All rights reserved.*\
+*Contact: teamwilder@wildercode.org*\
+*Licensed under the Wilder Foundation License 1.0.*\
 *See LICENSE for details.*

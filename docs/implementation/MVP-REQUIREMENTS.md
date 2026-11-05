@@ -201,8 +201,13 @@ Thing that extends the runtime (MVP-ONT-7).*
   cooperatively.
 - **MVP-SCH-3** A failing Thing is isolated from the others. A Thing that fails
   repeatedly is suspended with a structured error.
-- **MVP-SCH-4** Each Thing declares one tempo type: Event, Periodic, Continuous,
+- **MVP-SCH-4** Each Thing declares one **rhythm**: Event, Periodic, Continuous,
   Manual or Sequence. It's validated at load.
+  - **Departs** from the name "tempo type" (REQUIREMENTS Tempo Types), settled on
+    2026-11-05. A rhythm is when a Thing acts. Tempo means speed, and the music
+    tools use it in that sense. How fast the daemon runs frames is its frame rate.
+  - The code's `TempoKind`, `src/cosmos/tempo/` and the IPC field `tempoHz` are
+    renamed later.
 
 ## 6. Integration: Concepts and Things composing
 
@@ -381,7 +386,7 @@ no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) was conf
   clients of IPC, so there's no human-only path.
 - **MVP-AI-2** Every Thing is discoverable and describes itself over IPC: identity,
   scope path, manifest (WHO, WHY and any optional interrogatives), WANTS and PROVIDES
-  with signatures, tempo, status and children.
+  with signatures, rhythm, status and children.
 - **MVP-AI-3** The IPC surface describes itself. `runtime.methods` lists every method
   with its parameters, its result and whether it changes state, so a client needs no
   separate documentation.
@@ -446,9 +451,11 @@ Settled 2026-11-05.
    client commands ignored it and hard-coded `IpcDefaultPort`. Tests set `COSMOS_PORT`
    to a free port. The rejected option, skipping tests when 7700 is busy, would let
    tests skip silently and couldn't run them in parallel.
-2. **Fast check is a rule, not a list** (MVP-GATE-4). As of this decision, 48 of the
-   50 test files qualify. The 2 that start the daemon or open sockets are
-   `coordinator_test` and `daemon_console_test`.
+2. **Fast check is a rule, not a list** (MVP-GATE-4). A test that imports `net`,
+   `osproc` or `cosmos_main` is skipped. As of 2026-11-05, 46 of the 50 test files
+   qualify. The 4 skipped are `coordinator_test`, `cosmos_main_ipc_id_test`,
+   `cosmos_main_path_safety_test` and `daemon_console_test`. (`cosmos_main` was added
+   to the rule on 2026-11-05, because `coordinator_test` starts the daemon through it.)
 3. **One console: `cosmos console`** (MVP-CON-7). It already talks to the daemon over
    IPC. `console_main` predates the daemon. Keeping both meant two ways in and two
    sets of flags, including the `--config` mismatch with REQUIREMENTS.md.

@@ -52,7 +52,7 @@ task testCompile, "Compile-check current test stubs":
 task test, "Run every test under tests/, each with a time limit (scripts/verify/run_tests.ps1)":
 	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify/run_tests.ps1"
 
-task checkFast, "Run every test that imports neither net nor osproc":
+task checkFast, "Run every test except daemon tests (net, osproc or cosmos_main imports)":
 	exec "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify/run_tests.ps1 -Fast"
 
 task verify, "Run compliance and tests":
