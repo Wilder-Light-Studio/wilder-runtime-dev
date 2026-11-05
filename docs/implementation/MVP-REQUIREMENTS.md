@@ -66,7 +66,8 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
   - The Cosmos (the runtime, instantiated) is the self-existent root Thing. It
     contains all other Things and is made from nothing.
   - Concepts are Things that serve as templates, like blueprints. Every other Thing is
-    an instance of a Concept.
+    an instance of a Concept. Concepts live together at `cosmos.concepts`, apart from
+    the Things made from them.
   - Modules, bundles and bridges are Things too, not separate kinds of unit.
   - **Departs** from the separate module, bundle and specialist types
     (REQUIREMENTS Module Contract; Delegation and Specialization). Folding that code
@@ -75,7 +76,8 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
   of the Cosmos, not Things.**
   - A wave is a message, and **waves are global.** A wave radiates from its source
     across the whole Cosmos, and every Thing with a matching sense perceives it. A
-    falloff model may come later; the old projection radius
+    sense matches a wave's kind by exact name, with no patterns. A falloff model may
+    come later; the old projection radius
     (`Occurrence.projectionRadius`) is its hook.
   - **A wire is a constrained wave, with a set origin and destination.** It connects
     one Thing's output to the input of one or more other Things (MVP-INT-6). Waves on
@@ -106,6 +108,8 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
       `epoch`.
     - The value is the frame's **changes**: everything that happened during that
       frame.
+  - A wave sent during a frame is perceived in the next frame, so the order Things
+    run in within a frame never changes what they perceive (MVP-SCH-1).
   - **Departs** from the code's per-event occurrences (`emitOccurrence`): those
     become changes within their frame's occurrence.
   - Frames are not the audio clock. The audio kernel keeps its own sample clock, and

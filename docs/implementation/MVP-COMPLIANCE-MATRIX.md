@@ -56,7 +56,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-ONT-8 | `ontology_test` | Partial | Waves, perception and occurrences exist as types, but `emitWave` is a stub and `filterOccurrence` accepts everything. Waves don't radiate and senses aren't declared yet. The code calls the history `RECORD`. There are no wires. |
 | MVP-ONT-9 | `scheduler_test` | Partial | Frames run in deterministic rounds with a digest, counted by `epoch`. Occurrences are emitted per event, not one per frame, and the history isn't a table of frame-to-changes rows. The console still shows `blip` and `morphos`. |
 | MVP-ONT-10 | — | Missing | Scope paths exist, but nothing limits what a Thing can act on to its natural scope, senses and wires. |
-| MVP-ONT-11 | — | Partial | No code applies inheritance, but `Thing.overrideDeltas` ("applied to descendants") is still stored and serialized. Remove it. |
+| MVP-ONT-11 | — | Partial | The runtime applies no inheritance, but `resolveContext` and `applyOverrides` (`ontology.nim`) still merge ancestors' config down to children, called only by `ch4_ontology_test` and `resolveReference`. `Thing.overrideDeltas` is still stored. Spec §4C.7 removes them. |
 
 ## 2. Lifecycle
 

@@ -17,12 +17,14 @@ Neurodivergent (ND) is spelled out here on first use, per MVP-DX-4.
 
 ## 1. Plausibility constraints
 
-These keep the MVP in service of the real goal: personal music tools with a hardware
-feel. They apply to every phase.
+These keep the MVP in service of its first real use: personal music tools with a
+hardware feel. They apply to every phase.
 
-- **C1 — Timebox Cosmos.** Phases 1 and 2 (the gate, then the daemon and CLI) are
-  committed. Phases 3 and 4 go ahead when the audio project needs them, not to make
-  Cosmos complete for its own sake.
+- **C1 — Timebox Cosmos.** Phases 1 to 3 (the gate, the daemon and CLI, then the
+  startapp loop with Concepts, waves and wires) are committed. Phase 4 goes ahead
+  when a project needs it, not to make Cosmos complete for its own sake. Revised on
+  2026-11-05: Phase 3 used to wait on the audio project, but Cosmos is for building
+  anything, and every use needs Concepts that compose.
 - **C2 — Measure before the kernel spec.** In the audio project, run LatencyMon, then
   a WASAPI-exclusive sine wave at the smallest stable buffer. Those numbers become the
   kernel's latency targets. Until then, any latency target is a guess.
@@ -46,7 +48,7 @@ listed.
 
 | MVP area | SPECIFICATION.md | MVP difference |
 |---|---|---|
-| 1. Ontology | §4, §4.1, §4.1A, §4.1B | One kind of entity plus properties of the Cosmos (MVP-ONT-1, MVP-ONT-8). §4.1C–§4.1D (context, overrides) are retired (MVP-ONT-11). §4.1E (references) is deferred. |
+| 1. Ontology | §4, §4.1, §4.1A, §4.1B | One kind of entity plus properties of the Cosmos (MVP-ONT-1, MVP-ONT-8). §4.1C–§4.1D (context, overrides) are retired (MVP-ONT-11). §4.1E (references) is deferred. The how for MVP-ONT-7 to MVP-ONT-11 is §4C below. |
 | 2. Lifecycle | §5, §5A | None. |
 | 3. Persistence | §2 | Records are stored CLEAR. Encrypted record is deferred. |
 | 4. Validation | Validating Prefilter sections | None. |
@@ -269,7 +271,8 @@ An implementation exchanges one JSON object per line:
 
 - **Input:** waves delivered to it, in the shape `runtime.call` uses: `provide`,
   `args`, plus `from` and `frame`.
-- **Output:** waves it emits, `{"provide", "args"}`, and results, `{"result"}`.
+- **Output:** waves it emits, `{"provide", "args"}`, results, `{"result"}`, and its
+  own state, `{"status"}` (§4C.3).
 - **Error:** `{"code", "message"}`. The Cosmos records each one as a change in the history. A
   crash or a malformed line suspends the Thing (MVP-SCH-3) and never stops the
   Cosmos (MVP-SAFE-1).
@@ -286,7 +289,10 @@ implementation is its control part. Its signal part runs in the audio kernel.
 
 Instantiating a composite Concept creates a Thing whose children are one Thing per
 part, at scope paths under it (`cosmos.synth.filter`). Its wires connect them. A wire
-is a constrained wave, not a Thing (MVP-ONT-8), so it has no scope path.
+is a constrained wave, not a Thing (MVP-ONT-8), so it has no scope path. Its own
+`wants` and `provides` are wired to its parts' ports. Other Things connect to those,
+not to the parts directly. `runtime.describe` can still show everything inside. A
+patch is a composite Concept, which is what compiles into the audio kernel's graph.
 
 **Wire form.** Each entry in WIRES names an origin and one or more destinations:
 
@@ -304,12 +310,140 @@ destination's WANTS declare what its input accepts. When the Concept loads, the
 capability graph compares what the wire carries (one PROVIDES, or all of them) with
 each destination's WANTS, using the check it already runs for every WANTS
 (`capabilities.nim`, MVP-INT-3). If any destination can't accept something the wire
-carries, a structured diagnostic names the wire and that destination. The Concept is then skipped with a warning (MVP-LIFE-3), and startup continues.
-No wave travels on a wire that hasn't passed this check. The payload of each wave
-is still validated by the prefilter (MVP-VAL-3).
-Its own `wants` and `provides` are wired to its parts' ports. Other Things connect to
-those, not to the parts directly. `runtime.describe` can still show everything inside.
-A patch is a composite Concept, which is what compiles into the audio kernel's graph.
+carries, a structured diagnostic names the wire and that destination. The Concept is
+then skipped with a warning (MVP-LIFE-3), and startup continues. No wave travels on a
+wire that hasn't passed this check. The payload of each wave is still validated by the
+prefilter (MVP-VAL-3).
+
+---
+
+## 4C. Ontology
+
+This is how MVP-ONT-7 to MVP-ONT-11 are built. It changes the types in `thing.nim`
+and `wave.nim`, the frame loop in `scheduler.nim` and root setup in `core.nim`. The
+module registry, bundle loader internals and specialist code stay as they are.
+Folding them in is later work (MVP-ONT-7).
+
+### 4C.1 The tree
+
+```
+cosmos                  the root, made from nothing
+cosmos.concepts         holds every loaded Concept
+cosmos.concepts.hello   the Concept hello: a template
+cosmos.hello            a Thing made from hello
+```
+
+- **Concepts.** Loading a bundle (§3.4) registers its manifest in the Concept
+  registry (`concepts.nim`) and creates a Concept Thing at `cosmos.concepts.<WHO>`.
+  Its status is its manifest, so `runtime.describe` shows it like any Thing. A
+  Concept Thing is a template: it has no tempo, never runs in a frame and receives
+  no waves.
+- **The `concepts` Thing** is made from a built-in Concept the runtime declares (WHO
+  `concepts`, WHY "holds the Concepts loaded in this Cosmos"). That Concept sits under
+  it like any other. So every Thing except the root is an instance of a Concept.
+- **Instances.** `--with` and `cosmos add thing` then create an instance at
+  `cosmos.<WHO>`, as §3.4 says. A composite's parts sit inside it (§4B.3).
+  `Thing.conceptId` already records which Concept a Thing comes from.
+- **Reserved name.** `concepts` is reserved at the root, the same way the root's own
+  id is (`tlsSkippedReservedRoot`). A bundle whose WHO is `concepts` is skipped with
+  a warning (MVP-LIFE-3).
+
+### 4C.2 WHY
+
+A Thing's WHY is the one it states (in its PARTS entry or the `addThing` params), or
+else its Concept's (MVP-ONT-2). `runtime.describe` shows the WHY and whether it came
+from the Thing or the Concept, so nobody has to work it out. If neither has one, the
+Thing is skipped with a structured error (MVP-LIFE-3).
+
+### 4C.3 Waves
+
+- **Type.** The `Wave` stub in `wave.nim` becomes the real wave: `source` (a Thing
+  id), `provide` (its kind), `args`, `frame` and `origin` (§4A.3). The falloff hook
+  `projectionRadius` moves to it from `Occurrence`, still unused.
+- **Kind.** A wave's kind is its `provide` name, which every output line already
+  carries (§4B.2).
+- **No addresses.** A wave has no destination field. Where it goes is decided only by
+  wires and senses (§4C.4), so a Thing can't reach outside its scope by addressing.
+- **State.** An implementation reports its own state with an output line
+  `{"status": {...}}`, which replaces its status and is recorded as a change. This
+  joins the output forms in §4B.2. An output line in any other form is malformed
+  (§4B.2).
+
+### 4C.4 Delivery
+
+At the end of frame N, the Cosmos routes every wave emitted during it:
+
+1. **Wired.** If any wire's `from` matches the wave (its source, and its `provide`
+   when the wire names one), the wave goes to those wires' destinations only. It
+   doesn't radiate (MVP-ONT-8).
+2. **Global.** Otherwise it radiates: every Thing whose SENSES lists the wave's
+   `provide`, by exact name, perceives it. There are no patterns or wildcards.
+3. **Next frame.** Each Thing receives its waves in its input at the start of frame
+   N+1, ordered by source id, then by the order they were sent.
+
+Delivering in the next frame means the order Things run in within a frame never
+changes what they hear, so the same state and the same waves always give the same
+frame (MVP-SCH-1). The scheduler's per-Thing `incoming` list already has this shape.
+
+- Suspended Things and Concept Things receive nothing.
+- A wave that matches no wire and no sense is still recorded. Nothing perceives it.
+- `filterOccurrence`, which accepts everything today, is replaced by this routing.
+  `Thing.perceptionLog` is dropped, because what a Thing perceived follows from the
+  history (§4C.5).
+
+### 4C.5 The history
+
+- **Rows.** One row per frame: `{"frame": N, "changes": [...]}`. The frame is the
+  scheduler's `epoch`.
+- **Change kinds:**
+  - `wave`: source, provide, args;
+  - `status`: a Thing's new state;
+  - `added` and `removed`: a Thing and its Concept;
+  - `failure` and `suspended`: from the scheduler's `FrameResult`;
+  - `rejected`: a prefilter failure change (MVP-VAL-4);
+  - `request`: an operator's request applied by the frame loop (§3.3), with its
+    method.
+
+  Every change carries `origin` (§4A.3). Changes keep the order the frame produced
+  them in.
+- **No duplicates.** Deliveries aren't recorded. They follow from the row's waves and
+  the wires and senses in place, and those change only through recorded `added` and
+  `removed` changes. The history replays without storing anything twice.
+- **Storage.** Each row is one persisted entry, key `frame-<N>`, written through the
+  existing layer the code calls RECORD (`writeRecordEntry`) and committed at the end
+  of its frame. A frame with no changes writes nothing. Reading it returns an empty
+  row.
+- **Code.** `emitOccurrence` and the scheduler's `makeOccurrence` become change
+  builders, and `Occurrence` becomes the row type. `FrameResult.emitted` becomes the
+  row's `wave` changes, and the frame digest is computed over the row.
+- **Later.** Renaming `RECORD` in the code, and the console's `blip` and `morphos`
+  (MVP-ONT-9).
+
+### 4C.6 Scope
+
+Scope (MVP-ONT-10) is enforced by construction, not by a check on every action:
+
+- An implementation receives only its own input and writes only its own output and
+  errors (§4B.2). It holds no handle to any other Thing.
+- Its output can only change its own status and send waves, and it can't choose
+  where they go (§4C.3).
+- In the MVP, only a Thing with no parts runs code (MVP-INT-7), so a composite
+  reaches its interior only through its wires.
+- Operators act through the Cosmos's interface (§4A.2a), whose scope is everything.
+  Every request passes the prefilter and is recorded with its origin (MVP-AI-4).
+
+### 4C.7 No inheritance
+
+- Remove `Thing.overrideDeltas` and `applyOverrides`. `resolveContext` stops merging
+  config, capabilities, logs and relationships down from ancestors, and returns only
+  the Thing's own. Nothing in the runtime calls these today. Only
+  `ch4_ontology_test` and `resolveReference` do.
+- `resolveReference` returns the target id and its local metadata, with no merged
+  context ("a reference no longer inherits target context", MVP-ONT-11).
+- `thingFromJson` ignores an `overrideDeltas` field in saved data, so older saved
+  Things still load.
+- The override cases in `ch4_ontology_test` are replaced by a test that proves a
+  parent's config never reaches its child.
 
 ---
 
@@ -405,8 +539,8 @@ The plan sequences these. Each phase ends when its rows in the compliance matrix
 |---|---|---|
 | **1. Trustworthy gate** | §8. Fix the compile errors. Bring every file into the gate, passing or recorded as a known failure. | Committed |
 | **2. Daemon, CLI and AI access** | §3–§6, including §4A | Committed |
-| **3. The startapp loop** | §7, §4B (manifest, Nim implementation, one composite example) | When the audio project needs it |
-| **4. Close matrix gaps** | Remaining Gap rows | When the audio project needs it |
+| **3. The startapp loop** | §7, §4B (manifest, Nim implementation, one composite example), §4C (ontology) | Committed |
+| **4. Close matrix gaps** | Remaining Gap rows | When a project needs it |
 
 Phase 2 is building work, not just repair. The daemon's IPC side was never connected
 to the runtime.

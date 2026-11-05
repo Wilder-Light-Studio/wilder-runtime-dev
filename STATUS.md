@@ -116,11 +116,11 @@ requirement's status are in
 
      Retired: wink, smile, morphos, blip, tick and "record" (as the history's
      name). Saved data is a "persisted entry".
-   - **Spec:** add the how for MVP-ONT-7 to ONT-11 (Concepts and the Cosmos as
-     Things, folding in modules/bundles/specialists, wires, global waves and
-     senses, the frame-to-changes history, scope enforcement, removing
-     `overrideDeltas`, WHY from the Concept).
-   - **Phases:** place that work, and revisit constraint C1.
+   - **Spec:** done on 2026-11-05. MVP-SPECIFICATION §4C covers the how for
+     MVP-ONT-7 to ONT-11: the tree, WHY, waves, delivery, the history, scope and
+     no inheritance.
+   - **Phases:** done on 2026-11-05. §4C is in Phase 3, and C1 now commits
+     Phases 1 to 3. Phase 4 waits until a project needs it.
 2. **Confirm:** full AI parity (CLI and MCP) and the foreground daemon.
 3. **Write the phased plan** from spec §9.
 4. **Finish Phase 1:** run the gate from a fresh clone; make `nimble compliance` stop
@@ -150,3 +150,5 @@ nimble buildRuntime    # Build release binary to bin/
 - 2026-11-05 (later): Archived 36 superseded, deferred or contradicted files to `archive/` (tracked, original paths kept); stopped tracking 22 build leftovers; rewrote the implementation doc index; fixed links. Recorded: Thing WHY comes from its Concept and can be overridden; a wire is a standing perception; no inheritance through containment.
 - 2026-11-05 (evening): Completed MVP requirements: waves global, wires local; one manifest shape; operator scope. Settled time and history naming on standard terms (history = one row per frame, frame -> changes; occurrence = a row); retired wink, smile, morphos, blip and tick. Next: the spec's how for the ontology, then the phased plan.
 - 2026-11-05 (night): A wire is a constrained wave with a set origin and destination, a property of the Cosmos and not a Thing (restores the original "waves over wires" rule). Updated MVP-ONT-8, MVP-INT-7, spec §4B.3 and the matrix. Wires are checked at load (destination must handle what the origin sends; a mismatch skips the Concept with a warning). A wire connects one Thing's output to the input of one or more Things. A wire names what it carries in the MVP-INT-1 form: `Thing` (whole output) or `Thing.provide` (one PROVIDES, like an output jack). Next: the spec's how for the ontology.
+- 2026-11-05 (late): Wrote spec §4C, the how for the ontology (tree with `cosmos.concepts`, WHY, waves, delivery in the next frame, history rows, scope by construction, no inheritance). Recorded exact-name senses and next-frame delivery in the requirements. Next: decide C1, then the phased plan.
+- 2026-11-05 (late): Revised C1: Phases 1 to 3 are committed (Cosmos is for building anything, so Concepts, waves and wires can't wait on audio). Phase 4 waits until a project needs it. Next: confirm AI parity and the foreground daemon, then the phased plan.
