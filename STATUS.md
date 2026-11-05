@@ -103,17 +103,26 @@ requirement's status are in
 
 ## Next Tasks
 
-1. **Close the MVP doc gaps** (one pass; small choices proposed for approval):
-   - Requirements: give persisted "records" another name (the record is now the
-     Cosmos's history); say where senses are declared; define the one manifest
-     format (the bundle loader's `id`/`version`/`capabilities` vs WHO/WHY/WANTS/
-     PROVIDES); state that operators and AI act through the Cosmos's interface;
-     update the "module" wording in Lifecycle; refresh the header date.
-   - Spec: add the how for MVP-ONT-7 to ONT-11 (Concepts and the Cosmos as Things,
-     folding in modules/bundles/specialists, wires, the tick-to-morphos record, scope
-     enforcement, removing `overrideDeltas`, WHY from the Concept).
-   - Phases: place that work in a phase, and revisit constraint C1, since Concepts
-     and composition are what the audio project needs first.
+1. **Close the MVP doc gaps:**
+   - **Requirements:** done except naming. Settled on 2026-11-05: waves are global
+     and wires are local; one manifest shape (WHO as id, VERSION, ten
+     interrogatives, SENSES, IMPLEMENTATION or PARTS/WIRES); operators act through
+     the Cosmos interface; "module" wording; header date.
+   - **Naming:** settled on 2026-11-05 and written into MVP-ONT-9:
+     - the record is the table;
+     - an occurrence is one row, what happened and when: a wink (key, when) plus a
+       smile (value, what);
+     - a frame can hold many occurrences;
+     - the morphos is all smiles;
+     - "frame" replaces "tick";
+     - saved data is a "persisted entry".
+
+     "Wink" replaces the ledger's "blip".
+   - **Spec:** add the how for MVP-ONT-7 to ONT-11 (Concepts and the Cosmos as
+     Things, folding in modules/bundles/specialists, wires, global waves and
+     senses, the record's keys and values, scope enforcement, removing
+     `overrideDeltas`, WHY from the Concept).
+   - **Phases:** place that work, and revisit constraint C1.
 2. **Confirm:** full AI parity (CLI and MCP) and the foreground daemon.
 3. **Write the phased plan** from spec §9.
 4. **Finish Phase 1:** run the gate from a fresh clone; make `nimble compliance` stop

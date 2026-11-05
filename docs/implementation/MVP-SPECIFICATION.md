@@ -215,7 +215,7 @@ duplicated.
 
 Every request has an origin identity: the attached console identity, `params.origin`,
 or `cli` by default. The MCP bridge sets `mcp:<client name>`. The origin is recorded on
-the occurrences and records a request produces (MVP-PER-2 already carries `origin`), so
+the occurrences and persisted entries a request produces (MVP-PER-2 already carries `origin`), so
 any change, by a person or an AI, can be traced to who made it.
 
 ### 4A.4 CLI for AI
@@ -247,12 +247,16 @@ Designing Concepts and implementing them is the developer's main activity
 
 ### 4B.1 One manifest form
 
-Every Concept is a `manifest.json` in a bundle folder (§3.4). It holds:
+Every Concept is a `manifest.json` in a bundle folder (§3.4), with the fields set by
+MVP-INT-5. The keys are uppercase, following `ManifestStringKeys` and
+`ManifestSeqKeys` in `manifest.nim`:
 
-- `who`, `why`, and any optional interrogatives;
-- `wants` and `provides`, each with signatures;
-- for a composite Concept, `parts` (named Concepts) and `wires`;
-- for a Concept with no parts, `implementation` (§4B.2).
+- `WHO` (the identity and id), `VERSION`, and the interrogatives WHAT, WHY, WHERE,
+  WHEN, HOW, REQUIRES, WANTS, PROVIDES and WITH. PROVIDES and WANTS carry
+  signatures;
+- `SENSES`: the wave kinds the Thing perceives;
+- for a Concept with no parts, `IMPLEMENTATION` (§4B.2);
+- for a composite Concept, `PARTS` (named Concepts) and `WIRES`.
 
 **Precedent:** `wrapExternalProcessThing` already pairs a handwritten manifest with an
 implementation command. **Departs** from SPECIFICATION §19A.5 and §19A.7. Today, native Nim modules generate their contract
@@ -264,7 +268,7 @@ the manifest. Nim code can still generate the file, but the file is the declarat
 An implementation exchanges one JSON object per line:
 
 - **Input:** waves delivered to it, in the shape `runtime.call` uses: `provide`,
-  `args`, plus `from` and `tick`.
+  `args`, plus `from` and `frame`.
 - **Output:** waves it emits, `{"provide", "args"}`, and results, `{"result"}`.
 - **Error:** `{"code", "message"}`. The Cosmos records each one as an occurrence. A
   crash or a malformed line suspends the Thing (MVP-SCH-3) and never stops the
@@ -335,8 +339,8 @@ cosmos start --with hello        # in its own terminal (§3.2)
 cosmos inspect hello
 ```
 
-`startapp` must write `manifest.json` (`id`, `version`, plus WHO and WHY), the format
-`loadCosmosBundle` reads. Today it writes `cosmos.toml` and `build-manifest.json`,
+`startapp` must write `manifest.json` in the one manifest format (§4B.1), with at
+least WHO, VERSION and WHY. `loadCosmosBundle` must read that format. Today it writes `cosmos.toml` and `build-manifest.json`,
 which nothing in `src/` reads. Drop them unless something starts reading them.
 
 ---

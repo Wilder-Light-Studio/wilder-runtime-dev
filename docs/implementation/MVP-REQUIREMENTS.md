@@ -1,6 +1,6 @@
 # Wilder Cosmos Runtime — MVP Requirements
 
-**Status:** Draft for review (2026-11-01).
+**Status:** Draft for review (started 2026-11-01, updated 2026-11-05).
 **Full requirements:** [REQUIREMENTS.md](REQUIREMENTS.md) is kept unchanged as the
 long-term reference. This file is the subset that defines the MVP. When the two
 disagree, this file governs MVP work.
@@ -40,7 +40,7 @@ marked **Departs**.*
 
 **Naming.** Cosmos, Thing, Concept and World are capitalized: they're what exists.
 Everything else is lowercase. That covers the properties of the Cosmos (wave,
-perception, occurrence, record, tick, morphos) and Things made from Concepts (wire,
+perception, occurrence, record, frame, wink, smile, morphos) and Things made from Concepts (wire,
 module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
 
 - **MVP-ONT-1** **One kind of entity.** What exists is a Thing. A Thing's interior is
@@ -73,24 +73,39 @@ module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PRO
     in is later work.
 - **MVP-ONT-8** **waves, perception, occurrences and the record are properties of the
   Cosmos, not Things.**
-  - A wave is a message in the Cosmos. Wires are Things that carry waves.
+  - A wave is a message, and **waves are global.** A wave radiates from its source
+    across the whole Cosmos, and every Thing with a matching sense perceives it. A
+    falloff model may come later; the old projection radius
+    (`Occurrence.projectionRadius`) is its hook.
+  - **Wires are local.** A wire is a Thing that carries waves directly from one Thing
+    to another, and can act as an intermediary between them.
   - Perception is a Thing noticing a wave through one of its senses. A wire is a
     standing perception made visible: it declares that one Thing perceives another's
     waves.
   - An occurrence is a single historic event (immutable, MVP-ONT-4).
   - The record is the history of the Cosmos.
-- **MVP-ONT-9** **Time advances in ticks.**
-  - A tick is complete when one round of changes to every Thing is complete. This is
+- **MVP-ONT-9** **Time advances in frames.**
+  - A frame is complete when one round of changes to every Thing is complete. This is
     the scheduler's frame (REQUIREMENTS Scheduler).
-  - The record is a map from tick to morphos. A morphos is the value stored for one
-    tick: the ordered list of that tick's occurrences.
-  - Cosmos ticks are not the audio clock. The audio kernel keeps its own sample clock,
-    and a bridge maps between the two.
+  - **The record is the table of the Cosmos's history.** Each row is an
+    **occurrence**: what happened and when.
+    - The **wink** is the key: when it happened.
+    - The **smile** is the value: what happened (one change).
+    - Every occurrence happens within one frame, and a frame can hold many.
+  - The **morphos** is all the smiles in the record.
+  - Frames are not the audio clock. The audio kernel keeps its own sample clock, and
+    a bridge maps between the two.
+  - "Wink" replaces "blip" from COSMOS_UNINTEGRATED_TERMS.md (the console's `blip`
+    field is renamed later). "Item" is not a term.
 - **MVP-ONT-10** **Scope is what a Thing can act on.**
   - A Thing's natural scope is itself and its interior: its parts and their
     descendants. Siblings and ancestors are outside it.
   - Anything else reaches a Thing only through its senses (waves it perceives) or
-    through a wire a developer has connected explicitly.
+    through a wire a developer has connected explicitly. Perceiving a wave lets a
+    Thing know about its source, not act on it.
+  - Operators (people or AI using the CLI, console or MCP) act through the Cosmos's
+    own interface (MVP-AI-7). The Cosmos's natural scope is everything, so operators
+    can reach any Thing, and every change passes the same gates (MVP-AI-4).
   - A scope path is independent of location. The folder a Concept is stored in can be
     anywhere ("any writable filesystem location", REQUIREMENTS Runtime Home Tree). The
     location is described by WHERE, never inferred from the folder.
@@ -108,7 +123,8 @@ module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PRO
 
 ## 2. Lifecycle
 
-*Source: Runtime Lifecycle Requirements, Host Observability.*
+*Source: Runtime Lifecycle Requirements, Host Observability. Here "module" means a
+Thing that extends the runtime (MVP-ONT-7).*
 
 - **MVP-LIFE-1** Startup runs in a fixed order: config → envelope → reconcile →
   migrate → activate prefilter → load modules → create root → scheduler → capability
@@ -134,7 +150,7 @@ module, bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PRO
 
 - **MVP-PER-1** Three layers: primary state, an append-only transaction log, and
   signed snapshots, in the fixed `state/` layout.
-- **MVP-PER-2** Every persisted record carries `schemaVersion`, `epoch`, `checksum`,
+- **MVP-PER-2** Every persisted entry carries `schemaVersion`, `epoch`, `checksum`,
   `origin`, `txId` and `timestamp`. Checksums are verified on every read.
 - **MVP-PER-3** State is rebuilt deterministically from any two layers, or from one
   layer plus the transaction log.
@@ -185,9 +201,20 @@ implementing them is the developer's main activity.*
 - **MVP-INT-4** `cosmos capabilities` lists Things, provides, wants and resolution
   status with stable, line-oriented output.
 - **MVP-INT-5** **Concepts are uniform.**
-  - Every Concept is declared the same way, in a manifest that doesn't depend on any
-    language: WHO, WHY, any optional interrogatives, WANTS and PROVIDES. This builds
-    on the manual Concept file (REQUIREMENTS Concept System).
+  - Every Concept is declared the same way, in one manifest that doesn't depend on
+    any language. This builds on the manual Concept file (REQUIREMENTS Concept
+    System) and the existing `InterrogativeManifest`.
+  - The manifest holds:
+    - **WHO**, the identity, which also serves as the id;
+    - a **VERSION**;
+    - the other interrogatives: WHAT, WHY, WHERE, WHEN, HOW, REQUIRES, WANTS,
+      PROVIDES and WITH;
+    - **SENSES**, the kinds of wave the Thing perceives (MVP-ONT-8);
+    - either an **IMPLEMENTATION**, or **PARTS** and **WIRES** for a composite
+      (MVP-INT-7).
+  - The bundle manifest folds in: `id` becomes WHO, `dependencies` becomes REQUIRES,
+    `capabilities` becomes PROVIDES, and `entryPoints` becomes IMPLEMENTATION.
+    **Departs** from the separate bundle manifest format (`bundle_loader.nim`).
   - Code may generate the manifest, but the manifest is the declaration.
   - **Departs** from "a programmatic Concept overrides a manual one" (SPECIFICATION
     §19A.5, §19A.7). There is one form. See Retired.

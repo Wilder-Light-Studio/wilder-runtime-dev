@@ -53,8 +53,8 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-ONT-5 | `lifecycle_test` | Verified | |
 | MVP-ONT-6 | `console_status_test` (cd tests) | Verified | |
 | MVP-ONT-7 | — | Missing | Modules, bundles and specialists are separate types today. The Cosmos root and Concepts aren't Things yet. There are no wires. |
-| MVP-ONT-8 | `ontology_test` | Partial | Waves, perception and occurrences exist. The code still calls the record `RECORD`. There are no wires. |
-| MVP-ONT-9 | `scheduler_test` | Partial | Frames run in deterministic rounds with a digest. The record isn't yet keyed by tick, with a morphos per tick. |
+| MVP-ONT-8 | `ontology_test` | Partial | Waves, perception and occurrences exist as types, but `emitWave` is a stub and `filterOccurrence` accepts everything. Waves don't radiate and senses aren't declared yet. The code still calls the record `RECORD`. There are no wires. |
+| MVP-ONT-9 | `scheduler_test` | Partial | Frames run in deterministic rounds with a digest. Occurrences are emitted per event (`emitOccurrence`), but the record isn't yet a table of wink and smile rows, and there's no morphos view. The console still shows `blip`. |
 | MVP-ONT-10 | — | Missing | Scope paths exist, but nothing limits what a Thing can act on to its natural scope, senses and wires. |
 | MVP-ONT-11 | — | Partial | No code applies inheritance, but `Thing.overrideDeltas` ("applied to descendants") is still stored and serialized. Remove it. |
 
@@ -107,7 +107,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-INT-2 | `lifecycle_test`, `integration_test` | Verified | |
 | MVP-INT-3 | `capabilities_test` | Verified | |
 | MVP-INT-4 | `coordinator_test` | Failing | `cosmos capabilities` has been unrouted since `f71f93a`. |
-| MVP-INT-5 | `interrogative_test`, `module_test` | Partial | The interrogative manifest exists. Native Nim modules declare their contract in code and external ones use a handwritten manifest, so there are two forms, not one. |
+| MVP-INT-5 | `interrogative_test`, `module_test` | Partial | `InterrogativeManifest` has the ten interrogatives. There's no VERSION, SENSES, IMPLEMENTATION, PARTS or WIRES yet. The bundle loader reads a different format (`id`, `version`, `dependencies`, `capabilities`, `entryPoints`), and native modules declare their contract in code. |
 | MVP-INT-6 | `ontology_test` | Partial | `wrapExternalProcessThing` describes a stdin/stdout implementation, but nothing runs one or exchanges messages with it. There's no in-process adapter. |
 | MVP-INT-7 | — | Missing | Things can have children, but there are no composite Concepts (parts and wires) and no wires. |
 
