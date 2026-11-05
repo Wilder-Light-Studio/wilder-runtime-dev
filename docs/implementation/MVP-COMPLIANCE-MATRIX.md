@@ -162,7 +162,7 @@ prove stay Failing until Phase 2 fixes it.
 | ID | Test | Status | Note |
 |---|---|---|---|
 | MVP-GATE-1 | `run_tests.ps1` | Verified | Tests are discovered, not listed. All 50 run. |
-| MVP-GATE-2 | `doc_compliance_test` | Partial | The checklist is now tracked and `buildRuntime` needs no missing script. Not yet tried on a fresh clone. |
+| MVP-GATE-2 | `doc_compliance_test` | Passing | `nimble verify` passed from a fresh clone on 2026-11-05 (compliance passed; 46 pass, 4 known). Checked by hand, not by a test in the gate. `nimble compliance` no longer reads `.github` or archived files. |
 | MVP-GATE-3 | `run_tests.ps1` | Verified | Every file has a 90-second limit. `coordinator_test` hits it and is a known failure. |
 | MVP-GATE-4 | `nimble checkFast` | Partial | Skips socket and process tests. Over one minute until `coordinator_test` stops using its full limit (Phase 2). |
 | MVP-GATE-5 | — | — | A process rule, enforced by this matrix. |
@@ -197,8 +197,8 @@ prove stay Failing until Phase 2 fixes it.
 | Status | Rows |
 |---|---|
 | Verified | 33 |
-| Passing | 1 |
-| Partial | 17 |
+| Passing | 2 |
+| Partial | 16 |
 | Failing | 6 |
 | False pass | 1 |
 | Gap | 4 |

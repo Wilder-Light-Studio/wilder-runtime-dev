@@ -37,7 +37,7 @@ nothing audio-specific lives in this repo.
 
 | Phase | Status | Summary |
 |-------|--------|---------|
-| **MVP re-scope** | 🔄 Active | Requirements, spec and matrix drafted; Phase 1 gate mostly done. Next: review, then Phase 2 |
+| **MVP re-scope** | 🔄 Active | MVP docs complete; Phase 1 done (gate passes from a fresh clone). Next: the phased plan, then Phase 2 |
 | **Phase XF** | ⏸ Paused | Cosmos Encryption Spectrum — waiting on the MVP re-scope |
 | **Phase XE** | ⏸ Paused | Humane Offline Licensing — likely deferred for single-user use |
 
@@ -76,8 +76,11 @@ requirement's status are in
   bundle loader looked in the wrong folder, and status invariants were checked then
   ignored); a test expecting the old "config required" rule; the missing ND
   checklist, now at `docs/implementation/ND_DOCS_CHECKLIST.md`.
-- **Not yet checked:** a run from a fresh clone, and `nimble compliance`, which
-  still looks for `.github` files that don't exist.
+- **Fresh clone passes:** `nimble verify` (compliance, then every test) passed from a
+  fresh clone on 2026-11-05. `nimble compliance` now checks the MVP docs and the
+  header comment convention, and every MVP requirement has exactly one matrix row.
+  It no longer reads `.github` or archived files. Seven files that had missed the
+  header convention were brought into line (comments only).
 
 ### Known issues
 
@@ -88,8 +91,9 @@ requirement's status are in
   IPC server has no stop path.
 - **Missing build and CI files:** `scripts/build/*.ps1` and the `.github` CI workflows
   exist nowhere, neither on disk nor in history. `buildRuntime` now calls `nim`
-  directly and `.gitignore` anchors `/build/`. `cleanExe`, the release tasks and
-  `check_requirements.ps1` still point at the missing files.
+  directly and `.gitignore` anchors `/build/`, and `nimble compliance` no longer
+  needs them. `cleanExe` and the release tasks still point at missing or archived
+  scripts.
 - **The daemon's IPC side isn't connected to the runtime:** it keeps its own `things`
   list and `tick` counter, `start` ignores flags and config, and console sessions
   don't stay attached. See MVP-SPECIFICATION §3–§5.
@@ -103,29 +107,13 @@ requirement's status are in
 
 ## Next Tasks
 
-1. **Close the MVP doc gaps:**
-   - **Requirements:** done except naming. Settled on 2026-11-05: waves are global
-     and wires are local; one manifest shape (WHO as id, VERSION, ten
-     interrogatives, SENSES, IMPLEMENTATION or PARTS/WIRES); operators act through
-     the Cosmos interface; "module" wording; header date.
-   - **Naming:** settled on 2026-11-05 and written into MVP-ONT-9, using standard
-     terms. The history is a table with one row per frame:
-     - the key is the frame, in Cosmos time (virtual, never clock time);
-     - the value is that frame's changes;
-     - an occurrence is a whole row, what happened and when.
+The MVP docs (requirements, spec, matrix) were completed and every open decision
+was settled on 2026-11-05, including full AI parity (CLI and MCP) and the
+foreground daemon. The session log has the details.
 
-     Retired: wink, smile, morphos, blip, tick and "record" (as the history's
-     name). Saved data is a "persisted entry".
-   - **Spec:** done on 2026-11-05. MVP-SPECIFICATION §4C covers the how for
-     MVP-ONT-7 to ONT-11: the tree, WHY, waves, delivery, the history, scope and
-     no inheritance.
-   - **Phases:** done on 2026-11-05. §4C is in Phase 3, and C1 now commits
-     Phases 1 to 3. Phase 4 waits until a project needs it.
-2. **Confirm:** full AI parity (CLI and MCP) and the foreground daemon.
-3. **Write the phased plan** from spec §9.
-4. **Finish Phase 1:** run the gate from a fresh clone; make `nimble compliance` stop
-   depending on the missing `.github` files.
-5. **Audio project:** decide whether to use an existing engine (Faust or the
+1. **Write the phased plan** from spec §9.
+2. **Start Phase 2:** daemon, CLI and AI access (spec §3–§6, §4A).
+3. **Audio project:** decide whether to use an existing engine (Faust or the
    SuperCollider server) instead of writing a kernel from scratch (suggested
    2026-11-05). Then run LatencyMon and a WASAPI-exclusive sine test at the smallest
    stable buffer. Those numbers become the latency targets.
@@ -152,3 +140,5 @@ nimble buildRuntime    # Build release binary to bin/
 - 2026-11-05 (night): A wire is a constrained wave with a set origin and destination, a property of the Cosmos and not a Thing (restores the original "waves over wires" rule). Updated MVP-ONT-8, MVP-INT-7, spec §4B.3 and the matrix. Wires are checked at load (destination must handle what the origin sends; a mismatch skips the Concept with a warning). A wire connects one Thing's output to the input of one or more Things. A wire names what it carries in the MVP-INT-1 form: `Thing` (whole output) or `Thing.provide` (one PROVIDES, like an output jack). Next: the spec's how for the ontology.
 - 2026-11-05 (late): Wrote spec §4C, the how for the ontology (tree with `cosmos.concepts`, WHY, waves, delivery in the next frame, history rows, scope by construction, no inheritance). Recorded exact-name senses and next-frame delivery in the requirements. Next: decide C1, then the phased plan.
 - 2026-11-05 (late): Revised C1: Phases 1 to 3 are committed (Cosmos is for building anything, so Concepts, waves and wires can't wait on audio). Phase 4 waits until a project needs it. Next: confirm AI parity and the foreground daemon, then the phased plan.
+- 2026-11-05 (late): Confirmed full AI parity (CLI and MCP in the MVP) and the foreground daemon. MVP docs complete. Next: finish Phase 1, then the phased plan.
+- 2026-11-05 (late): Finished Phase 1. `nimble compliance` now checks the MVP docs (one matrix row per requirement) instead of `.github` and archived files; added missing header and Flow comments to seven files; `nimble verify` passed from a fresh clone (46 pass, 4 known). Next: the phased plan, then Phase 2.

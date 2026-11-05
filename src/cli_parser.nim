@@ -3,6 +3,11 @@
 # Module Path: src/cli_parser.nim
 # Summary: Git-style CLI grammar parser for the Cosmos Runtime.
 # Grammar: cosmos [flags] <verb> [noun] [args]
+# Simile: Like a switchboard operator — it hears the words of a command and
+#   routes them to the right verb.
+# Memory note: parsing is pure; it reads args and returns a Result, and never
+#   touches the runtime.
+# Flow: match verb -> read noun, flags and args -> return ParsedCommand or error.
 
 import std/[strutils, tables]
 import runtime/result
@@ -54,6 +59,7 @@ const
     "Frame Control:\n" &
     "  cosmos step [--count=N]           Advance the frame loop\n"
 
+# Flow: Parse command-line words into one ParsedCommand, or an error with usage.
 proc parseArgs*(args: seq[string]): Result[ParsedCommand] =
   if args.len == 0:
     return err[ParsedCommand]("No command provided. Use 'cosmos --help' for usage.")

@@ -3,6 +3,8 @@
 # Module Path: src/runtime/bundle_loader.nim
 # Summary: Manifest-driven loading of .cosmos bundles.
 # Simile: Like a shipping manifest — it describes exactly what's inside the package and how to install it.
+# Memory note: a bad bundle comes back as a tlsSkippedMalformed result with a
+#   reason; loading never raises to the caller (MVP-LIFE-3).
 
 import json
 import std/[os, strutils, tables]

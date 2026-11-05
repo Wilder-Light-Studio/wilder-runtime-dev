@@ -2,77 +2,49 @@
 .SYNOPSIS
   Validate requirements compliance documentation and gates.
 .DESCRIPTION
-  Checks that REQUIREMENTS.md, COMPLIANCE-MATRIX.md, DEVELOPMENT-GUIDELINES.md,
-  PR template, CI workflows, and release scripts all exist and are consistent.
+  Checks that the MVP requirements, specification and compliance matrix, the
+  long-term REQUIREMENTS.md, DEVELOPMENT-GUIDELINES.md and the ND docs
+  checklist exist and are consistent, and that every Nim file follows the
+  header comment contract (MVP-DX-4).
+  Every MVP requirement ID must have exactly one matrix row, and every matrix
+  row must name a real requirement.
+  CI workflows, the PR template and release scripts are not checked: the MVP
+  targets one machine and defers them (MVP-SPECIFICATION §8).
   Called by: nimble compliance
 .EXAMPLE
   .\scripts\verify\check_requirements.ps1
 #>
 param(
   [string]$RequirementsPath = "docs/implementation/REQUIREMENTS.md",
-  [string]$MatrixPath = "archive/docs/implementation/COMPLIANCE-MATRIX.md",
+  [string]$MvpRequirementsPath = "docs/implementation/MVP-REQUIREMENTS.md",
+  [string]$MvpSpecificationPath = "docs/implementation/MVP-SPECIFICATION.md",
+  [string]$MatrixPath = "docs/implementation/MVP-COMPLIANCE-MATRIX.md",
   [string]$GuidelinesPath = "docs/implementation/DEVELOPMENT-GUIDELINES.md",
-  [string]$PullRequestTemplatePath = ".github/pull_request_template.md",
-  [string]$PreReleaseWorkflowPath = ".github/workflows/pre_release_verify.yml",
-  [string]$ReleaseArtifactsWorkflowPath = ".github/workflows/release_artifacts.yml",
-  [string]$ReleaseManifestScriptPath = "archive/scripts/ops/generate_release_manifest.ps1",
-  [string]$ChecksumScriptPath = "archive/scripts/ops/generate_artifact_checksums.ps1",
-  [string]$InstallerContractScriptPath = "archive/scripts/ops/test_installer_contract.ps1"
+  [string]$NdChecklistPath = "docs/implementation/ND_DOCS_CHECKLIST.md"
 )
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Test-Path $RequirementsPath)) {
-  Write-Error "Requirements file not found: $RequirementsPath"
-  exit 1
-}
+$requiredFiles = @(
+  $RequirementsPath,
+  $MvpRequirementsPath,
+  $MvpSpecificationPath,
+  $MatrixPath,
+  $GuidelinesPath,
+  $NdChecklistPath
+)
 
-if (-not (Test-Path $MatrixPath)) {
-  Write-Error "Compliance matrix file not found: $MatrixPath"
-  exit 1
-}
-
-if (-not (Test-Path $GuidelinesPath)) {
-  Write-Error "Development guidelines file not found: $GuidelinesPath"
-  exit 1
-}
-
-if (-not (Test-Path $PullRequestTemplatePath)) {
-  Write-Error "Pull request template file not found: $PullRequestTemplatePath"
-  exit 1
-}
-
-if (-not (Test-Path $PreReleaseWorkflowPath)) {
-  Write-Error "Pre-release workflow file not found: $PreReleaseWorkflowPath"
-  exit 1
-}
-
-if (-not (Test-Path $ReleaseArtifactsWorkflowPath)) {
-  Write-Error "Release artifacts workflow file not found: $ReleaseArtifactsWorkflowPath"
-  exit 1
-}
-
-if (-not (Test-Path $ReleaseManifestScriptPath)) {
-  Write-Error "Release manifest script not found: $ReleaseManifestScriptPath"
-  exit 1
-}
-
-if (-not (Test-Path $ChecksumScriptPath)) {
-  Write-Error "Checksum script not found: $ChecksumScriptPath"
-  exit 1
-}
-
-if (-not (Test-Path $InstallerContractScriptPath)) {
-  Write-Error "Installer contract script not found: $InstallerContractScriptPath"
-  exit 1
+foreach ($path in $requiredFiles) {
+  if (-not (Test-Path $path)) {
+    Write-Host "Compliance check failed: required file not found: $path" -ForegroundColor Red
+    exit 1
+  }
 }
 
 $content = Get-Content -Path $RequirementsPath -Raw
+$mvpContent = Get-Content -Path $MvpRequirementsPath -Raw
 $matrixContent = Get-Content -Path $MatrixPath -Raw
 $guidelinesContent = Get-Content -Path $GuidelinesPath -Raw
-$prTemplateContent = Get-Content -Path $PullRequestTemplatePath -Raw
-$preReleaseWorkflowContent = Get-Content -Path $PreReleaseWorkflowPath -Raw
-$releaseArtifactsWorkflowContent = Get-Content -Path $ReleaseArtifactsWorkflowPath -Raw
 $missing = New-Object System.Collections.Generic.List[string]
 
 # Required high-value sections and examples.
@@ -126,30 +98,28 @@ foreach ($testFile in $expectedTestFiles) {
   }
 }
 
-# Compliance matrix structure checks.
-$requiredMatrixPatterns = @(
-  "# Wilder Cosmos Runtime - Compliance Matrix",
-  "\| Requirement Area \| Requirement Statement \| Verification Method \| Test Artifact \| Status \|",
-  "## Maintenance Rule"
-)
+# MVP matrix checks: one row per requirement ID, and no row without one.
+$requirementIds = [regex]::Matches($mvpContent, '(?m)^- \*\*(MVP-[A-Z]+-\d+)\*\*') |
+  ForEach-Object { $_.Groups[1].Value }
+$matrixIds = [regex]::Matches($matrixContent, '(?m)^\| (MVP-[A-Z]+-\d+) \|') |
+  ForEach-Object { $_.Groups[1].Value }
 
-foreach ($pattern in $requiredMatrixPatterns) {
-  if (-not ($matrixContent -match $pattern)) {
-    $missing.Add("Missing matrix section/pattern: $pattern")
+if ($requirementIds.Count -eq 0) {
+  $missing.Add("No requirement IDs found in $MvpRequirementsPath")
+}
+
+foreach ($id in $requirementIds) {
+  $rows = @($matrixIds | Where-Object { $_ -eq $id }).Count
+  if ($rows -eq 0) {
+    $missing.Add("Requirement $id has no row in $MatrixPath")
+  } elseif ($rows -gt 1) {
+    $missing.Add("Requirement $id has $rows rows in $MatrixPath (expected 1)")
   }
 }
 
-$requiredMatrixSnippets = @(
-  "Core Architectural Principles",
-  "Storage and Persistence Requirements",
-  "Console Subsystem Requirements",
-  "Documentation Requirements",
-  "Release and Packaging Requirements"
-)
-
-foreach ($snippet in $requiredMatrixSnippets) {
-  if (-not ($matrixContent.Contains($snippet))) {
-    $missing.Add("Missing matrix mapping snippet: $snippet")
+foreach ($id in ($matrixIds | Sort-Object -Unique)) {
+  if ($requirementIds -notcontains $id) {
+    $missing.Add("Matrix row $id names no requirement in $MvpRequirementsPath")
   }
 }
 
@@ -182,80 +152,6 @@ foreach ($snippet in $requiredGuidelineSnippets) {
   }
 }
 
-# Pull request template structure checks.
-$requiredPrTemplatePatterns = @(
-  "# Pull Request Template",
-  "## Requirements Coverage \(Required\)",
-  "## Compliance Matrix Updates \(Required\)",
-  "## Verification Evidence \(Required\)",
-  "## Command Output Summary \(Required\)",
-  "## Documentation and ND-Friendly Quality"
-)
-
-foreach ($pattern in $requiredPrTemplatePatterns) {
-  if (-not ($prTemplateContent -match $pattern)) {
-    $missing.Add("Missing PR template section/pattern: $pattern")
-  }
-}
-
-$requiredPrTemplateSnippets = @(
-  "archive/docs/implementation/COMPLIANCE-MATRIX.md",
-  "nimble compliance",
-  "nimble verify",
-  "Summary, Simile, Memory note, and Flow"
-)
-
-foreach ($snippet in $requiredPrTemplateSnippets) {
-  if (-not ($prTemplateContent.Contains($snippet))) {
-    $missing.Add("Missing PR template snippet: $snippet")
-  }
-}
-
-# Active pre-release workflow checks.
-$requiredWorkflowPatterns = @(
-  "name: Pre-Release Verify",
-  "pull_request:",
-  "push:",
-  "workflow_dispatch:",
-  "nimble compliance",
-  "nimble verify"
-)
-
-foreach ($pattern in $requiredWorkflowPatterns) {
-  if (-not ($preReleaseWorkflowContent -match $pattern)) {
-    $missing.Add("Missing pre-release workflow section/pattern: $pattern")
-  }
-}
-
-# Active release matrix workflow checks.
-$requiredReleaseWorkflowPatterns = @(
-  "name: Release Artifacts",
-  "push:",
-  "tags:",
-  "workflow_dispatch:",
-  "Resolve release metadata",
-  "Stage 1 - build",
-  "Stage 2 - package",
-  "Stage 3 - verify artifacts and checksums",
-  "Stage 4 - publish metadata",
-  "test_installer_contract.ps1",
-  "generate_artifact_checksums.ps1",
-  "windows-amd64",
-  "linux-amd64",
-  "linux-arm64",
-  "darwin-amd64",
-  "darwin-arm64",
-  "generate_release_manifest.ps1",
-  "stable",
-  "preview"
-)
-
-foreach ($pattern in $requiredReleaseWorkflowPatterns) {
-  if (-not ($releaseArtifactsWorkflowContent -match $pattern)) {
-    $missing.Add("Missing release workflow section/pattern: $pattern")
-  }
-}
-
 # Header template and generator artifact checks.
 $requiredHeaderArtifacts = @(
   "templates/headers/runtime_header.tpl",
@@ -274,8 +170,7 @@ foreach ($artifact in $requiredHeaderArtifacts) {
 
 $requiredCompletionArtifacts = @(
   "tests/unit/security_boundary_test.nim",
-  "tests/unit/core_principles_test.nim",
-  "archive/scripts/verify/test_validate_config_script.ps1"
+  "tests/unit/core_principles_test.nim"
 )
 
 foreach ($artifact in $requiredCompletionArtifacts) {

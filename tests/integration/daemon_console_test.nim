@@ -2,6 +2,10 @@
 # Module name: Daemon Console Integration Test
 # Module Path: tests/integration/daemon_console_test.nim
 # Summary: Integration tests for the Daemon -> IPC -> Console flow.
+# Simile: Like a test call on a private line — open the line, place a call,
+#   check who answers.
+# Memory note: uses a free port and its own daemon thread, so it never touches
+#   a real daemon on 7700.
 
 import std/[os, strutils, json, net, typedthreads]
 import runtime/coordinator_ipc
@@ -28,6 +32,7 @@ proc startTestDaemon() =
   createThread(serverThread, serveForTest, session)
   sleep(200) # Give server time to bind
 
+# Flow: Attach a console over IPC, run commands and check each response.
 proc testConsoleFlow() =
   echo "Testing Console IPC Flow..."
   
@@ -66,6 +71,7 @@ proc testConsoleFlow() =
   assert dispatchRes[0]["result"]["ok"].getBool() == true
   echo "  [x] Dispatch (pwd) successful"
 
+# Flow: Load a bundle into the daemon over IPC and check the result.
 proc testBundleIpcFlow() =
   echo "Testing Bundle IPC Flow..."
   
@@ -99,6 +105,7 @@ proc testBundleIpcFlow() =
   finally:
     removeDir(bundleDir)
 
+# Flow: Start the test daemon, then run each flow test.
 proc main() =
   startTestDaemon()
   try:

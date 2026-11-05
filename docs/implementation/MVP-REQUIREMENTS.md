@@ -373,8 +373,8 @@ principles.*
 ## 13. AI access
 
 *Source: new direction (2026-11-05). AI is a first-class user of the runtime. There's
-no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) is proposed and
-awaiting confirmation.*
+no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) was confirmed on
+2026-11-05.*
 
 - **MVP-AI-1** **Parity:** every action available through the CLI or console is
   available as an IPC method with a structured JSON result. The CLI and console are

@@ -534,6 +534,7 @@ proc launchDaemon(): int =
     
     # Start IPC server in a background thread
     var ipcThread: Thread[IpcSession]
+    # Flow: Serve IPC requests on this background thread.
     proc ipcServerThread(session: IpcSession) {.thread.} =
       discard serveIpcTcp(session)
     createThread(ipcThread, ipcServerThread, session)
