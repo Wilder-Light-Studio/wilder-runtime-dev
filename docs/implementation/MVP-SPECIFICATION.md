@@ -664,6 +664,41 @@ covered, and every new one gets a test.
 - With no daemon, it prints the §4.4 message and exits 1.
 - `console_main` is removed once its tests have moved here (MVP-CON-7).
 
+### 5.1 Layout
+
+```
+frame 1042 | 3 Things | running
+(cosmos.synth.filter)
+/presets/warm
+>
+```
+
+- **Scope line:** the scope path, in the form every command accepts (MVP-ONT-6).
+- **Folder line:** relative to the Thing's own folder, where `/` is its top. `info` shows
+  the full location (WHERE). A Thing with no folder shows `/`.
+- **Current state:** `renderPromptLine` repeats the scope and there is no folder line.
+
+### 5.2 Entering scopes
+
+- `ls` already marks each entry: `[synth]/` is a Thing and `presets/` is a folder.
+- `cd` into a Thing changes the scope line and resets the folder line to `/`.
+- `cd` into a folder changes only the folder line.
+- `cd ..` goes up a folder. At a Thing's `/`, it goes to the parent Thing.
+- `cd /` returns to `(cosmos)`, as before. No `cd` changes runtime state.
+- `pwd` prints the scope and the folder.
+- `info`, `state`, `dir`, `ls` and `history` with no target use the current scope.
+  Today `info` and `state` require a target.
+
+### 5.3 `dir` and `call`
+
+- `dir` is built from `runtime.describe` (§4A.2), so it needs no new method and an AI gets
+  the same information.
+- It lists structures (status fields and child Things) and procs (PROVIDES with their
+  signatures, §4D.3).
+- `call <provide> [args]` is `runtime.call` with the current scope as the Thing. It goes
+  through the prefilter and may reply with a ticket (§4A.2b).
+- The console doesn't evaluate expressions or run arbitrary code.
+
 ---
 
 ## 6. CLI routing

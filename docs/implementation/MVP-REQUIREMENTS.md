@@ -341,10 +341,12 @@ daemon model).*
 
 *Source: Console Subsystem Requirements (reduced command set).*
 
-- **MVP-CON-1** The three-layer layout (status bar, scope line, prompt line) is fixed
-  in that order.
-- **MVP-CON-2** MVP commands: `ls`, `cd`, `pwd`, `info`, `peek`, `state`, `world`,
-  `watch`, `attach`, `detach`, `help`, `clear` and `exit`.
+- **MVP-CON-1** The layout is fixed, in this order: status bar, scope line, folder line,
+  prompt line. The scope line shows which Thing you are in. The folder line shows where
+  you are inside that Thing's own folder. **Departs** from the path sharing the prompt
+  line (REQUIREMENTS Three-Layer Layout), so typing always starts in the same place.
+- **MVP-CON-2** MVP commands: `ls`, `cd`, `pwd`, `dir`, `info`, `peek`, `state`, `world`,
+  `watch`, `history`, `call`, `attach`, `detach`, `help`, `clear` and `exit`.
 - **MVP-CON-3** `attach`, `help`, `clear` and `exit` work without an attached
   instance. Every other command gives a clear error when detached.
 - **MVP-CON-4** `detach` cancels watches, clears session state and resets scope and
@@ -354,6 +356,16 @@ daemon model).*
 - **MVP-CON-7** `cosmos console` is the only console entry point. It attaches to the
   running daemon over IPC and accepts `--attach <identity>` and `--watch <path>`.
   `console_main` is removed once its tests have moved to `cosmos console`.
+- **MVP-CON-8** **Scopes can be entered.** One `cd` moves through both Things and
+  folders. With no target, `info`, `state`, `dir`, `ls` and `history` act on the current
+  scope. **Departs** from introspection not depending on scope (REQUIREMENTS
+  Introspection Rules). The console remains a navigator, not a language interpreter: it
+  doesn't run arbitrary code.
+- **MVP-CON-9** **`dir` lists everything a Thing declares,** similar to Python's `dir()`:
+  its structures (state fields and the Things inside it) and its procs (PROVIDES, with
+  signatures). A listed proc can be run from inside the scope with `call`, through the
+  prefilter. Procs private to a Thing's code aren't visible, because a Thing is only
+  reachable through what it declares (MVP-ONT-10).
 
 ## 10. Safety and stacking
 
@@ -475,7 +487,7 @@ stays in place, but they're outside the MVP gate.
 | World Ledger claims | Graph references are enough for navigation. |
 | Delegation and specialists | Kept working, but not MVP-gated. |
 | Memory categories and caps | Kept working, but not MVP-gated. |
-| Console commands `specialists`, `delegations`, `claims`, `run`, `set`, `call` and `instances` | Not needed for the MVP workflow. |
+| Console commands `specialists`, `delegations`, `claims`, `run`, `set` and `instances` | Not needed for the MVP workflow. |
 | Multiple instances and federation | One instance. |
 | Portability to BSD, macOS and Haiku, and 7–10-year-old toolchains | Built and tested on Windows first. Linux and BSD are the likely deployment targets (MVP-PLAN.md). |
 | Performance targets (startup under 2 s, frame rates) | Measure once the MVP is stable. |

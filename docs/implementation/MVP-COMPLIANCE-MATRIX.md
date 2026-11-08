@@ -141,13 +141,15 @@ prove stay Failing until Phase 2 fixes it.
 
 | ID | Test | Status | Note |
 |---|---|---|---|
-| MVP-CON-1 | `console_status_test` | Verified | |
+| MVP-CON-1 | `console_status_test` | Partial | The layout order is tested. There is no folder line yet, and the prompt repeats the scope. |
 | MVP-CON-2 | `console_status_test` | Partial | `world`, `clear` and `exit` aren't tested. |
 | MVP-CON-3 | `console_status_test` | Verified | |
 | MVP-CON-4 | `console_status_test` | Partial | Session clearing is tested. Watch cancellation isn't. |
 | MVP-CON-5 | `console_status_test` | Verified | |
 | MVP-CON-6 | — | Gap | |
 | MVP-CON-7 | — | Missing | The console session is keyed by request id, so `cosmos console` never stays attached. `console_main` is still present. |
+| MVP-CON-8 | — | Missing | `cd` moves scope only, and `info` and `state` require a target. |
+| MVP-CON-9 | — | Missing | There is no `dir`, and the console has no working `call` through the prefilter. |
 
 ## 10. Safety and stacking
 

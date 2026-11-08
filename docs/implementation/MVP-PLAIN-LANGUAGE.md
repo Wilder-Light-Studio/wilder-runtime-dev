@@ -476,8 +476,25 @@ The console is an interactive screen for looking around a running Cosmos.
 `cosmos console` is the only way to open it. It can take `--attach <identity>` and
 `--watch <path>`.
 
-**The screen has three layers, always in this order:** status bar, scope line, prompt
-line.
+**The screen is always in this order:** status bar, scope line, folder line, prompt.
+
+```
+frame 1042 | 3 Things | running
+(cosmos.synth.filter)
+/presets/warm
+>
+```
+
+- The scope line says which Thing you are in.
+- The folder line says where you are inside that Thing's own folder.
+- `ls` shows Things as `[synth]/` and folders as `presets/`.
+- `cd` into a Thing changes the scope line. `cd` into a folder changes only the folder
+  line.
+- Once inside, `info`, `state`, `dir`, `ls` and `history` need no name.
+- `dir` lists what the Thing declares, similar to Python's `dir()`: its structures and
+  its procs. `call` runs one of those procs, after the data firewall checks it.
+- Procs private to a Thing's code stay invisible unless declared in PROVIDES.
+- The console doesn't run arbitrary code.
 
 | Command | What it does |
 |---|---|
@@ -496,7 +513,7 @@ line.
 `attach`, `help`, `clear` and `exit` always work. The others give a clear error if you
 aren't attached.
 
-**Source:** MVP-CON-1 to 7. Spec §5.
+**Source:** MVP-CON-1 to 9. Spec §5.
 
 ---
 

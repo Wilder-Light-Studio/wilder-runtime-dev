@@ -113,6 +113,9 @@ uses it. A word that stops being used moves to [Retired Words](#retired-words).
 
 - **Command-line interface (CLI):** The `cosmos` commands typed into a terminal.
 - **Console:** The interactive screen for looking around a running Cosmos.
+- **Scope line:** The console line showing which Thing you are in.
+- **Folder line:** The console line showing where you are inside that Thing's folder.
+- **dir:** The console command listing a Thing's declared structures and procs.
 - **Attach / detach:** Connect the console to an instance, or disconnect it.
 - **Operator:** A person or AI giving Cosmos commands.
 - **Command channel:** The one route for talking to the running Cosmos.

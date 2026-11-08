@@ -330,6 +330,21 @@ it back later.
 - **Choice:** `cosmos console` is the only way in.
 - **Why:** Two ways in meant two sets of options to remember.
 
+### The console shows scope and folder on separate lines
+
+- **Choice:** One line for which Thing you are in, one for where inside it.
+- **Why:** They are two different facts. Visible state beats remembered state.
+- **Cost:** One more line on screen.
+
+### Scopes can be entered and listed, like Python's `dir()`
+
+- **Choice:** Once inside a scope, commands need no name, and `dir` lists its structures
+  and procs.
+- **Why:** Less typing, and you can see what is available instead of remembering it.
+- **Cost:** Commands now depend on where you are, so the scope line must stay visible.
+- **Not chosen:** Listing private procs, which would break scope. Running arbitrary code,
+  which would bypass the data firewall.
+
 ### Logs go to the terminal and a file
 
 - **Choice:** `cosmos logs` reads the file directly.
