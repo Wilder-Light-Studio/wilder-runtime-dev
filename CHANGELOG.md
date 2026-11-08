@@ -24,6 +24,18 @@ Current preview tag: `v0.9.9.9-wip`
   the gate passes from a fresh clone.
 - Superseded and deferred material moved to `archive/`.
 - Docs rewritten to match: README, cheatsheet, guides, concepts and glossary.
+- Added a plain-language guide to the MVP requirements and specification, and made the
+  glossary the one list of Cosmos words.
+- Phase 2 design settled: calls travel on one-time wires with ticket numbers, the
+  history and logs can be read from the command line, every action has a command, and
+  `inspect` is retired for `describe`.
+- Data firewall designed: one table built from declared commands and PROVIDES
+  signatures, checked at every way in. The checker exists but isn't connected yet.
+- Set a bullet-proof standard for the prefilter. An audit found 14 defects, all now
+  fixed and covered by attack tests. The prefilter still has to be connected.
+- Added a document explaining the reasoning behind the design.
+- Added the MVP plan, with a reference deployment for Linux, FreeBSD, Windows and
+  macOS. It is not built yet.
 
 ## v0.9.6 - In Progress
 

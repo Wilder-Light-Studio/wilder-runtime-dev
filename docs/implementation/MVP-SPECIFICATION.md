@@ -51,7 +51,7 @@ listed.
 | 1. Ontology | §4, §4.1, §4.1A, §4.1B | One kind of entity plus properties of the Cosmos (MVP-ONT-1, MVP-ONT-8). §4.1C–§4.1D (context, overrides) are retired (MVP-ONT-11). §4.1E (references) is deferred. The how for MVP-ONT-7 to MVP-ONT-11 is §4C below. |
 | 2. Lifecycle | §5, §5A | None. |
 | 3. Persistence | §2 | Records are stored CLEAR. Encrypted record is deferred. |
-| 4. Validation | Validating Prefilter sections | None. |
+| 4. Validation | Validating Prefilter sections | Rules are built from declarations, and every way in is listed (§4D). |
 | 5. Scheduler | Scheduler and Tempo sections | The daemon drives frames as in §3.3 below. |
 | 6. Integration | Phase XA sections | Concepts, implementations and composition follow §4B. |
 | 7. Configuration | Config sections | JSON only (no Cue). `port` reaches the daemon (§3.2). |
@@ -77,7 +77,7 @@ coordination. `cosmos start` ignores all flags and config.
 ### 3.2 Start
 
 `cosmos start [--mode <step|continuous|periodic>] [--config <path>] [--with <path>]...
-[--loglevel <info|warn|error|debug>] [--port <N>]`
+[--loglevel <trace|debug|info|warn|error>] [--port <N>]`
 
 1. Parse with the existing `parseStartOptions`, extended with `--port`.
 2. Resolve config: defaults, then the file, then `COSMOS_*` environment variables, then
@@ -105,7 +105,8 @@ detach code. A background mode is deferred.
 - **`--mode step`:** start paused. Each `runtime.step` runs exactly one scheduler frame.
 - **`--mode continuous`:** run frames back to back, yielding between them.
 - **`--mode periodic`:** run frames at the configured frame rate.
-- `runtime.inspect`, `runtime.listThings` and the console read the lifecycle's real
+- While paused, the frame loop keeps draining the queue. Only frames stop.
+- `runtime.describe`, `runtime.listThings` and the console read the lifecycle's real
   state, not an IPC-side copy.
 
 ### 3.4 Loading Things
@@ -124,6 +125,25 @@ skipped with a warning (MVP-LIFE-3). There is one bundle format: a folder contai
 - `Ctrl+C` in the daemon's terminal sets the same stop flag.
 - With no daemon running, `cosmos stop` prints `cosmos: no daemon running on port N`
   and exits 1 (MVP-CLI-5).
+
+### 3.6 Logs
+
+This gives the host events of SPECIFICATION.md §5A somewhere to go (MVP-LIFE-8).
+
+- **Where.** Each host event is one JSON line, written to the daemon's terminal (the
+  error stream) and to `logs/cosmos.log` in the runtime home (`home.nim`). `logs/` is
+  already part of that tree.
+- **Two runs kept.** `cosmos start` renames an existing `cosmos.log` to
+  `cosmos.previous.log`, replacing any older one.
+- **Levels.** `trace`, `debug`, `info`, `warn` or `error`, from the loaded config
+  (MVP-CFG-2). `evError` and `evReconcileHalt` are `error`. Other host events are
+  `info`. Events below the level are not written. Production mode can't go below
+  `info`, which is the existing rule.
+- **Degrade.** If the file can't be written, the daemon prints one warning and carries
+  on (MVP-SAFE-1).
+- **Reading.** `cosmos logs [--last <N>]` prints the last lines of the file, 50 by
+  default. It reads the file directly and needs no daemon, so it works after a crash
+  (MVP-SAFE-2).
 
 ---
 
@@ -156,7 +176,7 @@ The canonical names are `runtime.*`. The unprefixed aliases stay.
 |---|---|---|
 | `runtime.ping` | **New** | Returns `{"daemon": "cosmos", "version": "ipc-v1", "port"}`. |
 | `runtime.stop` | **New** | §3.5. |
-| `runtime.step`, `pause`, `resume`, `inspect`, `snapshot` | Rewire | Act on the lifecycle through the queue (§3.3). |
+| `runtime.step`, `pause`, `resume`, `snapshot` | Rewire | Act on the lifecycle through the queue (§3.3). `runtime.step` returns the frame number and the answers to any calls completed in that frame (§4A.2b). |
 | `runtime.addThing`, `removeThing`, `listThings` | Rewire | Use real user Things (§3.4). |
 | `runtime.setMode` | Rewire | Validate against `step|continuous|periodic` and apply it. |
 | `runtime.addWatch`, `removeWatch`, `listWatch`, `subscribe`, `unsubscribe` | Keep | |
@@ -166,6 +186,10 @@ The canonical names are `runtime.*`. The unprefixed aliases stay.
 `runtime.start` and `runtime.restart` are removed from the client mapping. Starting is
 a process action (§3.2), and `restart` is deferred. Until it returns, `cosmos restart`
 is an unknown command (MVP-CLI-8).
+
+`runtime.inspect` is retired. `runtime.describe {target: "cosmos"}` returns the same
+state (§4A.2a). **Departs** from the required `inspect` method in SPECIFICATION.md's
+Phase XC section: with `describe` in place, it would be a second way to do one thing.
 
 ### 4.4 Client rules
 
@@ -179,7 +203,7 @@ is an unknown command (MVP-CLI-8).
 
 ## 4A. AI access
 
-AI is a first-class user (MVP-AI-1 to MVP-AI-6). The design rule: **the IPC contract
+AI is a first-class user (MVP-AI-1 to MVP-AI-8). The design rule: **the IPC contract
 is the one surface.** The CLI, the console and the MCP bridge are all clients of it,
 and an AI can use either the CLI or MCP. REST is deferred. It would be another thin
 client of the same table, so adding it later changes nothing underneath.
@@ -188,10 +212,15 @@ command, so parity holds by construction.
 
 ### 4A.1 One method table
 
-`coordinator_ipc.nim` declares each method once: its name, a one-line summary, its
-parameter and result shapes, and a `mutates` flag. That one table drives the
-dispatcher, `runtime.methods`, the CLI help and the MCP tool list. This follows the
-same rule as MVP-INT-1: declare once, reference everywhere.
+`coordinator_ipc.nim` declares each method once: its name, its CLI verb, a one-line
+summary, its parameter and result shapes, a `mutates` flag and a `needsDaemon` flag.
+That one table drives the dispatcher, `runtime.methods`, the CLI verbs and help, and
+the MCP tool list. This follows the same rule as MVP-INT-1: declare once, reference
+everywhere.
+
+A method with `needsDaemon: false` runs in the client process, with no connection to
+the daemon. These are `startapp`, `capabilities`, `concept`, `capability`, `scan`,
+`notify` and `logs`. Their handlers are the existing `run…Command` procs, plus §3.6.
 
 ### 4A.2 New methods
 
@@ -199,7 +228,9 @@ same rule as MVP-INT-1: declare once, reference everywhere.
 |---|---|
 | `runtime.methods` | The method table: name, summary, params, result, mutates. |
 | `runtime.describe` `{target}` | A Thing descriptor: id, scope path, manifest, WANTS, PROVIDES with signatures, rhythm, status, child ids. |
-| `runtime.call` `{thing, provide, args}` | Builds a wave to the Thing, validates it through the prefilter, delivers it in the next frame and returns the result. A validation failure returns the redacted failure change (MVP-VAL-4). |
+| `runtime.call` `{thing, provide, args}` | Validates a wave through the prefilter and delivers it on a one-time wire in the next frame (§4A.2b). A validation failure returns the redacted failure change (MVP-VAL-4). |
+| `runtime.history` `{last?, frame?, thing?}` | History rows, newest last. With no parameters, the last 20. `frame` returns that one frame. `thing` keeps only the changes involving that Thing and skips rows left empty. |
+| `runtime.logs` `{last?}` | The last lines of the log file (§3.6). `needsDaemon: false`. |
 
 `runtime.listThings` returns short descriptors (id, scope path, WHY), not just names.
 
@@ -213,6 +244,29 @@ one pattern, describe then call, and it works the same on the runtime and on eve
 Thing in it. The method table remains the single declaration, so nothing is
 duplicated.
 
+The Cosmos's status holds the runtime state: `paused`, the frame strategy, the current
+frame, `health`, `reconciliation`, `snapshotRevision`, `watchedPaths` and the frame
+rate. A call to the Cosmos runs the matching method directly, with no wave or ticket.
+
+### 4A.2b Calls
+
+`runtime.call` is how an operator asks a Thing to act.
+
+- **Route.** The Cosmos creates a one-time wire from itself to the Thing, carrying one
+  wave (MVP-ONT-8). The wave has no address (§4C.3). Only operators can do this: an
+  implementation's output has no form for it (§4B.2), so scope still holds (§4C.6).
+- **Ticket.** Each call gets a ticket: a number unique within the daemon's run. The
+  input line carries it, and the implementation's `result` line returns it (§4B.2).
+- **Reply.** If the answer arrives within 1 second, the response is
+  `{"ticket", "result"}`. Otherwise the response is `{"ticket", "status": "waiting"}`,
+  sent after that 1 second, or at once while paused. Either way it arrives before the
+  client's 2-second limit (§4.4).
+- **Answers that come later.** Every answer is recorded as a `result` change (§4C.5).
+  While stepping, `runtime.step` returns the answers from its frame. At other times,
+  `cosmos history --thing <name>` shows them.
+- **No answer.** A Thing that never answers blocks nothing. Its ticket simply never
+  gets a `result` change.
+
 ### 4A.3 Origin
 
 Every request has an origin identity: the attached console identity, `params.origin`,
@@ -222,9 +276,11 @@ any change, by a person or an AI, can be traced to who made it.
 
 ### 4A.4 CLI for AI
 
-Every method has a `cosmos` verb: `cosmos methods`, `cosmos describe <target>` and
-`cosmos call <thing> <provide> [--args-json <json>]`, alongside the existing daemon
-verbs. Each one prints the JSON response envelope, as the daemon verbs already do, and
+Every method has a `cosmos` verb, generated from the method table (§4A.1), with no
+exceptions. That includes `cosmos methods`, `cosmos describe <target>`, `cosmos call
+<thing> <provide> [--args-json <json>]`, `cosmos history [--last <N>] [--frame <N>]
+[--thing <name>]` and `cosmos logs [--last <N>]`, alongside the existing daemon verbs.
+Help shows common verbs first and the console's own methods last. Each one prints the JSON response envelope, as the daemon verbs already do, and
 uses the §4.4 exit codes. No verb prompts or needs a terminal, so a script or an AI
 agent can drive the whole runtime from a shell.
 
@@ -235,8 +291,9 @@ the daemon, like `cosmos ipc`.
 
 - **Tools:** one per method in `runtime.methods`, so `runtime.describe` becomes
   `cosmos_describe`. Descriptions and input schemas come from the method table.
-- **No daemon:** the server stays up and each tool returns a clear "no daemon running
-  on port N" error. It degrades instead of stalling.
+- **No daemon:** the server stays up. Tools with `needsDaemon: false` still work. The
+  others return a clear "no daemon running on port N" error. It degrades instead of
+  stalling.
 - **Off means off:** if `cosmos mcp` isn't running, the daemon behaves exactly as
   before.
 
@@ -255,7 +312,7 @@ MVP-INT-5. The keys are uppercase, following `ManifestStringKeys` and
 
 - `WHO` (the identity and id), `VERSION`, and the interrogatives WHAT, WHY, WHERE,
   WHEN, HOW, REQUIRES, WANTS, PROVIDES and WITH. PROVIDES and WANTS carry
-  signatures;
+  signatures (§4D.3);
 - `SENSES`: the wave kinds the Thing perceives;
 - for a Concept with no parts, `IMPLEMENTATION` (§4B.2);
 - for a composite Concept, `PARTS` (named Concepts) and `WIRES`.
@@ -270,9 +327,11 @@ the manifest. Nim code can still generate the file, but the file is the declarat
 An implementation exchanges one JSON object per line:
 
 - **Input:** waves delivered to it, in the shape `runtime.call` uses: `provide`,
-  `args`, plus `from` and `frame`.
-- **Output:** waves it emits, `{"provide", "args"}`, results, `{"result"}`, and its
-  own state, `{"status"}` (§4C.3).
+  `args`, plus `from` and `frame`. A call also carries `ticket`, which is how the code
+  tells a request from a wave it heard. On a call, `provide` names the Thing's own
+  PROVIDES. On any other wave, it names the sender's.
+- **Output:** waves it emits, `{"provide", "args"}`, results, `{"ticket", "result"}`,
+  and its own state, `{"status"}` (§4C.3).
 - **Error:** `{"code", "message"}`. The Cosmos records each one as a change in the history. A
   crash or a malformed line suspends the Thing (MVP-SCH-3) and never stops the
   Cosmos (MVP-SAFE-1).
@@ -364,6 +423,7 @@ Thing is skipped with a structured error (MVP-LIFE-3).
   carries (§4B.2).
 - **No addresses.** A wave has no destination field. Where it goes is decided only by
   wires and senses (§4C.4), so a Thing can't reach outside its scope by addressing.
+  An operator's call uses a one-time wire (§4A.2b).
 - **State.** An implementation reports its own state with an output line
   `{"status": {...}}`, which replaces its status and is recorded as a change. This
   joins the output forms in §4B.2. An output line in any other form is malformed
@@ -396,7 +456,8 @@ frame (MVP-SCH-1). The scheduler's per-Thing `incoming` list already has this sh
 - **Rows.** One row per frame: `{"frame": N, "changes": [...]}`. The frame is the
   scheduler's `epoch`.
 - **Change kinds:**
-  - `wave`: source, provide, args;
+  - `wave`: source, provide, args. A call also records its destination and ticket;
+  - `result`: the answer to a call, with its ticket;
   - `status`: a Thing's new state;
   - `added` and `removed`: a Thing and its Concept;
   - `failure` and `suspended`: from the scheduler's `FrameResult`;
@@ -408,7 +469,8 @@ frame (MVP-SCH-1). The scheduler's per-Thing `incoming` list already has this sh
   them in.
 - **No duplicates.** Deliveries aren't recorded. They follow from the row's waves and
   the wires and senses in place, and those change only through recorded `added` and
-  `removed` changes. The history replays without storing anything twice.
+  `removed` changes. A call's one-time wire leaves no other trace, so its `wave` change
+  names the destination. The history replays without storing anything twice.
 - **Storage.** Each row is one persisted entry, key `frame-<N>`, written through the
   existing layer the code calls RECORD (`writeRecordEntry`) and committed at the end
   of its frame. A frame with no changes writes nothing. Reading it returns an empty
@@ -447,6 +509,146 @@ Scope (MVP-ONT-10) is enforced by construction, not by a check on every action:
 
 ---
 
+## 4D. The data firewall
+
+No bad data reaches a Concept's code (MVP-VAL-2, MVP-VAL-3, MVP-VAL-5).
+
+**Current state:** `prefilterValidate` in `validation.nim` works and is tested, but
+nothing in `src/` calls it. `prefilter_table_generated.nim` holds one hand-written
+entry, `runtime.Ping`, and no generator exists. `stepActivatePrefilter` checks the
+table and then discards it.
+
+**Reuse.** The checker, its masks and `ValidationRecord` stay, with the fixes in §4D.2,
+§4D.5 and §4D.6.
+
+### 4D.1 One table
+
+The lifecycle owns one `ValidationIndex` for the life of the daemon.
+
+| Rows come from | Built |
+|---|---|
+| The method table's parameter shapes (§4A.1) | At startup step 6, before any input is accepted |
+| Each Concept's PROVIDES signatures (§4B.1) | When the Concept loads, before any Thing made from it runs |
+
+- `prefilter_table_generated.nim` is removed. Its tests move to the method table's rows.
+- The existing halt on an empty table stays. Method rows mean it should never fire.
+- New rows are added by the frame loop, between frames (§3.3).
+- Every row is built at startup or load, so no schema is parsed on the hot path.
+- `needsDaemon: false` methods use the same rows, in the client process.
+
+### 4D.2 Names match exactly
+
+The index stops lowercasing names, which is the same rule senses use (MVP-ONT-8). Its
+lookup key is length-prefixed, as the signature digest is. So `Notes` and `notes`, or
+`a|b` + `c` and `a` + `b|c`, can never share a lookup entry. A row that would collide
+is a load error.
+
+### 4D.3 Signatures
+
+A signature is the text that `capabilities.nim` already compares:
+`(argument,argument)->result`.
+
+| Word | Accepts |
+|---|---|
+| `string`, `int`, `float`, `bool`, `array`, `object`, `null` | That JSON type |
+| `json` | Any JSON value. The field isn't checked further, and `describe` shows that |
+| `{pitch:int,label?:string}` | An object with these fields. `?` marks an optional field. A field not listed is rejected |
+
+- Fields are checked one level deep in the MVP. A field that holds more can use `json`
+  or `object`.
+- A wave's `args` is a JSON array with one item per argument.
+- At load, a signature is parsed once and rewritten in one standard form, with no
+  spaces and with fields sorted. The capability graph compares that form.
+- An unknown word, or more than 64 fields (the mask limit), is a structured diagnostic.
+  The Concept is skipped with a warning (MVP-INT-3, MVP-LIFE-3).
+- The part after `->` is compared by the capability graph. It isn't checked at run time.
+
+### 4D.4 Every way in
+
+| Way in | Checked against | On failure |
+|---|---|---|
+| A command request | That method's row | `invalid_request` response, and a `rejected` change |
+| A command that needs no daemon | That method's row | Usage error, exit 2 |
+| `runtime.call` | The called Thing's PROVIDES row | The redacted failure is returned, a `rejected` change is recorded, and nothing is delivered |
+| A wave on an implementation's output | The sender's PROVIDES row for that name | A `rejected` change is recorded, and nothing is routed. It counts as a failure for MVP-SCH-3 |
+
+- A wave whose name has no row in its sender's PROVIDES is rejected as an unknown
+  signature.
+- Each check runs where the data arrives, so a wave is checked once, before routing.
+- Answers and `status` lines go to operators and the history, not to other Things. They
+  are only checked for line form (§4B.2).
+- A failed check never shows the bad data. It records the rule, a digest and the size
+  (MVP-VAL-4).
+
+**Other ways in have their own checks,** which stay as they are: config (MVP-CFG-3),
+saved data (MVP-PER-2) and manifests (MVP-INT-3).
+
+**Inside Cosmos,** the Nim compiler guarantees the types passed between procs. The
+guards from MVP-VAL-1 also stay. The table doesn't replace them.
+
+### 4D.5 No route can skip it
+
+Delivery to an implementation, and the handler for each method, accept a passed
+`PrefilterDecision` rather than raw JSON (`dispatchValidated` already has this shape).
+A new route that forgets the check doesn't compile.
+
+The decision's fields are private, so only `prefilterValidate` can produce a pass.
+
+MVP-VAL-3 needs a test that sends a bad request through the real command path and proves
+the handler never ran. A test that calls the checker directly doesn't prove it.
+
+### 4D.6 Bullet-proof
+
+This is how MVP-VAL-6 is met.
+
+**It never fails open.**
+
+- The whole check runs inside one error boundary. Any error is a rejection.
+- A nil value is rejected.
+
+**It is bounded.** These are starting values.
+
+- A message over 1 MiB is rejected before it is parsed.
+- Nesting deeper than 64 levels is rejected before parsing.
+- The server drops a client that hasn't sent a complete line within 2 seconds.
+- A wrong argument count is rejected without scanning the table.
+
+**It is exact.**
+
+| Rule | Requirement |
+|---|---|
+| Any type | A matching plain value passes |
+| `int` | A whole number that fits in 64 bits |
+| `float` | A finite number. Infinity and NaN are rejected |
+| `string` | Valid UTF-8 with no NUL character |
+| A number too large for `int` | Rejected, including where any value is allowed |
+| Unknown fields | Always rejected |
+
+`efIgnoreUnknown` and `efAllowUnknown` are removed. **Departs** from the extra-field
+policies in REQUIREMENTS Validating Prefilter: the first silently changes data, and the
+second lets unchecked data through.
+
+**A message is parsed once.** The value that was checked is the value delivered.
+
+**It reveals nothing.**
+
+- A failure's `rulePath` only contains names from the rule. An unknown field is reported
+  as `$unknown`, never by its own name.
+- Every value written to a log line, including `source`, is escaped, so it can't start a
+  new line.
+
+**Proof in the gate:**
+
+- One test per defect in MVP-PLAN.md, written to fail before its fix.
+- One rejection test for each rule above.
+- A randomized test with a fixed seed. It proves no crash, and that nothing invalid
+  passes. The fixed seed keeps it deterministic.
+
+Testing can't prove there are no bugs left. This bar means every known kind of attack is
+covered, and every new one gets a test.
+
+---
+
 ## 5. Console
 
 `cosmos console [--attach <identity>] [--watch <path>]`. The identity defaults to
@@ -472,10 +674,11 @@ Scope (MVP-ONT-10) is enforced by construction, not by a check on every action:
 |---|---|---|
 | none, `--help`, `-h` | help text, exit 0 | Starts nothing (MVP-CLI-1). |
 | `start` | §3.2 | |
-| `stop`, `inspect`, `list`, `step`, `mode`, `add`, `remove`, `methods`, `describe`, `call` | IPC (§4, §4A.4) | |
+| any verb in the method table (§4A.1) | IPC (§4, §4A.4), or in the client when `needsDaemon` is false | Includes `stop`, `list`, `step`, `mode`, `add`, `remove`, `methods`, `describe`, `call`, `history` and `logs`. |
 | `mcp` | §4A.5 | |
 | `console` | §5 | |
-| `startapp`, `capabilities`, `concept`, `capability`, `scan`, `ipc`, `notify` | existing `run…Command` procs | These are present but unreachable since `f71f93a` (MVP-CLI-6). |
+| `startapp`, `capabilities`, `concept`, `capability`, `scan`, `notify` | method table, `needsDaemon: false` (§4A.1) | Existing `run…Command` procs, unreachable since `f71f93a` (MVP-CLI-6). |
+| `ipc` | existing `runIpcCommand` | Sends a raw request. It's a client, not an action, so it isn't in the method table. |
 | anything else | usage text, exit 2 | MVP-CLI-8. |
 
 **Known tension:** "mode" means two things. Config `mode` (`COSMOS_MODE`) is
@@ -491,7 +694,7 @@ The MVP's headline test: three commands from nothing to an inspected Thing.
 ```
 cosmos startapp hello
 cosmos start --with hello        # in its own terminal (§3.2)
-cosmos inspect hello
+cosmos describe hello
 ```
 
 `startapp` must write `manifest.json` in the one manifest format (§4B.1), with at
@@ -538,14 +741,15 @@ which nothing in `src/` reads. Drop them unless something starts reading them.
 
 ## 9. Phases
 
-The plan sequences these. Each phase ends when its rows in the compliance matrix are
+[MVP-PLAN.md](MVP-PLAN.md) sequences these and holds the reference deployment. Each
+phase ends when its rows in the compliance matrix are
 **Verified**.
 
 | Phase | Scope | Commitment (C1) |
 |---|---|---|
 | **1. Trustworthy gate** | §8. Fix the compile errors. Bring every file into the gate, passing or recorded as a known failure. | Committed |
-| **2. Daemon, CLI and AI access** | §3–§6, including §4A | Committed |
-| **3. The startapp loop** | §7, §4B (manifest, Nim implementation, one composite example), §4C (ontology) | Committed |
+| **2. Daemon, CLI and AI access** | §3–§6, including §4A, and §4D for commands | Committed |
+| **3. The startapp loop** | §7, §4B (manifest, Nim implementation, one composite example), §4C (ontology), §4D for Things and waves | Committed |
 | **4. Close matrix gaps** | Remaining Gap rows | When a project needs it |
 
 Phase 2 is building work, not just repair. The daemon's IPC side was never connected

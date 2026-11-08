@@ -15,13 +15,6 @@ PrimitiveType* = enum
   ptAny, ptString, ptInt, ptFloat, ptBool, ptObject, ptArray, ptNull
 ```
 
-### `ExtraFieldPolicy`
-
-```nim
-ExtraFieldPolicy* = enum
-  efRejectUnknown, efIgnoreUnknown, efAllowUnknown
-```
-
 ### `ValidationFailureKind`
 
 ```nim
@@ -55,7 +48,6 @@ ArgumentRule* = object
   expectedType*: PrimitiveType
   required*: bool
   fields*: seq[FieldRule]
-  extraFieldPolicy*: ExtraFieldPolicy
   enforceOrdering*: bool
   knownFieldOrder*: seq[string]
   minItems*: int
@@ -107,6 +99,7 @@ Index of validation records keyed by digest, with a generation ID for cache inva
 ValidationIndex* = object
   byKey*: Table[string, ValidationRecord]
   byRoute*: Table[string, string]
+  bySymbol*: Table[string, string]
   generationId*: string
   sourceDigests*: seq[string]
 ```
@@ -123,11 +116,12 @@ InboundMessage* = object
 
 ### `PrefilterDecision`
 
+Its fields are private, so only `prefilterValidate` can produce a pass. Read them with these procedures:
+
 ```nim
-PrefilterDecision* = object
-  validated*: bool
-  normalizedArgs*: seq[JsonNode]
-  failure*: ValidationFailureOccurrence
+proc validated*(decision: PrefilterDecision): bool
+proc normalizedArgs*(decision: PrefilterDecision): seq[JsonNode]
+proc failure*(decision: PrefilterDecision): ValidationFailureOccurrence
 ```
 
 ### `ValidationFailureOccurrence`
@@ -175,6 +169,22 @@ proc maskConjunctionPass*(validationMask: ValidationMask,
                            payloadMask: PayloadMask): bool
 ```
 Boolean AND comparison for fast mask validation.
+
+```nim
+proc computePayloadMaskNoAlloc*(arg: ArgumentRule, payload: JsonNode,
+                                 mask: var PayloadMask,
+                                 unknownFieldFound: var bool,
+                                 orderingViolation: var bool,
+                                 cardinalityViolation: var bool,
+                                 firstTypeMismatchPath: var string,
+                                 firstMissingPath: var string)
+```
+Compute a payload's mask, filling the caller's variables with any violations found.
+
+```nim
+proc precheckMessage*(line: string): string
+```
+Check a message line's size and nesting before parsing. Returns "" if it may be parsed, otherwise the reason it may not.
 
 ```nim
 proc dispatchValidated*(decision: PrefilterDecision, dispatch: proc): bool

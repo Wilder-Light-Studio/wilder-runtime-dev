@@ -55,10 +55,10 @@ suite "chapter2 edge cases":
     expect(ValueError):
       discard envelopeUnwrap(env)
 
-  test "signature digest is stable across casing and whitespace":
+  test "signature digest treats casing and whitespace as different names":
     let a = deriveSignatureDigest(" runtime ", " Dispatch ", 1, 1, @["payload:object"])
     let b = deriveSignatureDigest("RUNTIME", "DISPATCH", 1, 1, @["payload:object"])
-    check a == b
+    check a != b
 
 # --
 # (C) Copyright 2026, Wilder. All rights reserved.

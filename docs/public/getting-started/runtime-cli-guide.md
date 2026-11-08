@@ -32,7 +32,7 @@ asks a question, so a script or an AI agent can drive the runtime from a shell.
 | `cosmos add thing <bundle>` | Load a bundle folder | Fails: "method not found" | Loads into the runtime |
 | `cosmos remove thing <id>` | Remove a Thing | Fails: "method not found" | Removes from the runtime |
 | `cosmos add watch <path>`, `remove watch`, `list watch` | Manage watched paths | Fail: "method not found" | Work |
-| `cosmos inspect <target>` | Show runtime state | Works, but shows the daemon's own copy, not the runtime | Shows the runtime's real state |
+| `cosmos inspect <target>` | Show runtime state | Works, but shows the daemon's own copy, not the runtime | Retired. `cosmos describe cosmos` shows the runtime's real state |
 | `cosmos step` | Advance one frame | Counts, without running a frame | Runs exactly one frame |
 | `cosmos mode <step\|continuous\|periodic>` | Change how frames run | Fails: "method not found" | Validated and applied |
 | `cosmos console` | Open the interactive console | Opens, but forgets you between commands | Keeps the session (see below) |
@@ -60,6 +60,9 @@ them.
 | `cosmos methods` | List every daemon operation, its inputs and whether it changes anything |
 | `cosmos describe <target>` | Describe any Thing, including the Cosmos itself |
 | `cosmos call <thing> <provide> [--args-json <json>]` | Invoke something a Thing PROVIDES |
+| `cosmos history [--last <N>] [--frame <N>] [--thing <name>]` | Show what happened |
+| `cosmos logs [--last <N>]` | Read the log file, even after a crash |
+| `cosmos pause`, `resume`, `snapshot` | The remaining daemon operations. Every operation gets a command |
 | `cosmos mcp` | Serve every operation as a Model Context Protocol (MCP) tool |
 
 `describe` then `call` works the same on every Thing, and on the Cosmos: its PROVIDES

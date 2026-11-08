@@ -2,6 +2,11 @@
 
 What this is. This page describes the runtime boundary gate that blocks unvalidated ingress from reaching dispatch.
 
+**MVP status:** the checker is built and tested, but it isn't connected yet. Nothing in
+the running program calls it, and its table holds one entry. The guarantees below are
+the design, not today's behaviour (MVP-VAL-2, MVP-VAL-3). MVP-SPECIFICATION §4D has
+the design: Phase 2 connects commands, and Phase 3 connects Things and waves.
+
 ## Role
 
 The validating prefilter is activated during startup before ingress opens. It checks target signature identity and payload structure.

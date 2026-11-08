@@ -99,7 +99,12 @@ proc persistEnvelope*(bridge: PersistenceBridge, layer, key: string, env: JsonNo
 proc loadEnvelope*(bridge: PersistenceBridge, layer, key: string): JsonNode
 proc deleteLayer*(bridge: PersistenceBridge, layer: string)
 proc listLayerKeys*(bridge: PersistenceBridge, layer: string): seq[string]
+proc validateEnvelope*(env: JsonNode)
+proc unwrapEnvelope*(env: JsonNode): JsonNode
 ```
+
+`validateEnvelope` checks an envelope's structure and payload checksum.
+`unwrapEnvelope` validates an envelope and returns a copy of its payload.
 
 ### Transactions
 

@@ -5,12 +5,16 @@ documentation set. [README.md](README.md) gives the reading order.
 
 ## MVP (governs current work)
 
+- [MVP-PLAIN-LANGUAGE.md](MVP-PLAIN-LANGUAGE.md): the requirements and specification
+  in plain language, plus the questions still undecided. Start here.
+- [MVP-REASONING.md](MVP-REASONING.md): why the runtime is built this way.
 - [MVP-REQUIREMENTS.md](MVP-REQUIREMENTS.md): what must be true for the MVP,
   including the ontology, Concepts and AI access.
 - [MVP-SPECIFICATION.md](MVP-SPECIFICATION.md): how the MVP requirements are met,
   plus the plausibility constraints and phases.
 - [MVP-COMPLIANCE-MATRIX.md](MVP-COMPLIANCE-MATRIX.md): every MVP requirement with its
   proving test and current status.
+- [MVP-PLAN.md](MVP-PLAN.md): when each piece gets built, and the reference deployment.
 
 ## Long-term reference
 

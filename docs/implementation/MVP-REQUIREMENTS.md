@@ -93,6 +93,9 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
     able to handle what the wire carries. A mismatch is a structured error, like any
     incompatible signature (MVP-INT-3), and the Concept that declares the wire is
     skipped with a warning (MVP-LIFE-3).
+  - **An operator's call travels on a one-time wire** from the Cosmos to the Thing
+    being called (MVP-AI-5). The wire carries that one wave and then ends. Waves
+    themselves still have no address.
   - Perception is a Thing noticing a wave through one of its senses, or receiving one
     along a wire.
   - An occurrence is what happened in one frame: a single historic event
@@ -163,6 +166,10 @@ Thing that extends the runtime (MVP-ONT-7).*
 - **MVP-LIFE-7** Startup, reconciliation, migration, prefilter activation and shutdown
   emit structured host events with stable kinds. Logs never contain raw payloads,
   keys or secrets.
+- **MVP-LIFE-8** Host events are printed in the daemon's terminal and saved to a log
+  file. `cosmos logs` reads the file without needing a running daemon, so logs can
+  still be read after a crash. The current run and the one before it are kept. A log
+  file that can't be written gives one warning and never stops the daemon.
 
 ## 3. Persistence
 
@@ -185,11 +192,34 @@ Thing that extends the runtime (MVP-ONT-7).*
 *Source: Validating Prefilter, Data Handling and Validation.*
 
 - **MVP-VAL-1** All public procedures validate input at the boundary and fail fast.
-- **MVP-VAL-2** The prefilter table is generated ahead of time from canonical sources,
-  never copied by hand. It's activated before any input is accepted.
-- **MVP-VAL-3** Only validated payloads reach Thing code or become changes in the history.
+- **MVP-VAL-2** The prefilter table is built only from what's already declared, never
+  written by hand: command rules from the method table, and Thing rules from each
+  Concept's PROVIDES signatures. Command rules are active before any input is accepted.
+  A Concept's rules are active before any Thing made from it can send or receive.
+  **Departs** from rules "precomputed at build time" (REQUIREMENTS Validating
+  Prefilter), because Things can load while Cosmos runs. Schemas are still never parsed
+  on the hot path.
+- **MVP-VAL-3** Only validated payloads reach Thing code or become changes in the
+  history. Delivery accepts only data that has passed the prefilter, so no route can
+  skip it.
 - **MVP-VAL-4** A prefilter failure is recorded in the history as a redacted,
   deterministic failure change. Invalid payload bytes are never shown.
+- **MVP-VAL-5** **Every way in is checked.** That means every command request, every
+  call and every wave a Thing sends, before anything acts on it. A Thing's output is
+  outside data. A wave whose name its sender didn't declare in PROVIDES is rejected.
+  Calls between procs inside Cosmos aren't checked here, because the Nim compiler
+  already guarantees their types.
+- **MVP-VAL-6** **The prefilter must be bullet-proof.** That means all of these, each
+  proven by tests in the gate:
+  - **It never fails open.** Any input gives a decision. It never crashes or hangs, and
+    any error inside the checker is a rejection.
+  - **It is exact.** A value passes only if it exactly matches its rule.
+  - **A pass can't be forged.** Only the checker can produce one.
+  - **It is bounded.** Message size and nesting are limited, and checked before parsing.
+  - **It reveals nothing.** No incoming data, including field names, appears in a
+    failure or a log, and incoming data can't add a line to a log.
+  - **Attacks are in the gate.** Every known attack has a test, and a randomized test
+    with a fixed seed runs in the gate. Any new defect gets a test before its fix.
 
 ## 5. Scheduler
 
@@ -288,13 +318,13 @@ daemon model).*
   start nothing.
 - **MVP-CLI-2** `cosmos start` starts the daemon. It accepts `--mode
   <step|continuous|periodic>`, `--config <path>`, `--with <path>` (repeatable),
-  `--loglevel <info|warn|error|debug>` and `--port <N>`. Invalid values fail fast with
+  `--loglevel <trace|debug|info|warn|error>` and `--port <N>`. Invalid values fail fast with
   usage text.
 - **MVP-CLI-3** If a daemon is already running, `cosmos start` reports that and exits
   0 without starting another.
 - **MVP-CLI-4** `cosmos stop` shuts the daemon down cleanly (MVP-LIFE-6) and releases
   its port.
-- **MVP-CLI-5** The daemon commands `inspect`, `list`, `step`, `mode`, `add` and
+- **MVP-CLI-5** The daemon commands `describe`, `list`, `step`, `mode`, `add` and
   `remove` talk to the running daemon. With no daemon running, they say so clearly and
   exit non-zero, without hanging.
 - **MVP-CLI-6** The existing subcommands `startapp`, `capabilities`, `concept`,
@@ -353,7 +383,7 @@ principles.*
   untracked files.
 - **MVP-GATE-3** No test can hang. Tests that start a daemon use a free port and stop
   it themselves.
-- **MVP-GATE-4** A fast check (`nimble check-fast` or similar) runs, in under one
+- **MVP-GATE-4** A fast check (`nimble checkFast`) runs, in under one
   minute on the development machine, every test that opens no socket, starts no
   process and starts no daemon. Membership follows that rule, not a list, so new tests
   join automatically.
@@ -373,7 +403,7 @@ principles.*
 
 - **MVP-PLAT-1** The MVP targets Windows 11 with Nim 2.0.8.
 - **MVP-PLAT-2** Platform-specific code stays behind the portability layer, so Linux
-  can follow without restructuring.
+  and BSD can follow without restructuring.
 
 ## 13. AI access
 
@@ -383,7 +413,9 @@ no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) was conf
 
 - **MVP-AI-1** **Parity:** every action available through the CLI or console is
   available as an IPC method with a structured JSON result. The CLI and console are
-  clients of IPC, so there's no human-only path.
+  clients of IPC, so there's no human-only path. Actions that work without a running
+  daemon (`startapp`, `capabilities`, `concept`, `capability`, `scan`, `notify` and
+  `logs`) are in the same method table, marked as not needing one.
 - **MVP-AI-2** Every Thing is discoverable and describes itself over IPC: identity,
   scope path, manifest (WHO, WHY and any optional interrogatives), WANTS and PROVIDES
   with signatures, rhythm, status and children.
@@ -394,7 +426,9 @@ no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) was conf
   request. Every change is recorded in the history with its `origin` identity. There
   is no bypass and no AI-only path.
 - **MVP-AI-5** A Thing's PROVIDES can be invoked over IPC (`runtime.call`), through the
-  prefilter.
+  prefilter. Each call has a ticket number that comes back with its answer. A call
+  that can't be answered right away, including while the daemon is paused, says so at
+  once and gives its ticket. It never hangs or reports a false failure.
 - **MVP-AI-7** **The Cosmos has an interface too.** The Cosmos root is a Thing like any
   other (MVP-ONT-5). Its PROVIDES are the runtime's own operations, such as `step`,
   `pause`, `addThing` and `stop`. `describe cosmos` lists them and `call cosmos …`
@@ -403,10 +437,14 @@ no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) was conf
   Model Context Protocol (MCP). Both are thin clients of the same method table and add
   no logic of their own.
   - **CLI:** every method has a `cosmos` verb that prints the JSON response and exits
-    with the §4.4 codes. It needs no terminal interaction.
+    with the §4.4 codes. It needs no terminal interaction. The verbs come from the
+    method table, so none can be left out.
   - **MCP:** `cosmos mcp` exposes every method as a tool over stdio, generated from
     `runtime.methods`.
   - **REST** is deferred. It would be one more thin client of the same table.
+- **MVP-AI-8** **The history can be read.** `runtime.history` and `cosmos history`
+  return the most recent rows, one chosen frame, or only the changes involving one
+  Thing.
 
 ---
 
@@ -439,7 +477,7 @@ stays in place, but they're outside the MVP gate.
 | Memory categories and caps | Kept working, but not MVP-gated. |
 | Console commands `specialists`, `delegations`, `claims`, `run`, `set`, `call` and `instances` | Not needed for the MVP workflow. |
 | Multiple instances and federation | One instance. |
-| Portability to BSD, macOS and Haiku, and 7–10-year-old toolchains | Windows first, then Linux. |
+| Portability to BSD, macOS and Haiku, and 7–10-year-old toolchains | Built and tested on Windows first. Linux and BSD are the likely deployment targets (MVP-PLAN.md). |
 | Performance targets (startup under 2 s, frame rates) | Measure once the MVP is stable. |
 
 ## Decisions
@@ -459,6 +497,30 @@ Settled 2026-11-05.
 3. **One console: `cosmos console`** (MVP-CON-7). It already talks to the daemon over
    IPC. `console_main` predates the daemon. Keeping both meant two ways in and two
    sets of flags, including the `--config` mismatch with REQUIREMENTS.md.
+
+Settled 2026-11-08.
+
+4. **A call travels on a one-time wire** (MVP-ONT-8, MVP-AI-5). This reuses the wire
+   and keeps waves free of addresses. The rejected options were a second way to
+   communicate, and addressed waves.
+5. **Calls have ticket numbers** (MVP-AI-5). The match between a request and its answer
+   is explicit (MVP-ONT-11), not assumed from the order they arrive in.
+6. **A paused call waits and says so** (MVP-AI-5). Refusing would force a resume, which
+   lets frames run on and loses the operator's place while stepping.
+7. **Every method has a verb, with no exceptions** (MVP-AI-6). The method table
+   generates them.
+8. **Commands that need no daemon join the method table** (MVP-AI-1).
+9. **`inspect` is retired for `describe`** (MVP-CLI-5, MVP-AI-2). The Cosmos is a Thing
+   like any other, so `describe cosmos` shows its running state. **Departs** from the
+   required `inspect` method (REQUIREMENTS Phase XC).
+10. **Logs go to the terminal and a file** (MVP-LIFE-8), in the `logs/` folder of the
+    existing home tree (REQUIREMENTS Runtime Home Tree). `--loglevel` takes the same
+    five levels as `config.nim`, which adds `trace` to MVP-CLI-2.
+11. **The data firewall is built from declarations** (MVP-VAL-2, MVP-VAL-5). It has one
+    table, filled from the method table and from manifests. The checker in
+    `validation.nim` was built and tested but never connected.
+12. **The prefilter must be bullet-proof** (MVP-VAL-6). An audit on 2026-11-08 found
+    defects that its tests had missed. MVP-PLAN.md lists them.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

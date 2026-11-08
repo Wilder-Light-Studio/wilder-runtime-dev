@@ -28,7 +28,6 @@ proc makeRecord(i: int): ValidationRecord =
     fields: @[
       FieldRule(path: "id", expectedType: ptString, required: true, minItems: -1, maxItems: -1)
     ],
-    extraFieldPolicy: efIgnoreUnknown,
     enforceOrdering: false,
     knownFieldOrder: @[],
     minItems: -1,
@@ -71,7 +70,6 @@ suite "ValidationFirewallPerf":
       fields: @[
         FieldRule(path: "id", expectedType: ptString, required: true, minItems: -1, maxItems: -1)
       ],
-      extraFieldPolicy: efIgnoreUnknown,
       enforceOrdering: false,
       knownFieldOrder: @[],
       minItems: -1,
@@ -79,30 +77,25 @@ suite "ValidationFirewallPerf":
     )
 
     var mask: PayloadMask
-    var normalized = newJNull()
     var unknownFieldFound = false
     var orderingViolation = false
     var cardinalityViolation = false
     var firstTypeMismatchPath = ""
     var firstMissingPath = ""
-    var firstUnknownPath = ""
 
     computePayloadMaskNoAlloc(
       arg,
       %*{"id": "x", "extra": 1},
       mask,
-      normalized,
       unknownFieldFound,
       orderingViolation,
       cardinalityViolation,
       firstTypeMismatchPath,
-      firstMissingPath,
-      firstUnknownPath
+      firstMissingPath
     )
 
     check mask.width == 1
-    check normalized.kind == JObject
-    check normalized.hasKey("id")
+    check unknownFieldFound
 
   test "mask conjunction comparison is constant work for fixed width":
     let v = ValidationMask(requiredBits: 0b11, typeBits: 0b11, orderingBit: 0, cardinalityBits: 0, width: 2)

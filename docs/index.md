@@ -5,11 +5,15 @@ What this is. This page is the entry point for documentation in this repository.
 ## Start Here
 
 - New to the project: [../README.md](../README.md), then [public/index.md](public/index.md)
+- The design in plain language: [MVP-PLAIN-LANGUAGE.md](implementation/MVP-PLAIN-LANGUAGE.md)
+- Why it's built this way: [MVP-REASONING.md](implementation/MVP-REASONING.md)
+- What a word means: [the glossary](public/glossary/cosmos-terms.md)
 - Where things stand: [../STATUS.md](../STATUS.md)
 - Building or reviewing internals: [implementation/README.md](implementation/README.md)
 - What must be true: [MVP-REQUIREMENTS.md](implementation/MVP-REQUIREMENTS.md)
 - How it's built, and in which phase: [MVP-SPECIFICATION.md](implementation/MVP-SPECIFICATION.md)
 - What's proven so far: [MVP-COMPLIANCE-MATRIX.md](implementation/MVP-COMPLIANCE-MATRIX.md)
+- When it's built, and how it's deployed: [MVP-PLAN.md](implementation/MVP-PLAN.md)
 
 The full [REQUIREMENTS.md](implementation/REQUIREMENTS.md) and
 [SPECIFICATION.md](implementation/SPECIFICATION.md) are the long-term reference.
@@ -23,7 +27,7 @@ deferred features are in [../archive/](../archive/README.md).
 - Implementation lane (`docs/implementation/`): requirements, specification,
   compliance matrix and working guides.
 - Enhancements (`docs/enhancements/`): notes waiting for their own projects, such as
-  the audio and UI ideas.
+  the audio and UI ideas and the Home Assistant wrapper.
 
 ## Structure
 

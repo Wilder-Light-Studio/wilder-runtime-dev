@@ -154,7 +154,7 @@ proc stepLoadModules*(lc: RuntimeLifecycle, moduleNames: seq[string])
 ```nim
 proc stepInitFrames*(lc: RuntimeLifecycle)
 ```
-**Step 8** — Initialize scheduler, tempo, and world-graph.
+**Step 8** — Initialize scheduler, rhythms (`tempo` in code), and world-graph.
 
 ```nim
 proc stepOpenIngress*(lc: RuntimeLifecycle)

@@ -9,6 +9,7 @@ Runtime. The full list is in [index.md](index.md). Newcomer docs are in
 1. [MVP-REQUIREMENTS.md](MVP-REQUIREMENTS.md): what must be true.
 2. [MVP-SPECIFICATION.md](MVP-SPECIFICATION.md): how it's met, and in which phase.
 3. [MVP-COMPLIANCE-MATRIX.md](MVP-COMPLIANCE-MATRIX.md): what's proven so far.
+4. [MVP-PLAN.md](MVP-PLAN.md): when each piece gets built, and the reference deployment.
 
 When an MVP file and [REQUIREMENTS.md](REQUIREMENTS.md) or
 [SPECIFICATION.md](SPECIFICATION.md) disagree, the MVP file governs. Each MVP rule
@@ -25,8 +26,11 @@ Returning after a break:
 New to the project:
 
 1. [../../README.md](../../README.md): overview and quick start.
-2. [MVP-REQUIREMENTS.md](MVP-REQUIREMENTS.md), section 1 (Ontology), then the rest.
-3. [MVP-SPECIFICATION.md](MVP-SPECIFICATION.md).
+2. [MVP-PLAIN-LANGUAGE.md](MVP-PLAIN-LANGUAGE.md): the requirements and specification
+   in plain language.
+3. [MVP-REASONING.md](MVP-REASONING.md): why it is built this way.
+4. [MVP-REQUIREMENTS.md](MVP-REQUIREMENTS.md), section 1 (Ontology), then the rest.
+5. [MVP-SPECIFICATION.md](MVP-SPECIFICATION.md).
 
 ## Making a change
 

@@ -1,7 +1,7 @@
 # Wilder Cosmos Runtime — MVP Compliance Matrix
 
 **Snapshot:** 2026-11-05, Nim 2.0.8, Windows 11, after the Phase 1 gate work.
-`nimble test` now compiles and runs all 50 test files under `tests/`, each on its own
+`nimble test` now compiles and runs all 52 test files under `tests/`, each on its own
 with a 90-second limit (`scripts/verify/run_tests.ps1`).
 **Requirements:** [MVP-REQUIREMENTS.md](MVP-REQUIREMENTS.md). **How:**
 [MVP-SPECIFICATION.md](MVP-SPECIFICATION.md).
@@ -22,13 +22,13 @@ the gate can't run, so those rows aren't carried over.
 | **Gap** | The code may do it, but no test proves it. |
 | **Missing** | The code doesn't do it yet. |
 
-`nimble test` passes: 46 files pass and 4 are known failures, listed with reasons in
+`nimble test` passes: 48 files pass and 4 are known failures, listed with reasons in
 `tests/KNOWN_FAILURES.txt`. A known failure is still a failure: the rows it should
 prove stay Failing until Phase 2 fixes it.
 
 ## Test results
 
-- **50 files, all in the gate:** 46 pass, 4 are known failures.
+- **52 files, all in the gate:** 48 pass, 4 are known failures.
 - **Fixed in Phase 1:** five compile errors, two real bugs exposed by them (the bundle
   loader looked in the wrong folder; status invariants were checked and then ignored),
   and one test that expected the old "config required" rule.
@@ -69,6 +69,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-LIFE-5 | `integration_test` | Partial | Nothing checks that guidance contains no paths or secrets. |
 | MVP-LIFE-6 | `integration_test` | Partial | Reaching Stopped is tested. The step order isn't. |
 | MVP-LIFE-7 | `integration_test` | Verified | |
+| MVP-LIFE-8 | — | Missing | Host events stay in memory. Nothing prints or saves them, and there's no `cosmos logs`. |
 
 ## 3. Persistence
 
@@ -86,9 +87,11 @@ prove stay Failing until Phase 2 fixes it.
 | ID | Test | Status | Note |
 |---|---|---|---|
 | MVP-VAL-1 | `validation_test`, `ch2_uat` | Verified | |
-| MVP-VAL-2 | `validation_table_generation_test`, `lifecycle_test` | Verified | |
-| MVP-VAL-3 | `validation_firewall_test` | Verified | |
-| MVP-VAL-4 | `validation_failure_occurrence_test` | Verified | |
+| MVP-VAL-2 | `validation_table_generation_test`, `lifecycle_test` | Partial | Activation before input is tested. The table holds one hand-written entry (`runtime.Ping`) and isn't built from declarations. Startup checks the table, then discards it. |
+| MVP-VAL-3 | `validation_firewall_test` | False pass | The test proves the checker blocks bad data when called directly. Nothing in the running program calls `prefilterValidate`, so real input isn't checked. |
+| MVP-VAL-4 | `validation_failure_occurrence_test` | Partial | The failure change is built and tested. The running program never records one, because nothing calls the checker. |
+| MVP-VAL-5 | — | Missing | No way in calls the checker yet. |
+| MVP-VAL-6 | `validation_attack_test`, `ipc_limits_test` | Verified | All 14 defects from the 2026-11-08 audit are fixed, each with a test. This proves the checker itself. It still isn't connected (MVP-VAL-3, MVP-VAL-5). |
 
 ## 5. Scheduler
 
@@ -128,9 +131,9 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-CLI-2 | `coordinator_test` | Missing | `launchDaemon` ignores every flag. `parseStartOptions` exists but nothing calls it. |
 | MVP-CLI-3 | — | Gap | The probe works only because `runtime.ping` returns `method_not_found`, which counts as "running". |
 | MVP-CLI-4 | — | Missing | There's no `runtime.stop` handler. The daemon loop is `while true`. |
-| MVP-CLI-5 | `daemon_console_test` | Failing | Doesn't compile. Clients have no timeout. |
+| MVP-CLI-5 | `daemon_console_test` | Failing | The test runs but fails, because the console session is forgotten between requests. Clients have no timeout. |
 | MVP-CLI-6 | `coordinator_test`, `cosmos_main_ipc_id_test` | Missing | The `run…Command` procs exist but nothing calls them. |
-| MVP-CLI-7 | `coordinator_ipc_test` | Failing | Doesn't compile. Requests carry no version. |
+| MVP-CLI-7 | `coordinator_ipc_test` | Partial | The test passes and covers localhost-only access and the response shapes. Requests carry no version, and no test proves request IDs are unique. |
 | MVP-CLI-8 | `coordinator_test` | Failing | The file times out before reaching these tests. |
 | MVP-CLI-9 | — | Missing | Every client uses `IpcDefaultPort`. |
 
@@ -189,6 +192,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-AI-5 | — | Missing | |
 | MVP-AI-6 | — | Missing | |
 | MVP-AI-7 | — | Missing | The Cosmos root has no PROVIDES today. |
+| MVP-AI-8 | — | Missing | There's no `runtime.history` or `cosmos history`. |
 
 ---
 

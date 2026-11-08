@@ -51,7 +51,6 @@ suite "ValidationTableGeneration":
       fields: @[
         FieldRule(path: "message", expectedType: ptString, required: true, minItems: -1, maxItems: -1)
       ],
-      extraFieldPolicy: efIgnoreUnknown,
       enforceOrdering: false,
       knownFieldOrder: @[],
       minItems: -1,

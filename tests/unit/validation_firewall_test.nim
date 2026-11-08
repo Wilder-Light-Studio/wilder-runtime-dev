@@ -20,8 +20,7 @@ import std/strutils
 import ../../src/runtime/validation
 
 # Flow: Execute procedure with deterministic test helper behavior.
-proc buildRecord(policy: ExtraFieldPolicy = efRejectUnknown,
-    enforceOrdering = false,
+proc buildRecord(enforceOrdering = false,
     minItems = -1,
     maxItems = -1): ValidationRecord =
   let arg = ArgumentRule(
@@ -33,7 +32,6 @@ proc buildRecord(policy: ExtraFieldPolicy = efRejectUnknown,
       FieldRule(path: "count", expectedType: ptInt, required: true, minItems: -1, maxItems: -1),
       FieldRule(path: "tags", expectedType: ptArray, required: false, minItems: 1, maxItems: 3)
     ],
-    extraFieldPolicy: policy,
     enforceOrdering: enforceOrdering,
     knownFieldOrder: @["id", "count", "tags"],
     minItems: minItems,
@@ -90,23 +88,15 @@ suite "ValidationFirewall":
     check decision.failure.rulePath == "count"
 
   test "unknown field reject policy blocks ingress":
-    let record = buildRecord(efRejectUnknown)
+    let record = buildRecord()
     let idx = buildIndex(record)
     let msg = inbound("runtime", "Dispatch", 1, @[%*{"id": "x", "count": 1, "extra": "x"}])
     let decision = prefilterValidate(idx, msg, "ingress", 14)
     check not decision.validated
     check decision.failure.failureKind == vfUnknownFieldRejected
 
-  test "unknown field ignore policy strips unknowns":
-    let record = buildRecord(efIgnoreUnknown)
-    let idx = buildIndex(record)
-    let msg = inbound("runtime", "Dispatch", 1, @[%*{"id": "x", "count": 1, "extra": "secret"}])
-    let decision = prefilterValidate(idx, msg, "ingress", 15)
-    check decision.validated
-    check not decision.normalizedArgs[0].hasKey("extra")
-
   test "ordering violation rejected when ordering enforced":
-    let record = buildRecord(efIgnoreUnknown, true)
+    let record = buildRecord(enforceOrdering = true)
     let idx = buildIndex(record)
     let msg = inbound("runtime", "Dispatch", 1, @[%*{"count": 1, "id": "x"}])
     let decision = prefilterValidate(idx, msg, "ingress", 16)
@@ -114,7 +104,7 @@ suite "ValidationFirewall":
     check decision.failure.failureKind == vfOrderingViolation
 
   test "cardinality violation rejected":
-    let record = buildRecord(efIgnoreUnknown)
+    let record = buildRecord()
     let idx = buildIndex(record)
     let msg = inbound("runtime", "Dispatch", 1, @[%*{"id": "x", "count": 1, "tags": @[] }])
     let decision = prefilterValidate(idx, msg, "ingress", 17)
@@ -122,7 +112,7 @@ suite "ValidationFirewall":
     check decision.failure.failureKind == vfCardinalityViolation
 
   test "validated payload can dispatch":
-    let record = buildRecord(efIgnoreUnknown)
+    let record = buildRecord()
     let idx = buildIndex(record)
     let msg = inbound("runtime", "Dispatch", 1, @[%*{"id": "x", "count": 1, "tags": @["a"]}])
     let decision = prefilterValidate(idx, msg, "ingress", 18)
@@ -159,7 +149,7 @@ suite "ValidationFirewall":
       discard admitValidatedOccurrence(decision)
 
   test "failure log is redacted":
-    let record = buildRecord(efRejectUnknown)
+    let record = buildRecord()
     let idx = buildIndex(record)
     let secret = "token=super-secret"
     let msg = inbound("runtime", "Dispatch", 1, @[%*{"id": "x", "count": 1, "extra": secret}])

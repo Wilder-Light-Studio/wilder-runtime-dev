@@ -105,9 +105,7 @@ For each `.nim` file:
 
 - **Standard:** Append `_main` to any entry point module.
 - **Purpose:** This ensures clarity and consistency in identifying entry points.
-- **Examples:**
-  - `runtime_main.nim` for the runtime entry point.
-  - `console_main.nim` for the console entry point.
+- **Example:** `cosmos_main.nim` for the `cosmos` command.
 - **Scope:** Applies to all new and existing entry point modules.
 - **Rationale:** This convention avoids ambiguity and aligns with the project's structured naming approach.
 

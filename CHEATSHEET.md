@@ -52,8 +52,8 @@ terminal for everything else.
 **Until Phase 2 lands:** only `start`, `inspect`, `step` and `console` reach the
 daemon. The others, including `stop`, fail with "method not found" (close the
 daemon's terminal to stop it). `--help` exits with an error, and the port can't be
-changed. The [Runtime CLI Guide](docs/public/getting-started/runtime-cli-guide.md)
-has the details.
+changed. Phase 2 replaces `inspect` with `describe`, and adds `history` and `logs`. The
+[Runtime CLI Guide](docs/public/getting-started/runtime-cli-guide.md) has the details.
 
 ## Create a New Module
 
@@ -103,9 +103,13 @@ the MVP builds from source on one machine.
 | What | Where |
 |------|-------|
 | Project status | `STATUS.md` |
+| Plain-language guide | `docs/implementation/MVP-PLAIN-LANGUAGE.md` |
+| Reasoning behind the design | `docs/implementation/MVP-REASONING.md` |
+| Glossary | `docs/public/glossary/cosmos-terms.md` |
 | MVP requirements | `docs/implementation/MVP-REQUIREMENTS.md` |
 | MVP specification | `docs/implementation/MVP-SPECIFICATION.md` |
 | Compliance matrix | `docs/implementation/MVP-COMPLIANCE-MATRIX.md` |
+| Plan and reference deployment | `docs/implementation/MVP-PLAN.md` |
 | Known test failures | `tests/KNOWN_FAILURES.txt` |
 | Dev guidelines | `docs/implementation/DEVELOPMENT-GUIDELINES.md` |
 | Long-term reference | `docs/implementation/REQUIREMENTS.md`, `SPECIFICATION.md` |

@@ -47,8 +47,9 @@ always has the current state and the next tasks.
 | 4. Close remaining gaps | Whatever the matrix still shows | When a project needs it |
 
 **What works today:** the runtime core is built and tested: startup and shutdown,
-three-layer persistence, the validating prefilter, the frame scheduler, capability
-resolution and the console's command logic.
+three-layer persistence, the validating prefilter's checking logic (not yet connected
+to real input), the frame scheduler, capability resolution and the console's command
+logic.
 
 **What doesn't yet:** the daemon's command line is partly broken. Phase 2 fixes it.
 
@@ -74,7 +75,7 @@ nimble buildRuntime    # build bin/cosmos.exe
 nimble verify          # the full gate: compliance check, then every test
 ```
 
-The gate should end with `Gate passed.`: 46 tests pass and 4 are known failures,
+The gate should end with `Gate passed.`: 48 tests pass and 4 are known failures,
 listed with reasons in `tests/KNOWN_FAILURES.txt`. Phase 2 fixes all four.
 
 ### Run
@@ -95,9 +96,13 @@ every command, what it does today and what Phase 2 changes.
 |---|---|
 | [STATUS.md](STATUS.md) | Where things stand and what's next |
 | [CHEATSHEET.md](CHEATSHEET.md) | Copy-paste commands |
+| [MVP-PLAIN-LANGUAGE.md](docs/implementation/MVP-PLAIN-LANGUAGE.md) | The design in plain language |
+| [MVP-REASONING.md](docs/implementation/MVP-REASONING.md) | Why it's built this way |
+| [Glossary](docs/public/glossary/cosmos-terms.md) | What each Cosmos word means |
 | [MVP-REQUIREMENTS.md](docs/implementation/MVP-REQUIREMENTS.md) | What must be true |
 | [MVP-SPECIFICATION.md](docs/implementation/MVP-SPECIFICATION.md) | How it's built |
 | [MVP-COMPLIANCE-MATRIX.md](docs/implementation/MVP-COMPLIANCE-MATRIX.md) | Which requirements are proven, by which tests |
+| [MVP-PLAN.md](docs/implementation/MVP-PLAN.md) | When each piece gets built, and the reference deployment |
 | [docs/public/index.md](docs/public/index.md) | Guides, concepts and API reference |
 | [DEVELOPMENT-GUIDELINES.md](docs/implementation/DEVELOPMENT-GUIDELINES.md) | How to work in this repository |
 

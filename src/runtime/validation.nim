@@ -8,10 +8,28 @@
 # Simile: a validator is a firewall checking data before it enters the system.
 # Memory note: validation fails fast; never corrupt silently.
 # Flow: input received → validate bounds/structure → fail-fast → proceed or error.
+#
+# Abbreviations used in this file:
+#   JSON  = JavaScript Object Notation
+#   UTF-8 = Unicode Transformation Format, 8-bit
+#   NUL   = the character with code zero
+#   NaN   = Not a Number
+#   SHA   = Secure Hash Algorithm
+#   MiB   = mebibyte (1,048,576 bytes)
+#   pt... = primitive type (for example, ptString)
+#   vf... = validation failure (for example, vfTypeMismatch)
+#   uvi.. = unsafe value issue (for example, uviNil)
+#   VAL_  = prefix of a validation diagnostics code
 
 import json
 import checksums/sha2
-import std/[strutils, tables, sequtils]
+import std/[math, strutils, tables, sequtils]
+from std/unicode import validateUtf8
+
+const
+  MaxMessageBytes* = 1_048_576       ## 1 MiB: larger messages are refused unparsed.
+  MaxNestingDepth* = 64              ## Deeper arrays and objects are refused.
+  UnknownFieldRulePath* = "$unknown" ## Reported instead of an unknown field's own name.
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc computeSha256*(data: openArray[byte]): string
@@ -27,11 +45,6 @@ type
     ptArray
     ptNull
 
-  ExtraFieldPolicy* = enum
-    efRejectUnknown
-    efIgnoreUnknown
-    efAllowUnknown
-
   ValidationFailureKind* = enum
     vfUnknownSignature
     vfArgumentCountMismatch
@@ -42,6 +55,8 @@ type
     vfCardinalityViolation
     vfMaskMismatch
     vfNotValidated
+    vfUnsafeValue
+    vfInternalError
 
   FieldRule* = object
     path*: string
@@ -55,7 +70,6 @@ type
     expectedType*: PrimitiveType
     required*: bool
     fields*: seq[FieldRule]
-    extraFieldPolicy*: ExtraFieldPolicy
     enforceOrdering*: bool
     knownFieldOrder*: seq[string]
     minItems*: int
@@ -89,6 +103,7 @@ type
   ValidationIndex* = object
     byKey*: Table[string, ValidationRecord]
     byRoute*: Table[string, string]
+    bySymbol*: Table[string, string] ## First row for a name and version, at any argument count.
     generationId*: string
     sourceDigests*: seq[string]
 
@@ -110,9 +125,22 @@ type
     args*: seq[JsonNode]
 
   PrefilterDecision* = object
-    validated*: bool
-    normalizedArgs*: seq[JsonNode]
-    failure*: ValidationFailureOccurrence
+    ## Fields are private: only prefilterValidate can produce a passing decision.
+    validated: bool
+    normalizedArgs: seq[JsonNode]
+    failure: ValidationFailureOccurrence
+
+# Flow: Report whether the checker passed this message.
+proc validated*(decision: PrefilterDecision): bool =
+  decision.validated
+
+# Flow: Return the checked arguments of a passing decision.
+proc normalizedArgs*(decision: PrefilterDecision): seq[JsonNode] =
+  decision.normalizedArgs
+
+# Flow: Return the failure record of a rejected decision.
+proc failure*(decision: PrefilterDecision): ValidationFailureOccurrence =
+  decision.failure
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc primitiveTypeName(t: PrimitiveType): string =
@@ -161,19 +189,25 @@ proc canonicalTypeVector*(args: seq[ArgumentRule]): seq[string] =
 proc lenPrefixed(s: string): string =
   $s.len & ":" & s
 
-# Flow: Execute procedure with deterministic validation and bounded side effects.
+# Flow: Build the exact lookup key for one name, version and argument count.
+proc routeKey(namespaceId, symbolId: string, contractVersion, arity: int): string =
+  lenPrefixed(namespaceId) & "|" & lenPrefixed(symbolId) & "|" &
+    $contractVersion & "|" & $arity
+
+# Flow: Build the exact lookup key for one name and version, at any argument count.
+proc symbolKey(namespaceId, symbolId: string, contractVersion: int): string =
+  lenPrefixed(namespaceId) & "|" & lenPrefixed(symbolId) & "|" & $contractVersion
+
+# Flow: Derive the signature digest from exact names, so different names never match.
 proc deriveSignatureDigest*(namespaceId, symbolId: string,
     arity: int,
     contractVersion: int,
     typeVector: seq[string]): string =
   # Length-prefix all variable-length fields so that different field combinations
   # cannot produce the same preimage (prevents delimiter-injection collisions).
-  let nsNorm = namespaceId.toLowerAscii.strip
-  let symNorm = symbolId.toLowerAscii.strip
-  let tvStr = typeVector.join(",").toLowerAscii
-  let preimage = lenPrefixed(nsNorm) & "|" &
-    lenPrefixed(symNorm) & "|" & $arity & "|" &
-    $contractVersion & "|" & lenPrefixed(tvStr)
+  let preimage = lenPrefixed(namespaceId) & "|" &
+    lenPrefixed(symbolId) & "|" & $arity & "|" &
+    $contractVersion & "|" & lenPrefixed(typeVector.join(","))
   result = computeSha256(toBytes(preimage))[0 .. 31]
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
@@ -229,7 +263,7 @@ proc buildValidationRecord*(namespaceId, symbolId: string,
   for arg in args:
     result.masks.add(buildValidationMask(arg))
 
-# Flow: Execute procedure with deterministic validation and bounded side effects.
+# Flow: Build the rule index. A row that would share another row's lookup is a load error.
 proc buildValidationIndex*(records: seq[ValidationRecord],
     generationId: string,
     sourceDigests: seq[string] = @[]): ValidationIndex =
@@ -237,28 +271,38 @@ proc buildValidationIndex*(records: seq[ValidationRecord],
   result.sourceDigests = sourceDigests
   result.byKey = initTable[string, ValidationRecord]()
   result.byRoute = initTable[string, string]()
+  result.bySymbol = initTable[string, string]()
 
   for r in records:
     if r.keyDigest in result.byKey:
       raise newException(ValueError,
         "buildValidationIndex: signature digest collision detected")
+    let route = routeKey(r.namespaceId, r.symbolId, r.contractVersion, r.arity)
+    if route in result.byRoute:
+      raise newException(ValueError,
+        "buildValidationIndex: two rows share one name and argument count")
     result.byKey[r.keyDigest] = r
-    let route = r.namespaceId.toLowerAscii.strip & "|" &
-      r.symbolId.toLowerAscii.strip & "|" & $r.contractVersion & "|" &
-      $r.arity
     result.byRoute[route] = r.keyDigest
+    let symbol = symbolKey(r.namespaceId, r.symbolId, r.contractVersion)
+    if symbol notin result.bySymbol:
+      result.bySymbol[symbol] = r.keyDigest
 
-# Flow: Execute procedure with deterministic validation and bounded side effects.
+# Flow: Return true when a value is a container whose item count is within its limits.
+proc itemCountAllowed(node: JsonNode, minItems, maxItems: int): bool =
+  if node.kind notin {JArray, JObject}:
+    return false
+  let count = node.len
+  (minItems < 0 or count >= minItems) and (maxItems < 0 or count <= maxItems)
+
+# Flow: Compare a payload with one argument rule and record what was found.
 proc computePayloadMaskNoAlloc*(arg: ArgumentRule,
     payload: JsonNode,
     mask: var PayloadMask,
-    normalized: var JsonNode,
     unknownFieldFound: var bool,
     orderingViolation: var bool,
     cardinalityViolation: var bool,
     firstTypeMismatchPath: var string,
-    firstMissingPath: var string,
-    firstUnknownPath: var string) =
+    firstMissingPath: var string) =
   mask.requiredBits = 0
   mask.typeBits = 0
   mask.orderingBit = 0
@@ -269,17 +313,20 @@ proc computePayloadMaskNoAlloc*(arg: ArgumentRule,
   cardinalityViolation = false
   firstTypeMismatchPath = ""
   firstMissingPath = ""
-  firstUnknownPath = ""
 
-  if payload.kind != JObject:
-    if firstTypeMismatchPath.len == 0:
+  # An argument with no field rules is a plain value: its type and item count decide.
+  if arg.fields.len == 0:
+    if not nodeMatchesType(payload, arg.expectedType):
       firstTypeMismatchPath = "$"
-    normalized = payload
+    if arg.minItems >= 0 or arg.maxItems >= 0:
+      cardinalityViolation = not itemCountAllowed(payload, arg.minItems, arg.maxItems)
     return
 
-  normalized = newJObject()
+  if payload.kind != JObject:
+    firstTypeMismatchPath = "$"
+    return
+
   let declared = arg.fields.mapIt(it.path)
-  var observedOrder: seq[string] = @[]
 
   for i, field in arg.fields:
     if i >= 64:
@@ -287,9 +334,6 @@ proc computePayloadMaskNoAlloc*(arg: ArgumentRule,
     let bit = 1'u64 shl i
     if payload.hasKey(field.path):
       let node = payload[field.path]
-      observedOrder.add(field.path)
-      if arg.extraFieldPolicy != efRejectUnknown or field.path in declared:
-        normalized[field.path] = node
       mask.requiredBits = mask.requiredBits or bit
 
       if nodeMatchesType(node, field.expectedType):
@@ -298,22 +342,12 @@ proc computePayloadMaskNoAlloc*(arg: ArgumentRule,
         firstTypeMismatchPath = field.path
 
       if field.minItems >= 0 or field.maxItems >= 0:
-        var count = -1
-        if node.kind == JArray:
-          count = node.len
-        elif node.kind == JObject:
-          count = node.len
-
-        if count >= 0:
-          let minOk = field.minItems < 0 or count >= field.minItems
-          let maxOk = field.maxItems < 0 or count <= field.maxItems
-          if minOk and maxOk:
-            mask.cardinalityBits = mask.cardinalityBits or bit
-          else:
-            cardinalityViolation = true
-    else:
-      if field.required and firstMissingPath.len == 0:
-        firstMissingPath = field.path
+        if itemCountAllowed(node, field.minItems, field.maxItems):
+          mask.cardinalityBits = mask.cardinalityBits or bit
+        else:
+          cardinalityViolation = true
+    elif field.required and firstMissingPath.len == 0:
+      firstMissingPath = field.path
 
   if arg.enforceOrdering and arg.knownFieldOrder.len > 0:
     var orderOk = true
@@ -329,24 +363,13 @@ proc computePayloadMaskNoAlloc*(arg: ArgumentRule,
     else:
       orderingViolation = true
 
-  for key, value in payload:
+  for key, _ in payload:
     if key notin declared:
       unknownFieldFound = true
-      if firstUnknownPath.len == 0:
-        firstUnknownPath = key
-      if arg.extraFieldPolicy == efAllowUnknown:
-        normalized[key] = value
 
   if arg.minItems >= 0 or arg.maxItems >= 0:
-    var count = 1
-    if payload.kind == JArray:
-      count = payload.len
-    let minOk = arg.minItems < 0 or count >= arg.minItems
-    let maxOk = arg.maxItems < 0 or count <= arg.maxItems
-    if minOk and maxOk:
-      mask.cardinalityBits = mask.cardinalityBits or (1'u64 shl 63)
-    else:
-      cardinalityViolation = true
+    cardinalityViolation = cardinalityViolation or
+      not itemCountAllowed(payload, arg.minItems, arg.maxItems)
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc maskConjunctionPass*(validationMask: ValidationMask,
@@ -401,199 +424,215 @@ proc toJson*(f: ValidationFailureOccurrence): JsonNode =
     "payloadByteLen": f.payloadByteLen
   }
 
-# Flow: Execute procedure with deterministic validation and bounded side effects.
+# Flow: Escape control characters and spaces so a value can't alter a log line's shape.
+proc escapeForLog(text: string): string =
+  for character in text:
+    if character <= ' ' or character == '\x7F':
+      result.add("\\x" & toHex(ord(character), 2))
+    else:
+      result.add(character)
+
+# Flow: Build one log line that holds only escaped, rule-derived metadata.
 proc safeFailureLogLine*(f: ValidationFailureOccurrence): string =
   result = "validation_failure " &
-    "id=" & f.id &
+    "id=" & escapeForLog(f.id) &
     " kind=" & $f.failureKind &
-    " targetKey=" & f.targetKey &
-    " rulePath=" & f.rulePath &
-    " diagnostics=" & f.diagnosticsCode &
-    " payloadDigest=" & f.payloadDigest &
+    " targetKey=" & escapeForLog(f.targetKey) &
+    " rulePath=" & escapeForLog(f.rulePath) &
+    " diagnostics=" & escapeForLog(f.diagnosticsCode) &
+    " payloadDigest=" & escapeForLog(f.payloadDigest) &
     " payloadByteLen=" & $f.payloadByteLen
 
-# Flow: Execute procedure with deterministic validation and bounded side effects.
-proc prefilterValidate*(index: ValidationIndex,
+# Flow: Refuse an oversized or too deeply nested message line before it is parsed.
+proc precheckMessage*(line: string): string =
+  ## Returns "" when the line may be parsed, otherwise the reason it may not.
+  if line.len > MaxMessageBytes:
+    return "message exceeds size limit"
+  var depth = 0
+  var insideText = false
+  var escapedCharacter = false
+  for character in line:
+    if insideText:
+      if escapedCharacter:
+        escapedCharacter = false
+      elif character == '\\':
+        escapedCharacter = true
+      elif character == '"':
+        insideText = false
+    else:
+      case character
+      of '"':
+        insideText = true
+      of '[', '{':
+        inc depth
+        if depth > MaxNestingDepth:
+          return "message exceeds nesting limit"
+      of ']', '}':
+        if depth > 0:
+          dec depth
+      else:
+        discard
+  return ""
+
+type
+  UnsafeValueIssue = enum
+    ## Why a value can't be accepted, whatever its rule says.
+    uviNone
+    uviNil
+    uviTooDeep
+    uviNumberOutOfRange
+    uviNotFinite
+    uviBadText
+
+# Flow: Return true when text is valid UTF-8 and holds no NUL character.
+proc textIsSafe(text: string): bool =
+  '\0' notin text and validateUtf8(text) == -1
+
+# Flow: Detect a number too large for int, which the JSON parser stores as unquoted text.
+proc isOversizedNumber(node: JsonNode): bool =
+  node.str.len > 0 and node.str[0] in {'-', '0' .. '9'} and ($node)[0] != '"'
+
+# Flow: Walk a whole value and report the first reason it can't be accepted.
+proc findUnsafeValue(node: JsonNode, depth: int): UnsafeValueIssue =
+  if node.isNil:
+    return uviNil
+  case node.kind
+  of JString:
+    if isOversizedNumber(node):
+      return uviNumberOutOfRange
+    if not textIsSafe(node.str):
+      return uviBadText
+  of JFloat:
+    if classify(node.fnum) in {fcNan, fcInf, fcNegInf}:
+      return uviNotFinite
+  of JArray:
+    if depth > MaxNestingDepth:
+      return uviTooDeep
+    for item in node.elems:
+      let issue = findUnsafeValue(item, depth + 1)
+      if issue != uviNone:
+        return issue
+  of JObject:
+    if depth > MaxNestingDepth:
+      return uviTooDeep
+    for fieldName, fieldValue in node.fields.pairs:
+      if not textIsSafe(fieldName):
+        return uviBadText
+      let issue = findUnsafeValue(fieldValue, depth + 1)
+      if issue != uviNone:
+        return issue
+  else:
+    discard
+  return uviNone
+
+# Flow: Return the diagnostics code for one unsafe value issue.
+proc diagnosticsCodeFor(issue: UnsafeValueIssue): string =
+  case issue
+  of uviNone: ""
+  of uviNil: "VAL_NIL"
+  of uviTooDeep: "VAL_DEPTH"
+  of uviNumberOutOfRange: "VAL_NUMBER_RANGE"
+  of uviNotFinite: "VAL_NOT_FINITE"
+  of uviBadText: "VAL_BAD_TEXT"
+
+# Flow: Digest the arguments for a failure record, or a fixed value if they can't be printed.
+proc fingerprintArguments(arguments: seq[JsonNode],
+    printable: bool): tuple[digest: string, byteLength: int] =
+  if not printable:
+    return (computeSha256(toBytes("")), 0)
+  let text = $(%*{"args": arguments})
+  (computeSha256(toBytes(text)), text.len)
+
+# Flow: Check one message against its rule. May raise; prefilterValidate contains that.
+proc checkInboundMessage(index: ValidationIndex,
     inbound: InboundMessage,
     source: string,
     epoch: int64): PrefilterDecision =
-  let route = inbound.namespaceId.toLowerAscii.strip & "|" &
-    inbound.symbolId.toLowerAscii.strip & "|" & $inbound.contractVersion &
-    "|" & $inbound.args.len
+  var unsafeIssue = uviNone
+  for argument in inbound.args:
+    unsafeIssue = findUnsafeValue(argument, 1)
+    if unsafeIssue != uviNone:
+      break
+  # Only the first issue is known, so any unsafe value may also hold a nil.
+  # Unsafe values are therefore never turned into text.
+  let printable = unsafeIssue == uviNone
 
-  var key = ""
-  if route in index.byRoute:
-    key = index.byRoute[route]
-  else:
-    let routePrefix = inbound.namespaceId.toLowerAscii.strip & "|" &
-      inbound.symbolId.toLowerAscii.strip & "|" & $inbound.contractVersion & "|"
-    for k, v in index.byRoute:
-      if k.startsWith(routePrefix):
-        key = v
-        break
-    if key.len == 0:
-      key = deriveSignatureDigest(
-        inbound.namespaceId,
-        inbound.symbolId,
-        inbound.args.len,
-        inbound.contractVersion,
-        @[]
-      )
-
-  var payloadDigest = computeSha256(toBytes($(%*{"args": inbound.args})))
-  var payloadLen = $(%*{"args": inbound.args})
-
-  if key notin index.byKey:
-    result.failure = newValidationFailure(
-      source,
-      epoch,
-      key,
-      vfUnknownSignature,
-      "signature",
-      "VAL_UNKNOWN_SIGNATURE",
-      payloadDigest,
-      payloadLen.len
-    )
+  template reject(targetKey: string,
+      kind: ValidationFailureKind,
+      rulePath: string,
+      diagnosticsCode: string) =
+    let fingerprint = fingerprintArguments(inbound.args, printable)
+    result.failure = newValidationFailure(source, epoch, targetKey, kind, rulePath,
+      diagnosticsCode, fingerprint.digest, fingerprint.byteLength)
     return
+
+  if unsafeIssue != uviNone:
+    reject("", vfUnsafeValue, "$", diagnosticsCodeFor(unsafeIssue))
+
+  var key = index.byRoute.getOrDefault(routeKey(inbound.namespaceId,
+    inbound.symbolId, inbound.contractVersion, inbound.args.len))
+  if key.len == 0:
+    # A known name with the wrong argument count, found without scanning the table.
+    key = index.bySymbol.getOrDefault(symbolKey(inbound.namespaceId,
+      inbound.symbolId, inbound.contractVersion))
+  if key.len == 0 or key notin index.byKey:
+    reject(deriveSignatureDigest(inbound.namespaceId, inbound.symbolId,
+      inbound.args.len, inbound.contractVersion, @[]),
+      vfUnknownSignature, "signature", "VAL_UNKNOWN_SIGNATURE")
 
   let record = index.byKey[key]
   if inbound.args.len != record.args.len:
-    result.failure = newValidationFailure(
-      source,
-      epoch,
-      record.keyDigest,
-      vfArgumentCountMismatch,
-      "args",
-      "VAL_ARG_COUNT",
-      payloadDigest,
-      payloadLen.len
-    )
-    return
+    reject(record.keyDigest, vfArgumentCountMismatch, "args", "VAL_ARG_COUNT")
+  if record.masks.len != record.args.len:
+    reject(record.keyDigest, vfInternalError, "$", "VAL_INTERNAL")
 
-  var normalizedArgs: seq[JsonNode] = @[]
-  for i, argRule in record.args:
-    let payload = inbound.args[i]
-    if not nodeMatchesType(payload, argRule.expectedType):
-      result.failure = newValidationFailure(
-        source,
-        epoch,
-        record.keyDigest,
-        vfTypeMismatch,
-        "$arg[" & $i & "]",
-        "VAL_ARG_TYPE",
-        payloadDigest,
-        payloadLen.len
-      )
-      return
+  var checkedArguments: seq[JsonNode] = @[]
+  for argumentNumber, argumentRule in record.args:
+    let payload = inbound.args[argumentNumber]
+    let argumentPath = "$arg[" & $argumentNumber & "]"
+    if not nodeMatchesType(payload, argumentRule.expectedType):
+      reject(record.keyDigest, vfTypeMismatch, argumentPath, "VAL_ARG_TYPE")
 
     var payloadMask: PayloadMask
-    var normalizedArg = newJNull()
     var unknownFieldFound: bool
     var orderingViolation: bool
     var cardinalityViolation: bool
     var firstTypeMismatchPath: string
     var firstMissingPath: string
-    var firstUnknownPath: string
-
-    computePayloadMaskNoAlloc(
-      argRule,
-      payload,
-      payloadMask,
-      normalizedArg,
-      unknownFieldFound,
-      orderingViolation,
-      cardinalityViolation,
-      firstTypeMismatchPath,
-      firstMissingPath,
-      firstUnknownPath
-    )
+    computePayloadMaskNoAlloc(argumentRule, payload, payloadMask, unknownFieldFound,
+      orderingViolation, cardinalityViolation, firstTypeMismatchPath, firstMissingPath)
 
     if firstMissingPath.len > 0:
-      result.failure = newValidationFailure(
-        source,
-        epoch,
-        record.keyDigest,
-        vfMissingRequiredField,
-        firstMissingPath,
-        "VAL_REQUIRED_FIELD",
-        payloadDigest,
-        payloadLen.len
-      )
-      return
-
+      reject(record.keyDigest, vfMissingRequiredField, firstMissingPath, "VAL_REQUIRED_FIELD")
     if firstTypeMismatchPath.len > 0:
-      result.failure = newValidationFailure(
-        source,
-        epoch,
-        record.keyDigest,
-        vfTypeMismatch,
-        firstTypeMismatchPath,
-        "VAL_FIELD_TYPE",
-        payloadDigest,
-        payloadLen.len
-      )
-      return
-
-    if unknownFieldFound and argRule.extraFieldPolicy == efRejectUnknown:
-      result.failure = newValidationFailure(
-        source,
-        epoch,
-        record.keyDigest,
-        vfUnknownFieldRejected,
-        firstUnknownPath,
-        "VAL_UNKNOWN_FIELD",
-        payloadDigest,
-        payloadLen.len
-      )
-      return
-
+      reject(record.keyDigest, vfTypeMismatch, firstTypeMismatchPath, "VAL_FIELD_TYPE")
+    if unknownFieldFound:
+      # Never report the field's own name: it is incoming data.
+      reject(record.keyDigest, vfUnknownFieldRejected, UnknownFieldRulePath, "VAL_UNKNOWN_FIELD")
     if orderingViolation:
-      result.failure = newValidationFailure(
-        source,
-        epoch,
-        record.keyDigest,
-        vfOrderingViolation,
-        "$arg[" & $i & "]",
-        "VAL_ORDERING",
-        payloadDigest,
-        payloadLen.len
-      )
-      return
-
+      reject(record.keyDigest, vfOrderingViolation, argumentPath, "VAL_ORDERING")
     if cardinalityViolation:
-      result.failure = newValidationFailure(
-        source,
-        epoch,
-        record.keyDigest,
-        vfCardinalityViolation,
-        "$arg[" & $i & "]",
-        "VAL_CARDINALITY",
-        payloadDigest,
-        payloadLen.len
-      )
-      return
+      reject(record.keyDigest, vfCardinalityViolation, argumentPath, "VAL_CARDINALITY")
+    if not maskConjunctionPass(record.masks[argumentNumber], payloadMask):
+      reject(record.keyDigest, vfMaskMismatch, argumentPath, "VAL_MASK")
 
-    let validationMask = record.masks[i]
-    if not maskConjunctionPass(validationMask, payloadMask):
-      result.failure = newValidationFailure(
-        source,
-        epoch,
-        record.keyDigest,
-        vfMaskMismatch,
-        "$arg[" & $i & "]",
-        "VAL_MASK",
-        payloadDigest,
-        payloadLen.len
-      )
-      return
-
-    if argRule.extraFieldPolicy == efIgnoreUnknown:
-      normalizedArgs.add(normalizedArg)
-    else:
-      normalizedArgs.add(payload)
+    # A private copy: the sender can't change the value after it was checked.
+    checkedArguments.add(payload.copy())
 
   result.validated = true
-  result.normalizedArgs = normalizedArgs
+  result.normalizedArgs = checkedArguments
+
+# Flow: Run the check inside one error boundary, so any internal error is a rejection.
+proc prefilterValidate*(index: ValidationIndex,
+    inbound: InboundMessage,
+    source: string,
+    epoch: int64): PrefilterDecision =
+  try:
+    result = checkInboundMessage(index, inbound, source, epoch)
+  except CatchableError, Defect:
+    result = PrefilterDecision(validated: false,
+      failure: newValidationFailure(source, epoch, "", vfInternalError, "$",
+        "VAL_INTERNAL", "", 0))
 
 # Flow: Execute procedure with deterministic validation and bounded side effects.
 proc dispatchValidated*(decision: PrefilterDecision,

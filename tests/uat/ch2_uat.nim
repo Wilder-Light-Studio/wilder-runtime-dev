@@ -496,10 +496,10 @@ suite "UAT Security Invariants":
     check a == b
     check a.len == 32  # truncated to 32 hex chars
 
-  test "UAT-SEC-004 signature digest is case and whitespace insensitive":
+  test "UAT-SEC-004 signature digest uses exact names":
     let a = deriveSignatureDigest(" runtime ", " Ping ", 1, 1, @["payload:object"])
     let b = deriveSignatureDigest("RUNTIME", "PING", 1, 1, @["payload:object"])
-    check a == b
+    check a != b
 
   test "UAT-SEC-005 generated table is reproducible":
     let idx1 = loadGeneratedValidationIndex()

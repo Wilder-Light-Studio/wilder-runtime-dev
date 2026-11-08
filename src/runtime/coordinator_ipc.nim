@@ -8,10 +8,18 @@
 # Simile: Like a control bridge radio, it accepts only known commands and speaks a stable protocol.
 # Memory note: validate before dispatch; return structured errors; keep output stable for equal input.
 # Flow: validate request -> dispatch method -> build response -> queue subscribed events.
+#
+# Abbreviations used in this file:
+#   IPC  = inter-process communication (the command channel)
+#   JSON = JavaScript Object Notation
+#   TCP  = Transmission Control Protocol
+#   URI  = Uniform Resource Identifier
+#   CLI  = command-line interface
 
 import json
 import std/[strutils, algorithm, sets, net, os, tables]
 import runtime/core
+import runtime/validation
 import runtime/bundle_loader
 import runtime/console
 
@@ -40,6 +48,7 @@ type
 const
   IpcDefaultHost* = "127.0.0.1"
   IpcDefaultPort* = 7700
+  IpcReadTimeoutMilliseconds* = 2000 ## A client must send its whole line within this time.
 
 # Flow: Build deterministic default IPC state used by CLI simulation and tests.
 proc defaultIpcServerState*(): IpcServerState =
@@ -303,6 +312,10 @@ proc dispatchRequestLine*(session: IpcSession, line: string): seq[string] {.gcsa
   if payload.len == 0:
     return @[$errorResponse("unknown", "invalid_request", "ipc: request frame must not be empty")]
 
+  let refusalReason = precheckMessage(payload)
+  if refusalReason.len > 0:
+    return @[$errorResponse("unknown", "invalid_request", "ipc: " & refusalReason)]
+
   try:
     let request = parseJson(payload)
     for node in dispatchRequest(session, request):
@@ -334,12 +347,16 @@ proc serveIpcTcp*(session: IpcSession,
       var client: Socket
       server.accept(client)
       try:
-        let requestLine = client.recvLine()
+        # Bounded in time and size, so one client can't hold up every other command.
+        let requestLine = client.recvLine(timeout = IpcReadTimeoutMilliseconds,
+                                          maxLength = MaxMessageBytes)
         for outputLine in dispatchRequestLine(session, requestLine):
           client.send(outputLine & "\n")
+        inc result
+      except CatchableError:
+        discard # One failed client is dropped. The server keeps serving the others.
       finally:
         client.close()
-      inc result
   finally:
     server.close()
 

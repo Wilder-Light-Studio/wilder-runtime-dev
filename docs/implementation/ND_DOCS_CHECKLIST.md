@@ -22,6 +22,9 @@ was never committed.
 - [ ] Every other acronym is spelled out on first use, for example Model Context
       Protocol (MCP).
 - [ ] ND always means Neurodivergent, never non-deterministic.
+- [ ] Code uses full words for names, with minimal abbreviations.
+- [ ] Every abbreviation a code file uses, including name prefixes, is listed in an
+      "Abbreviations used in this file" comment near its header.
 
 ## Plain Language
 
@@ -35,6 +38,11 @@ was never committed.
 - [ ] The relevant tests pass in `nimble test`.
 - [ ] STATUS.md reflects the change if it affects the current state or next tasks.
 - [ ] The compliance matrix is updated if a requirement's status changed.
+- [ ] New or retired words are updated in `docs/public/glossary/cosmos-terms.md`.
+- [ ] `docs/implementation/MVP-PLAIN-LANGUAGE.md` matches any change to the MVP
+      requirements or specification.
+- [ ] `docs/implementation/MVP-REASONING.md` records the reason for any new or changed
+      design choice.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\
