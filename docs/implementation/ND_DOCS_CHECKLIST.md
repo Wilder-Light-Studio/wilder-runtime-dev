@@ -41,6 +41,7 @@ was never committed.
 - [ ] New or retired words are updated in `docs/public/glossary/cosmos-terms.md`.
 - [ ] `docs/implementation/MVP-PLAIN-LANGUAGE.md` matches any change to the MVP
       requirements or specification.
+- [ ] Anything cut from the MVP has an entry in `docs/implementation/FUTURE-UPDATES.md`.
 - [ ] `docs/implementation/MVP-REASONING.md` records the reason for any new or changed
       design choice.
 

@@ -1,6 +1,7 @@
 # Cosmos MVP Plan
 
-**Status:** Draft (started 2026-11-08).
+**Status:** Ready to build from (2026-11-08). Everything set aside is in
+[FUTURE-UPDATES.md](FUTURE-UPDATES.md).
 
 This file says **when** each piece of the minimum viable product (MVP) gets built, and
 how Cosmos is meant to be deployed. It is written for a Neurodivergent (ND) reader, in
@@ -19,16 +20,44 @@ Words are defined in the [glossary](../public/glossary/cosmos-terms.md).
 | Phase | What it delivers | Commitment | State |
 |---|---|---|---|
 | **1. Trustworthy tests** | Every test runs, nothing hangs, passes from a fresh copy | Committed | Done |
-| **2. Commands and AI access** | The running Cosmos, its commands, the console and AI tools, all connected to the real runtime | Committed | Design settled. Steps below not written yet |
-| **3. The building loop** | Concepts, waves, wires, the history and the three-command test | Committed | [8 questions](MVP-PLAIN-LANGUAGE.md#still-undecided) to answer first |
+| **2. Commands and AI access** | The running Cosmos, its commands, the console and AI tools, all connected to the real runtime | Committed | Design settled. Not started, apart from the checker fixes |
+| **3. The building loop** | Concepts, waves, wires, the history and the three-command test | Committed | Design settled. Not started |
 | **4. Close the gaps** | Whatever the compliance matrix still shows | When a project needs it | Waiting |
 | **Reference deployment** | Cosmos running as an always-on service | When a project needs a server | Written below. Needs Phase 2. Not built |
 
+### How every step is done
+
+1. Write the tests first, and see them fail.
+2. Make the change.
+3. Run `nimble verify`.
+4. Update the requirement's row in the compliance matrix.
+5. Update the guide, reasoning document and glossary if the design changed.
+
+A step is finished when its requirements are **Verified** in the matrix.
+
 ### Phase 2 steps
 
-The rest of Phase 2's steps aren't written yet. That is the next task.
+Steps are in build order. Each one depends on those before it.
 
-**Data firewall, for commands** (spec §4D):
+| Step | What gets built | Requirements |
+|---|---|---|
+| **2.1 Commands reach their code** | Restore routing for the commands that remain. Fix `--help`, options after the command, and unknown commands. Remove the commands in FUTURE-UPDATES.md from routing | MVP-CLI-1, 6, 8, MVP-SAFE-3 |
+| **2.2 One table of actions** | Declare every action once, with one name. Generate commands and help from it | MVP-CLI-5, MVP-AI-1, 3, 6 |
+| **2.3 Data firewall for commands** | See the list below | MVP-VAL-2 to 5 |
+| **2.4 Home folder** | Connect the home folder code, with a setting to choose it. Add `state/` | MVP-PER-1, MVP-PLAT-2 |
+| **2.5 The real running Cosmos** | The three settings, one queue for changes, real frames, running or paused, loading Things, unencrypted default | MVP-CLI-2, 7, 9, MVP-CFG-2, MVP-SAFE-6 |
+| **2.6 Clean stop and no hangs** | `cosmos stop`, `Ctrl+C`, stop signals, client time limits, "already running" | MVP-CLI-3, 4, 5, MVP-SAFE-1, 2 |
+| **2.7 Logs** | Terminal and file, `cosmos logs`, the previous run | MVP-LIFE-8 |
+| **2.8 Console** | Move the console into its own client with no sessions. Folder line, one `cd`, commands that use the current scope, `dir`. Remove `console_main` | MVP-CON-1, 2, 5 to 9 |
+| **2.9 AI access** | `describe` replaces `inspect`, the Cosmos's own interface, origin on every change, `cosmos mcp` | MVP-AI-1 to 7 |
+
+`call` on an ordinary Thing arrives in Phase 3, because Things have no code to run until
+then. In Phase 2, it works on the Cosmos itself.
+
+**Phase 2 is done when** its requirements are Verified and `tests/KNOWN_FAILURES.txt` is
+empty.
+
+**Data firewall, for commands** (step 2.3, spec §4D):
 
 1. **Fix the checker first.** Done 2026-11-08. Every defect below is fixed, each with a
    test that failed before its fix, plus a randomized test.
@@ -73,9 +102,25 @@ value delivered.
 
 ### Phase 3 steps
 
-Not written yet. These parts are already known:
+Steps are in build order. Each one depends on those before it.
 
-**Data firewall, for Things and waves** (spec §4D):
+| Step | What gets built | Requirements |
+|---|---|---|
+| **3.1 Ids, labels and restart** | Cosmos id on first run, Thing ids, the issued-id list, labels and `--as`. Things saved and restored | MVP-ONT-12, MVP-PER-7 |
+| **3.2 One manifest** | The one format, signature reading, rhythm in WHEN. `startapp` writes it and the loader reads it | MVP-INT-5, MVP-SCH-4, MVP-DX-1 |
+| **3.3 Everything is a Thing** | Concepts at `cosmos.concepts`, WHY from the Concept, inheritance removed | MVP-ONT-1, 2, 7, 11 |
+| **3.4 Waves and senses** | Real waves, senses with shapes, delivery in the next frame | MVP-ONT-4, 8, 10 |
+| **3.5 The history** | One row per frame, saved. `cosmos history` | MVP-ONT-9, MVP-AI-8 |
+| **3.6 Running code** | Separate programs over input, output and error, with a marked turn and a time limit. A crash suspends only that Thing | MVP-INT-6, MVP-SCH-1 to 3 |
+| **3.7 Data firewall for Things** | See the list below | MVP-VAL-2 to 5 |
+| **3.8 Calls** | One-time wires, tickets, "waiting" replies, answers on `step` | MVP-AI-5 |
+| **3.9 Composition** | Parts, wires, `self`, joined routes, the wire check | MVP-INT-7, MVP-ONT-8 |
+| **3.10 The headline test** | Three commands from nothing to a described Thing, and one composite example | Requirements, Goal |
+
+**Phase 3 is done when** its requirements are Verified and the three-command test passes
+from a fresh copy.
+
+**Data firewall, for Things and waves** (step 3.7, spec §4D):
 
 1. Define the signature format and read it when a Concept loads.
 2. Add each Concept's rules to the table.
@@ -181,9 +226,6 @@ pw useradd cosmos -d /var/lib/wilder/cosmos -s /usr/sbin/nologin
 | Windows | Task Scheduler | A task that runs at startup, under the service account, and restarts on failure |
 | macOS | launchd | A property list in `/Library/LaunchDaemons`, named `org.wildercode.cosmos`, with `KeepAlive` and `UserName` set |
 
-`--mode periodic` is the right choice for a service. `--mode continuous` runs frames
-with no gap, which keeps a processor busy all the time.
-
 **Linux draft,** `/etc/systemd/system/cosmos.service`:
 
 ```ini
@@ -194,7 +236,7 @@ Description=Wilder Cosmos
 Type=simple
 User=cosmos
 Group=cosmos
-ExecStart=/usr/local/bin/cosmos start --mode periodic --config /var/lib/wilder/cosmos/config/cosmos.json
+ExecStart=/usr/local/bin/cosmos start --config /var/lib/wilder/cosmos/config/cosmos.json
 Restart=on-failure
 RestartSec=5
 UMask=0027
@@ -226,7 +268,7 @@ load_rc_config $name
 
 pidfile="/var/run/${name}.pid"
 command="/usr/sbin/daemon"
-command_args="-r -f -P ${pidfile} -u cosmos /usr/local/bin/cosmos start --mode periodic --config /var/lib/wilder/cosmos/config/cosmos.json"
+command_args="-r -f -P ${pidfile} -u cosmos /usr/local/bin/cosmos start --config /var/lib/wilder/cosmos/config/cosmos.json"
 
 run_rc_command "$1"
 ```

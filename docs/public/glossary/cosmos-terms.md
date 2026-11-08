@@ -13,6 +13,9 @@ uses it. A word that stops being used moves to [Retired Words](#retired-words).
 ## What Exists in a Cosmos
 
 - **Thing:** The only kind of entity. Everything that exists is a Thing.
+- **Thing id:** The permanent unique number Cosmos gives a Thing when it is created.
+- **Cosmos id:** The permanent unique id a Cosmos receives on its first run.
+- **Label:** A Thing's readable name. It can change, and nothing internal depends on it.
 - **The Cosmos:** The top-level Thing. Cosmos creates it at startup. It has no parent
   and holds every other Thing.
 - **World:** The inside of a Thing: the Things it contains. A Thing and its World are
@@ -42,11 +45,11 @@ uses it. A word that stops being used moves to [Retired Words](#retired-words).
 - **WHEN:** When it acts. The older documents put a Thing's rhythm here.
 - **HOW:** How it works.
 - **REQUIRES:** What it must have to run.
-- **WANTS:** What it can accept as input.
+- **WANTS:** Which providers it depends on.
 - **PROVIDES:** What it offers as output. Each one works like a separate output jack.
 - **WITH:** What it works alongside.
 - **VERSION:** Which version of the Concept this is.
-- **SENSES:** The wave names a Thing listens for.
+- **SENSES:** A Thing's inputs: each a wave name and the shape it accepts.
 - **PARTS:** The Concepts a composite Concept is built from.
 - **WIRES:** The connections inside a composite Concept.
 - **IMPLEMENTATION:** The manifest entry that names a Thing's code.
@@ -74,13 +77,12 @@ uses it. A word that stops being used moves to [Retired Words](#retired-words).
   altered.
 - **History:** The table of everything that has happened, with one row per frame.
 - **Origin:** Who caused a change: a Thing, a person or an AI client.
-- **Rhythm:** When a Thing acts: Event, Periodic, Continuous, Manual or Sequence. The
+- **Rhythm:** When a Thing acts: Event, Periodic or Continuous. The
   code calls it `TempoKind` until a later rename.
 - **Event (rhythm):** Acts when something happens that it perceives.
 - **Periodic (rhythm):** Acts at a fixed interval.
 - **Continuous (rhythm):** Acts every frame.
-- **Manual (rhythm):** Acts when explicitly commanded.
-- **Sequence (rhythm):** Acts in a declared order of steps.
+- **Turn:** One Thing's chance to act in a frame, with a marked end and a time limit.
 - **Frame rate:** How fast the running Cosmos runs frames in `periodic` mode.
 - **Deterministic:** The same starting point always gives the same result.
 - **Non-deterministic:** The result can differ between runs.
@@ -103,7 +105,6 @@ uses it. A word that stops being used moves to [Retired Words](#retired-words).
   read.
 - **Host event:** A fixed-format note about a startup or shutdown stage.
 - **Log file:** The saved copy of Cosmos's host events. `cosmos logs` reads it.
-- **Log level:** How much detail to log: trace, debug, info, warn or error.
 - **Capability graph:** The map of which Thing's PROVIDES satisfies which Thing's WANTS.
 - **Reconciliation:** Confirming at startup that the saved copies of the data agree, and
   rebuilding them if needed.
@@ -116,7 +117,6 @@ uses it. A word that stops being used moves to [Retired Words](#retired-words).
 - **Scope line:** The console line showing which Thing you are in.
 - **Folder line:** The console line showing where you are inside that Thing's folder.
 - **dir:** The console command listing a Thing's declared structures and procs.
-- **Attach / detach:** Connect the console to an instance, or disconnect it.
 - **Operator:** A person or AI giving Cosmos commands.
 - **Command channel:** The one route for talking to the running Cosmos.
 - **Inter-process communication (IPC):** The technical name for the command channel. It

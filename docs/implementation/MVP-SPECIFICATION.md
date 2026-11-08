@@ -1,6 +1,6 @@
 # Wilder Cosmos Runtime — MVP Specification
 
-**Status:** Draft for review (2026-11-05).
+**Status:** Ready to build from (2026-11-08).
 **Requirements:** [MVP-REQUIREMENTS.md](MVP-REQUIREMENTS.md). **Proof:**
 [MVP-COMPLIANCE-MATRIX.md](MVP-COMPLIANCE-MATRIX.md).
 **Full specification:** [SPECIFICATION.md](SPECIFICATION.md) is kept unchanged as the
@@ -15,29 +15,16 @@ Neurodivergent (ND) is spelled out here on first use, per MVP-DX-4.
 
 ---
 
-## 1. Plausibility constraints
+## 1. Boundaries
 
-These keep the MVP in service of its first real use: personal music tools with a
-hardware feel. They apply to every phase.
-
-- **C1 — Timebox Cosmos.** Phases 1 to 3 (the gate, the daemon and CLI, then the
+- **C1 - Timebox Cosmos.** Phases 1 to 3 (the gate, the daemon and CLI, then the
   startapp loop with Concepts, waves and wires) are committed. Phase 4 goes ahead
-  when a project needs it, not to make Cosmos complete for its own sake. Revised on
-  2026-11-05: Phase 3 used to wait on the audio project, but Cosmos is for building
-  anything, and every use needs Concepts that compose.
-- **C2 — Measure before the kernel spec.** In the audio project, run LatencyMon, then
-  a WASAPI-exclusive sine wave at the smallest stable buffer. Those numbers become the
-  kernel's latency targets. Until then, any latency target is a guess.
-- **C3 — Make the first audio milestone small.** One oscillator, played from a MIDI
-  keyboard, with its latency measured. Everything else builds on that.
-- **C4 — Scope.** A synth and a MIDI editor are the target. A DAW stays "possibly" and
-  isn't planned.
-- **C5 — Boundary.** Nothing audio-specific lives in this repo. The audio project uses
+  when a project needs it, not to make Cosmos complete for its own sake.
+- **C5 - Boundary.** Nothing audio-specific lives in this repo. Other projects use
   Cosmos through its public surface (Things, the IPC contract in §4). An AI uses that
-  same surface (§4A). Real-time rules,
-  such as no allocation on the audio thread (any `seq`, `string` or `ref` can allocate
-  under Nim 2's default memory management), belong to the kernel spec. Cosmos makes no
-  real-time claim.
+  same surface (§4A). Cosmos makes no real-time claim.
+
+Audio constraints are in [FUTURE-UPDATES.md](FUTURE-UPDATES.md).
 
 ---
 
@@ -76,8 +63,7 @@ coordination. `cosmos start` ignores all flags and config.
 
 ### 3.2 Start
 
-`cosmos start [--mode <step|continuous|periodic>] [--config <path>] [--with <path>]...
-[--loglevel <trace|debug|info|warn|error>] [--port <N>]`
+`cosmos start [--paused] [--config <path>] [--with <path>]... [--port <N>]`
 
 1. Parse with the existing `parseStartOptions`, extended with `--port`.
 2. Resolve config: defaults, then the file, then `COSMOS_*` environment variables, then
@@ -102,9 +88,8 @@ detach code. A background mode is deferred.
   parses requests and puts them on a queue. The frame loop drains the queue between
   frames, applies each request and returns its response. This makes behaviour
   replayable (MVP-SCH-1) and removes the shared-state race.
-- **`--mode step`:** start paused. Each `runtime.step` runs exactly one scheduler frame.
-- **`--mode continuous`:** run frames back to back, yielding between them.
-- **`--mode periodic`:** run frames at the configured frame rate.
+- **Running:** frames run at the configured frame rate.
+- **Paused** (`--paused` or `runtime.pause`): each `runtime.step` runs exactly one frame.
 - While paused, the frame loop keeps draining the queue. Only frames stop.
 - `runtime.describe`, `runtime.listThings` and the console read the lifecycle's real
   state, not an IPC-side copy.
@@ -116,13 +101,20 @@ into the lifecycle as user Things, children of the Cosmos root. A malformed bund
 skipped with a warning (MVP-LIFE-3). There is one bundle format: a folder containing
 `manifest.json`. `cosmos startapp` writes that format (§7).
 
+**Restart (MVP-PER-7).** At startup, saved Things are restored with their ids, labels
+and status, their programs are started, and frames carry on from the saved number.
+`--with <path>` then loads the bundle's Concept. If a Thing with that label already
+exists and came from that Concept, it is reused and its Concept updated. If the label
+belongs to a Thing from another Concept, it's a structured error for that bundle.
+
 ### 3.5 Stop
 
 - `cosmos stop` sends `runtime.stop`. The daemon replies `{"status": "stopping"}`.
 - The frame loop finishes the current frame, then runs shutdown (MVP-LIFE-6).
 - The listener closes and the port is released, even if shutdown fails.
 - The process exits 0, or 1 with a structured error.
-- `Ctrl+C` in the daemon's terminal sets the same stop flag.
+- `Ctrl+C` in the daemon's terminal, and an operating system stop signal, set the same
+  stop flag.
 - With no daemon running, `cosmos stop` prints `cosmos: no daemon running on port N`
   and exits 1 (MVP-CLI-5).
 
@@ -135,10 +127,6 @@ This gives the host events of SPECIFICATION.md §5A somewhere to go (MVP-LIFE-8)
   already part of that tree.
 - **Two runs kept.** `cosmos start` renames an existing `cosmos.log` to
   `cosmos.previous.log`, replacing any older one.
-- **Levels.** `trace`, `debug`, `info`, `warn` or `error`, from the loaded config
-  (MVP-CFG-2). `evError` and `evReconcileHalt` are `error`. Other host events are
-  `info`. Events below the level are not written. Production mode can't go below
-  `info`, which is the existing rule.
 - **Degrade.** If the file can't be written, the daemon prints one warning and carries
   on (MVP-SAFE-1).
 - **Reading.** `cosmos logs [--last <N>]` prints the last lines of the file, 50 by
@@ -170,7 +158,7 @@ lines, and closes the connection.
 
 ### 4.3 Methods
 
-The canonical names are `runtime.*`. The unprefixed aliases stay.
+Every method is named `runtime.*`. There are no aliases.
 
 | Method | Status | Notes |
 |---|---|---|
@@ -178,10 +166,6 @@ The canonical names are `runtime.*`. The unprefixed aliases stay.
 | `runtime.stop` | **New** | §3.5. |
 | `runtime.step`, `pause`, `resume`, `snapshot` | Rewire | Act on the lifecycle through the queue (§3.3). `runtime.step` returns the frame number and the answers to any calls completed in that frame (§4A.2b). |
 | `runtime.addThing`, `removeThing`, `listThings` | Rewire | Use real user Things (§3.4). |
-| `runtime.setMode` | Rewire | Validate against `step|continuous|periodic` and apply it. |
-| `runtime.addWatch`, `removeWatch`, `listWatch`, `subscribe`, `unsubscribe` | Keep | |
-| `runtime.attach`, `console_render`, `console_dispatch` | **Fix** | See §5. |
-| `runtime.detach` | **New** | Ends a console session. |
 
 `runtime.start` and `runtime.restart` are removed from the client mapping. Starting is
 a process action (§3.2), and `restart` is deferred. Until it returns, `cosmos restart`
@@ -214,19 +198,18 @@ command, so parity holds by construction.
 
 `coordinator_ipc.nim` declares each method once: its name, its CLI verb, a one-line
 summary, its parameter and result shapes, a `mutates` flag and a `needsDaemon` flag.
-That one table drives the dispatcher, `runtime.methods`, the CLI verbs and help, and
+That one table drives the dispatcher, `describe cosmos`, the CLI verbs and help, and
 the MCP tool list. This follows the same rule as MVP-INT-1: declare once, reference
 everywhere.
 
 A method with `needsDaemon: false` runs in the client process, with no connection to
-the daemon. These are `startapp`, `capabilities`, `concept`, `capability`, `scan`,
-`notify` and `logs`. Their handlers are the existing `run…Command` procs, plus §3.6.
+the daemon. These are `startapp`, `capabilities` and `logs`. Their handlers are the
+existing `run…Command` procs, plus §3.6.
 
 ### 4A.2 New methods
 
 | Method | Returns |
 |---|---|
-| `runtime.methods` | The method table: name, summary, params, result, mutates. |
 | `runtime.describe` `{target}` | A Thing descriptor: id, scope path, manifest, WANTS, PROVIDES with signatures, rhythm, status, child ids. |
 | `runtime.call` `{thing, provide, args}` | Validates a wave through the prefilter and delivers it on a one-time wire in the next frame (§4A.2b). A validation failure returns the redacted failure change (MVP-VAL-4). |
 | `runtime.history` `{last?, frame?, thing?}` | History rows, newest last. With no parameters, the last 20. `frame` returns that one frame. `thing` keeps only the changes involving that Thing and skips rows left empty. |
@@ -239,13 +222,12 @@ the daemon. These are `startapp`, `capabilities`, `concept`, `capability`, `scan
 The Cosmos root's PROVIDES are the method table (§4A.1). So `runtime.describe
 {target: "cosmos"}` returns the runtime's operations as PROVIDES with their
 signatures, and `runtime.call {thing: "cosmos", provide: "step"}` is the same as
-`runtime.step`. `runtime.methods` is a shortcut for `describe cosmos`. An AI learns
+`runtime.step`. An AI learns
 one pattern, describe then call, and it works the same on the runtime and on every
 Thing in it. The method table remains the single declaration, so nothing is
 duplicated.
 
-The Cosmos's status holds the runtime state: `paused`, the frame strategy, the current
-frame, `health`, `reconciliation`, `snapshotRevision`, `watchedPaths` and the frame
+The Cosmos's status holds the runtime state: `paused`, the current frame, `health`, `reconciliation`, `snapshotRevision`, `watchedPaths` and the frame
 rate. A call to the Cosmos runs the matching method directly, with no wave or ticket.
 
 ### 4A.2b Calls
@@ -269,18 +251,18 @@ rate. A call to the Cosmos runs the matching method directly, with no wave or ti
 
 ### 4A.3 Origin
 
-Every request has an origin identity: the attached console identity, `params.origin`,
-or `cli` by default. The MCP bridge sets `mcp:<client name>`. The origin is recorded on
+Every request has an origin identity: `console` from the console, `params.origin`, or
+`cli` by default. The MCP bridge sets `mcp:<client name>`. The origin is recorded on
 the changes and persisted entries a request produces (MVP-PER-2 already carries `origin`), so
 any change, by a person or an AI, can be traced to who made it.
 
 ### 4A.4 CLI for AI
 
 Every method has a `cosmos` verb, generated from the method table (§4A.1), with no
-exceptions. That includes `cosmos methods`, `cosmos describe <target>`, `cosmos call
+exceptions. That includes `cosmos describe <target>`, `cosmos call
 <thing> <provide> [--args-json <json>]`, `cosmos history [--last <N>] [--frame <N>]
 [--thing <name>]` and `cosmos logs [--last <N>]`, alongside the existing daemon verbs.
-Help shows common verbs first and the console's own methods last. Each one prints the JSON response envelope, as the daemon verbs already do, and
+Each one prints the JSON response envelope, as the daemon verbs already do, and
 uses the §4.4 exit codes. No verb prompts or needs a terminal, so a script or an AI
 agent can drive the whole runtime from a shell.
 
@@ -289,7 +271,7 @@ agent can drive the whole runtime from a shell.
 `cosmos mcp [--port <N>]` is a stdio MCP server, a separate process that's a client of
 the daemon, like `cosmos ipc`.
 
-- **Tools:** one per method in `runtime.methods`, so `runtime.describe` becomes
+- **Tools:** one per method in the method table, so `runtime.describe` becomes
   `cosmos_describe`. Descriptions and input schemas come from the method table.
 - **No daemon:** the server stays up. Tools with `needsDaemon: false` still work. The
   others return a clear "no daemon running on port N" error. It degrades instead of
@@ -310,12 +292,21 @@ Every Concept is a `manifest.json` in a bundle folder (§3.4), with the fields s
 MVP-INT-5. The keys are uppercase, following `ManifestStringKeys` and
 `ManifestSeqKeys` in `manifest.nim`:
 
-- `WHO` (the identity and id), `VERSION`, and the interrogatives WHAT, WHY, WHERE,
-  WHEN, HOW, REQUIRES, WANTS, PROVIDES and WITH. PROVIDES and WANTS carry
-  signatures (§4D.3);
-- `SENSES`: the wave kinds the Thing perceives;
-- for a Concept with no parts, `IMPLEMENTATION` (§4B.2);
-- for a composite Concept, `PARTS` (named Concepts) and `WIRES`.
+- `WHO` (the readable name, §4C.1), `VERSION`, and the interrogatives WHAT, WHY, WHERE,
+  WHEN, HOW, REQUIRES, WANTS, PROVIDES and WITH. PROVIDES carry signatures (§4D.3).
+  WANTS only name a provider that this Concept depends on;
+- `WHEN`: the rhythm (MVP-SCH-4): `event` (the default), `continuous`, or
+  `periodic:<frames>`;
+- `SENSES`: the Thing's inputs, each with the shape it accepts:
+  `{"wave": "notes", "shape": "({pitch:int})"}`. The shape uses the argument part of a
+  signature (§4D.3);
+- for a Concept with no parts, an optional `IMPLEMENTATION` (§4B.2). Without one, the
+  Thing exists and can be described, but takes no action;
+- for a composite Concept, `PARTS` and `WIRES`. Each part is
+  `{"name": "osc", "concept": "oscillator", "why"?: "..."}`. The name is the part's
+  label and is what WIRES refer to, so one Concept can be used twice. The named Concept
+  must already be loaded. If it isn't, the composite is skipped with a warning
+  (MVP-LIFE-3).
 
 **Precedent:** `wrapExternalProcessThing` already pairs a handwritten manifest with an
 implementation command. **Departs** from SPECIFICATION §19A.5 and §19A.7. Today, native Nim modules generate their contract
@@ -336,10 +327,18 @@ An implementation exchanges one JSON object per line:
   crash or a malformed line suspends the Thing (MVP-SCH-3) and never stops the
   Cosmos (MVP-SAFE-1).
 
-**In the MVP,** `implementation` names a Nim module, which may use C through
-`{.importc.}`. It runs in-process through an adapter that passes these same messages.
-The existing `etStdInStdOut` transport is the shape that separate-process
-implementations will use later.
+**A turn.** When a Thing's rhythm gives it a turn, Cosmos writes that frame's waves to
+its input, then `{"turn": N}`. The code writes its output, then `{"done": N}`. Things
+take turns one at a time, in id order, so a frame stays deterministic (MVP-SCH-1). A
+Thing that hasn't written `done` within 1 second, a starting value, has failed its turn
+(MVP-SCH-2). Its output for that turn is discarded.
+
+**In the MVP,** `IMPLEMENTATION` names a compiled program, relative to the manifest's
+folder, written in Nim, which may use C through `{.importc.}`. Cosmos never compiles it.
+Cosmos starts one process per Thing and exchanges these messages with it, using the
+existing `etStdInStdOut` transport. Nothing is loaded into the Cosmos process, so a
+crash stays with that Thing (MVP-SCH-3). A Thing's process stops at shutdown, on
+removal and on suspension.
 
 **Audio note (C5):** audio-rate signals never travel this way. An audio Concept's
 implementation is its control part. Its signal part runs in the audio kernel.
@@ -349,7 +348,7 @@ implementation is its control part. Its signal part runs in the audio kernel.
 Instantiating a composite Concept creates a Thing whose children are one Thing per
 part, at scope paths under it (`cosmos.synth.filter`). Its wires connect them. A wire
 is a constrained wave, not a Thing (MVP-ONT-8), so it has no scope path. Its own
-`wants` and `provides` are wired to its parts' ports. Other Things connect to those,
+SENSES and PROVIDES are wired to its parts. Other Things connect to those,
 not to the parts directly. `runtime.describe` can still show everything inside. A
 patch is a composite Concept, which is what compiles into the audio kernel's graph.
 
@@ -364,12 +363,18 @@ patch is a composite Concept, which is what compiles into the audio kernel's gra
 stays one stream, and the wire selects from it by `provide`. `to` lists the
 destinations, whose input receives those waves.
 
+**Its own inputs and outputs.** In WIRES, the reserved word `self` means the composite
+itself: `{"from": "self.notes", "to": ["osc"]}`. A part can't be named `self`.
+
+**No extra frame.** At load, wires that meet at a composite's boundary are joined into
+one direct route. A wave crosses any number of boundaries in one delivery, so grouping
+Things never changes timing (MVP-INT-7).
+
 **Wire check.** The origin's PROVIDES declare what its output can carry, and each
-destination's WANTS declare what its input accepts. When the Concept loads, the
-capability graph compares what the wire carries (one PROVIDES, or all of them) with
-each destination's WANTS, using the check it already runs for every WANTS
-(`capabilities.nim`, MVP-INT-3). If any destination can't accept something the wire
-carries, a structured diagnostic names the wire and that destination. The Concept is
+destination's SENSES declare what its input accepts. When the Concept loads, each wave
+the wire carries (one PROVIDES, or all of them) must match a sense on each destination,
+by the same name and the same shape in standard form (§4D.3). If any destination can't
+accept something the wire carries, a structured diagnostic names the wire and that destination. The Concept is
 then skipped with a warning (MVP-LIFE-3), and startup continues. No wave travels on a
 wire that hasn't passed this check. The payload of each wave is still validated by the
 prefilter (MVP-VAL-3).
@@ -401,8 +406,25 @@ cosmos.hello            a Thing made from hello
   `concepts`, WHY "holds the Concepts loaded in this Cosmos"). That Concept sits under
   it like any other. So every Thing except the root is an instance of a Concept.
 - **Instances.** `--with` and `cosmos add thing` then create an instance at
-  `cosmos.<WHO>`, as §3.4 says. A composite's parts sit inside it (§4B.3).
+  `cosmos.<label>`, as §3.4 says. A composite's parts sit inside it (§4B.3).
   `Thing.conceptId` already records which Concept a Thing comes from.
+- **Ids.** `Thing.id` holds the internal id (MVP-ONT-12): a whole number, assigned in the
+  frame loop. It isn't random, so runs stay deterministic (MVP-SCH-1). Each `added`
+  change records it.
+- **Verifying an id.** One saved list, kept with the Cosmos's state (`state/`), holds
+  every id ever assigned, including those of removed Things. There is no separate
+  counter. The next id is one above the highest in the list, and is checked against the
+  list and against every live Thing before use. The list is saved (MVP-PER-4) before the
+  Thing is created. If the list can't be read or written, or the check finds a clash,
+  nothing is created and the request gets a structured error (MVP-SAFE-1).
+- **The Cosmos's id.** On first run, when no saved id exists, Cosmos generates one random
+  128-bit id and saves it with its state. A saved id is never replaced. A restored backup
+  keeps its id. A deleted home folder means a new Cosmos. `describe cosmos` shows it.
+  With no shared list of every Cosmos, uniqueness beyond this machine rests on the
+  128-bit size.
+- **Labels.** The label defaults to WHO and can be set with `--as <label>`. Waves, wires
+  and history rows store the id, and the address is resolved to an id when a request
+  arrives. A label already used by a sibling gets a structured error.
 - **Reserved name.** `concepts` is reserved at the root, the same way the root's own
   id is (`tlsSkippedReservedRoot`). A bundle whose WHO is `concepts` is skipped with
   a warning (MVP-LIFE-3).
@@ -417,8 +439,7 @@ Thing is skipped with a structured error (MVP-LIFE-3).
 ### 4C.3 Waves
 
 - **Type.** The `Wave` stub in `wave.nim` becomes the real wave: `source` (a Thing
-  id), `provide` (its kind), `args`, `frame` and `origin` (§4A.3). The falloff hook
-  `projectionRadius` moves to it from `Occurrence`, still unused.
+  id), `provide` (its kind), `args`, `frame` and `origin` (§4A.3).
 - **Kind.** A wave's kind is its `provide` name, which every output line already
   carries (§4B.2).
 - **No addresses.** A wave has no destination field. Where it goes is decided only by
@@ -437,7 +458,9 @@ At the end of frame N, the Cosmos routes every wave emitted during it:
    when the wire names one), the wave goes to those wires' destinations only. It
    doesn't radiate (MVP-ONT-8).
 2. **Global.** Otherwise it radiates: every Thing whose SENSES lists the wave's
-   `provide`, by exact name, perceives it. There are no patterns or wildcards.
+   `provide`, by exact name, perceives it. There are no patterns or wildcards. If the
+   sender's declared shape differs from the sense's shape, that Thing doesn't receive
+   the wave, and a `rejected` change names the Thing and the sense.
 3. **Next frame.** Each Thing receives its waves in its input at the start of frame
    N+1, ordered by source id, then by the order they were sent.
 
@@ -459,7 +482,7 @@ frame (MVP-SCH-1). The scheduler's per-Thing `incoming` list already has this sh
   - `wave`: source, provide, args. A call also records its destination and ticket;
   - `result`: the answer to a call, with its ticket;
   - `status`: a Thing's new state;
-  - `added` and `removed`: a Thing and its Concept;
+  - `added` and `removed`: a Thing's id and label, and its Concept;
   - `failure` and `suspended`: from the scheduler's `FrameResult`;
   - `rejected`: a prefilter failure change (MVP-VAL-4);
   - `request`: an operator's request applied by the frame loop (§3.3), with its
@@ -651,18 +674,16 @@ covered, and every new one gets a test.
 
 ## 5. Console
 
-`cosmos console [--attach <identity>] [--watch <path>]`. The identity defaults to
-`operator`.
+`cosmos console` takes no options. The console is an ordinary client: it holds its own
+scope and folder, and everything it does is a method from the table (§4A.1). So people
+and AI have the same abilities by construction, and there are no sessions to manage.
+`runtime.attach`, `detach`, `console_render` and `console_dispatch` are removed. The
+console's origin is `console` (§4A.3).
 
-- **Fix:** today `runtime.attach` stores the console session under the request's `id`,
-  so the following render and dispatch requests, which have different ids, get a fresh
-  detached session. Instead, `attach` returns a `session` token. `console_render`,
-  `console_dispatch` and `detach` must send `params.session`. An unknown token gets
-  `invalid_request`.
-- `exit` sends `runtime.detach` and then exits 0. `Ctrl+C` in `watch` returns to the
-  layout (MVP-CON-6).
+- `exit` exits 0. `Ctrl+C` in `watch` returns to the layout (MVP-CON-6).
 - With no daemon, it prints the §4.4 message and exits 1.
 - `console_main` is removed once its tests have moved here (MVP-CON-7).
+- The logic in `console.nim` is reused, running in the client.
 
 ### 5.1 Layout
 
@@ -674,29 +695,27 @@ frame 1042 | 3 Things | running
 ```
 
 - **Scope line:** the scope path, in the form every command accepts (MVP-ONT-6).
-- **Folder line:** relative to the Thing's own folder, where `/` is its top. `info` shows
-  the full location (WHERE). A Thing with no folder shows `/`.
-- **Current state:** `renderPromptLine` repeats the scope and there is no folder line.
+- **Folder line:** relative to the Thing's own folder, where `/` is its top. A Thing with
+  no folder shows `/`. `cd` can't leave the Thing's folder through the folder line.
 
 ### 5.2 Entering scopes
 
-- `ls` already marks each entry: `[synth]/` is a Thing and `presets/` is a folder.
+- `ls` marks each entry: `[synth]/` is a Thing and `presets/` is a folder.
 - `cd` into a Thing changes the scope line and resets the folder line to `/`.
 - `cd` into a folder changes only the folder line.
 - `cd ..` goes up a folder. At a Thing's `/`, it goes to the parent Thing.
-- `cd /` returns to `(cosmos)`, as before. No `cd` changes runtime state.
+- `cd /` returns to `(cosmos)`. No `cd` changes runtime state.
 - `pwd` prints the scope and the folder.
-- `info`, `state`, `dir`, `ls` and `history` with no target use the current scope.
-  Today `info` and `state` require a target.
+- `state`, `dir`, `ls` and `history` with no target use the current scope.
 
-### 5.3 `dir` and `call`
+### 5.3 `dir`, `call` and `watch`
 
-- `dir` is built from `runtime.describe` (§4A.2), so it needs no new method and an AI gets
-  the same information.
-- It lists structures (status fields and child Things) and procs (PROVIDES with their
-  signatures, §4D.3).
+- `dir` is built from `runtime.describe` (§4A.2). It lists the Thing's id, label, Concept,
+  WHY, location (WHERE), rhythm, structures (status fields and child Things) and procs
+  (PROVIDES with their signatures, §4D.3).
 - `call <provide> [args]` is `runtime.call` with the current scope as the Thing. It goes
   through the prefilter and may reply with a ticket (§4A.2b).
+- `watch <target>` repeats `runtime.describe` about once a second and shows what changed.
 - The console doesn't evaluate expressions or run arbitrary code.
 
 ---
@@ -709,16 +728,11 @@ frame 1042 | 3 Things | running
 |---|---|---|
 | none, `--help`, `-h` | help text, exit 0 | Starts nothing (MVP-CLI-1). |
 | `start` | §3.2 | |
-| any verb in the method table (§4A.1) | IPC (§4, §4A.4), or in the client when `needsDaemon` is false | Includes `stop`, `list`, `step`, `mode`, `add`, `remove`, `methods`, `describe`, `call`, `history` and `logs`. |
+| any verb in the method table (§4A.1) | IPC (§4, §4A.4), or in the client when `needsDaemon` is false | Includes `stop`, `list`, `step`, `pause`, `resume`, `snapshot`, `add`, `remove`, `describe`, `call`, `history` and `logs`. |
 | `mcp` | §4A.5 | |
 | `console` | §5 | |
-| `startapp`, `capabilities`, `concept`, `capability`, `scan`, `notify` | method table, `needsDaemon: false` (§4A.1) | Existing `run…Command` procs, unreachable since `f71f93a` (MVP-CLI-6). |
-| `ipc` | existing `runIpcCommand` | Sends a raw request. It's a client, not an action, so it isn't in the method table. |
+| `startapp`, `capabilities` | method table, `needsDaemon: false` (§4A.1) | Existing `run…Command` procs, unreachable since `f71f93a` (MVP-CLI-6). |
 | anything else | usage text, exit 2 | MVP-CLI-8. |
-
-**Known tension:** "mode" means two things. Config `mode` (`COSMOS_MODE`) is
-`development|debug|production`, and `start --mode` is the frame strategy. The MVP keeps
-both as they are. Renaming one is a later decision.
 
 ---
 
@@ -741,36 +755,19 @@ which nothing in `src/` reads. Drop them unless something starts reading them.
 ## 8. Gate
 
 - **Discovery, not a list (MVP-GATE-1).** `nimble test` runs every `.nim` file under
-  `tests/` except `tests/harness.nim`. Adding a file adds it to the gate.
+  `tests/` except `tests/harness.nim`.
 - **No hangs (MVP-GATE-3).** Each file runs under a 90-second limit. Hitting the limit
   is a failure.
 - **Daemon tests are found by a rule.** A file that imports `net`, `osproc` or
-  `cosmos_main` can open sockets, start processes or start the daemon, so it's a
-  daemon test. Tests stay in their existing folders.
-- **Parallel (2026-11-05).** Files are built and run up to one per processor at a
-  time. Daemon tests can reach the daemon's port, so they run one at a time, alongside
-  the others. `-Jobs 1` runs everything one at a time. Results print as each file
-  finishes. On the development machine: 96 s for the full gate (most of it
-  `coordinator_test` waiting out its limit until Phase 2), down from about 210 s.
-- **Fast check (MVP-GATE-4).** `nimble checkFast` skips daemon tests: 22 s for 46
-  files on the development machine.
+  `cosmos_main` is a daemon test. These run one at a time, alongside the others.
+- **Fast check (MVP-GATE-4).** `nimble checkFast` skips daemon tests.
 - **Daemon tests.** Start `cosmos start` as a subprocess with `COSMOS_PORT` set to a
   free port. Wait up to 5 seconds for `runtime.ping`. Run the test. Stop the daemon
   with `runtime.stop`, and kill the process if it hasn't exited within 5 seconds.
-- **Clone-safe (MVP-GATE-2).** Nothing the gate reads may be ignored or untracked:
-  - `.github/ND_DOCS_CHECKLIST.md` exists nowhere: not on disk and not in history.
-    Recreate it as `docs/implementation/ND_DOCS_CHECKLIST.md`, which is tracked.
-  - `scripts/build/*.ps1` exists nowhere either. `.gitignore`'s `build/` matches
-    `scripts/build/`. Anchor it as `/build/`, and make `buildRuntime` a direct
-    `nim c -d:release` command.
-  - CI workflows are deferred, since the MVP targets one machine.
+- **Clone-safe (MVP-GATE-2).** Nothing the gate reads may be ignored or untracked.
 - **Known failures are listed, not hidden.** `tests/KNOWN_FAILURES.txt` names each file
-  expected to fail, with its reason and the phase that fixes it. The gate reports
-  those files as KNOWN and still passes. A listed file that starts passing fails the
-  gate until its line is removed, so the list can't go stale. The runner is
-  `scripts/verify/run_tests.ps1`.
-- **Proc-style tests count.** Files that use `assert` in `proc`s, rather than
-  `unittest`, pass by exit code. Converting them is optional.
+  expected to fail, with its reason and the phase that fixes it. A listed file that
+  starts passing fails the gate until its line is removed.
 
 ---
 

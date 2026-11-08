@@ -138,6 +138,18 @@ cosmos.hello            a Thing made from hello
 - The name `concepts` is reserved. A Concept that tries to use it is skipped with a
   warning.
 
+**Ids and labels:**
+
+- The Cosmos itself gets a unique id on its first run, and keeps it on every later run.
+- Every Thing gets an internal unique id when it is created.
+- The id never changes and is never reused.
+- Every id is checked against all ids ever issued before it is assigned.
+- If that check can't be done, the Thing isn't created and you get a clear error.
+- The readable name is only a label. It starts as the Concept's WHO.
+- `--as <label>` gives a different label, so one Concept can make many Things.
+- Waves, wires and the history all use the id, so changing a label breaks nothing.
+- Labels are unique among siblings, so an address always means one Thing.
+
 **Scope paths:**
 
 - Every Thing has an address made of dots, following what is inside what.
@@ -157,6 +169,7 @@ cosmos.hello            a Thing made from hello
 - A wave spreads across the whole Cosmos.
 - Every Thing with a matching sense receives it.
 - The sense must match the wave's name exactly. There are no patterns or wildcards.
+- A sense also states the shape it accepts. A wave of another shape isn't delivered.
 - A wave that nobody senses is still recorded.
 
 **A wire narrows a wave's path:**
@@ -278,7 +291,7 @@ Designing Concepts is the main work of building with Cosmos.
 - Each one is a `manifest.json` file in its own folder.
 - The manifest holds:
   - WHO, a VERSION and the other labels
-  - SENSES: the wave names it listens for
+  - SENSES: its inputs, each a wave name and the shape it accepts
   - either an IMPLEMENTATION (its code), or PARTS and WIRES (it is built from others)
 - Code can generate the manifest, but the manifest is always the declaration.
 
@@ -305,6 +318,9 @@ Designing Concepts is the main work of building with Cosmos.
 | Output | Waves it sends, answers to calls with their ticket number, and its own current state. |
 | Error | Problems. Each is recorded in the history. |
 
+- Each Thing's code is a separate small program that Cosmos starts.
+- Each turn has a clear end. Cosmos says when all the input has arrived, and the code
+  says when it has finished.
 - If the code crashes or writes something unreadable, that Thing is suspended. The
   Cosmos keeps running.
 - In the first version, code is written in Nim, or C where needed. Other languages come
@@ -318,7 +334,9 @@ Designing Concepts is the main work of building with Cosmos.
 - For example, `cosmos.synth` might contain `cosmos.synth.filter`.
 - It declares its own WANTS and PROVIDES. Other Things connect to those.
 - Anyone can still look inside it.
-- Only a Concept with no parts needs code.
+- Inside its wires, the word `self` means the Concept's own inputs and outputs.
+- Grouping Things this way never changes timing.
+- Code is optional. A Thing can exist before it has any.
 
 **Source:** MVP-INT-1 to 7. Spec §4B.
 
@@ -333,16 +351,16 @@ Designing Concepts is the main work of building with Cosmos.
 | Event | when something happens that it perceives. |
 | Periodic | at a fixed interval. |
 | Continuous | every frame. |
-| Manual | when explicitly commanded. |
-| Sequence | in a declared order of steps. |
 
-The rhythm is checked when the Thing loads.
+The rhythm goes in WHEN and is checked when the Thing loads. With none stated, it is
+Event, so an idle Thing does nothing.
 
 **Rules for every frame:**
 
-- The results are deterministic. The same starting state and waves always give the same
-  result, so any run can be replayed.
-- No Thing can take unlimited time. Things hand back control themselves.
+- Cosmos's own part is deterministic. The same state and the same outputs from Things
+  always give the same result.
+- Things take their turns one at a time.
+- Each Thing has a time limit for its turn. Going over it counts as a failure.
 - If one Thing fails, the others carry on.
 - A Thing that keeps failing is suspended, with a clear error.
 
@@ -414,32 +432,28 @@ out between frames. This prevents two actions colliding, and keeps runs replayab
 | `cosmos`, `cosmos --help`, `cosmos -h` | Shows help. Starts nothing. |
 | `cosmos start` | Starts Cosmos. |
 | `cosmos stop` | Shuts it down cleanly. |
-| `cosmos list`, `step`, `mode`, `add`, `remove`, `pause`, `resume`, `snapshot` | Talk to the running Cosmos. |
-| `cosmos methods` | Lists every available action. |
-| `cosmos describe <name>` | Describes one Thing. `cosmos describe cosmos` shows the running Cosmos. |
+| `cosmos list`, `step`, `add`, `remove`, `pause`, `resume`, `snapshot` | Talk to the running Cosmos. |
+| `cosmos describe <name>` | Describes one Thing. `cosmos describe cosmos` shows the running Cosmos and every action. |
 | `cosmos history` | Shows what happened. |
 | `cosmos logs` | Shows the log file. |
 | `cosmos call <thing> <what>` | Asks a Thing to do something it PROVIDES. |
 | `cosmos console` | Opens the console. |
 | `cosmos mcp` | Opens the connection for AI tools. |
-| `cosmos startapp`, `capabilities`, `concept`, `capability`, `scan`, `ipc`, `notify` | Existing commands. They must be reachable again. |
+| `cosmos startapp`, `capabilities` | Existing commands. They must be reachable again. |
 
 **Every action has a command.** The commands are generated from the one table of
 actions, so none can be left out.
 
-**Some commands work without a running Cosmos:** `startapp`, `capabilities`, `concept`,
-`capability`, `scan`, `notify` and `logs`.
+**Some commands work without a running Cosmos:** `startapp`, `capabilities` and
+`logs`.
 
 **Options for `cosmos start`:**
 
 | Option | Meaning |
 |---|---|
-| `--mode step` | Start paused. Run one frame per `step` command. |
-| `--mode continuous` | Run frames one after another. |
-| `--mode periodic` | Run frames at the set frame rate. |
+| `--paused` | Start paused. Run one frame per `step` command. Without it, frames run at the frame rate. |
 | `--config <path>` | Use this settings file. |
 | `--with <path>` | Load this Thing. Can be repeated. |
-| `--loglevel <level>` | How much to log: trace, debug, info, warn or error. |
 | `--port <number>` | Which network port to use. |
 
 **How commands behave:**
@@ -473,8 +487,8 @@ actions, so none can be left out.
 ## The console
 
 The console is an interactive screen for looking around a running Cosmos.
-`cosmos console` is the only way to open it. It can take `--attach <identity>` and
-`--watch <path>`.
+`cosmos console` is the only way to open it. It remembers where you are by itself, and
+only uses the same actions as everything else.
 
 **The screen is always in this order:** status bar, scope line, folder line, prompt.
 
@@ -490,9 +504,9 @@ frame 1042 | 3 Things | running
 - `ls` shows Things as `[synth]/` and folders as `presets/`.
 - `cd` into a Thing changes the scope line. `cd` into a folder changes only the folder
   line.
-- Once inside, `info`, `state`, `dir`, `ls` and `history` need no name.
-- `dir` lists what the Thing declares, similar to Python's `dir()`: its structures and
-  its procs. `call` runs one of those procs, after the data firewall checks it.
+- Once inside, `state`, `dir`, `ls` and `history` need no name.
+- `dir` lists what the Thing declares, similar to Python's `dir()`: its id, purpose,
+  location, structures and procs. `call` runs one of those procs, after the data firewall checks it.
 - Procs private to a Thing's code stay invisible unless declared in PROVIDES.
 - The console doesn't run arbitrary code.
 
@@ -501,17 +515,12 @@ frame 1042 | 3 Things | running
 | `ls` | Lists what is here, as one flat list. |
 | `cd` | Moves where you are looking. |
 | `pwd` | Shows where you are looking. |
-| `info` | Shows details about a Thing. |
-| `peek` | Takes a quick look at data. |
+| `dir` | Lists everything a Thing declares. |
 | `state` | Shows a Thing's state. |
-| `world` | Shows how Things are linked. |
 | `watch` | Follows changes live. `Ctrl+C` returns to the normal screen. |
-| `attach` | Connects to an instance. |
-| `detach` | Disconnects, cancels watches and resets the screen. |
+| `history` | Shows what happened here. |
+| `call` | Runs a proc. |
 | `help`, `clear`, `exit` | Help, clear the screen, leave. |
-
-`attach`, `help`, `clear` and `exit` always work. The others give a clear error if you
-aren't attached.
 
 **Source:** MVP-CON-1 to 9. Spec §5.
 
@@ -570,17 +579,14 @@ Cosmos isn't running, MCP stays open and clearly says so.
 ## Settings
 
 - A settings file is optional. With none, Cosmos uses documented defaults.
-- Settings are in a JSON file.
+- Settings are in a JSON file. There are three: port, frame rate and home folder.
 - If a setting is given more than once, this order decides. Later beats earlier:
   1. the file
-  2. environment variables (`COSMOS_MODE`, `COSMOS_LOG_LEVEL`, `COSMOS_PORT`)
+  2. environment variables (`COSMOS_PORT`, `COSMOS_FRAME_RATE`, `COSMOS_HOME`)
   3. command-line options
 - Every value passes the same check, wherever it came from.
 - A bad setting is rejected at load time with a clear error.
 - Parts of Cosmos are given the settings. They never read the file themselves.
-
-**A known oddity:** "mode" means two things. The settings' mode is development, debug
-or production. `start --mode` is how frames run. Both stay for now.
 
 **Source:** MVP-CFG-1 to 4. Spec §3.2, §6.
 
@@ -593,6 +599,9 @@ or production. `start --mode` is how frames run. Both stay for now.
 1. the current state
 2. a running log that only ever gets added to
 3. signed saved copies, called snapshots
+
+**Things persist.** When Cosmos restarts, its Things come back with the same ids and
+state, and frames carry on counting.
 
 **Rules:**
 
@@ -738,7 +747,10 @@ covered. An audit on 2026-11-08 found 14 defects, now fixed. They are listed in
 | A web interface (REST) | It can be added later on the same command channel. |
 | Running in the background | The terminal window is simpler and leaves nothing behind. |
 
-**Source:** Requirements, Retired and Deferred. Spec §3.2, §4A.
+The full list, with when to bring each one back, is in
+[FUTURE-UPDATES.md](FUTURE-UPDATES.md).
+
+**Source:** Requirements, Retired. FUTURE-UPDATES.md.
 
 ---
 
@@ -771,38 +783,13 @@ covered. An audit on 2026-11-08 found 14 defects, now fixed. They are listed in
 Nothing in the documents is marked undecided. These questions were found on 2026-11-08
 by reading them closely and checking the code. Each one would force a builder to guess.
 
-The eight questions Phase 2 needed were decided on 2026-11-08 and are now part of this
-guide.
+All of those questions were decided on 2026-11-08 and are now part of this guide.
 
-### Needed for Phase 3
+**Still open, but not blocking the first version:**
 
-1. **How does Cosmos run a Thing's code?** The documents say the code is Nim and runs
-   inside Cosmos. Nim is compiled ahead of time, and nothing in Cosmos today can load
-   compiled code while it runs. This is the biggest open question.
-2. **Does a simple Thing need code?** One rule says a Concept with no parts needs code.
-   Another says a new Thing needs only WHO, VERSION and WHY.
-3. **How does a built-from-parts Concept connect to its own inputs and outputs?** The
-   wire format can name its parts, but it can't name the Concept itself.
-4. **What happens when a wave passes through a built-from-parts Concept?** It has no
-   code to forward the wave. The documents don't say how it passes through, or whether
-   that costs an extra frame.
-5. **What does a PARTS entry look like?** The wire format is written down. The parts
-   format isn't.
-6. **Can you make two Things from one Concept?** Both would get the same address,
-   `cosmos.<WHO>`.
-7. **Where does a Thing's rhythm go, and what is the default?** The older documents put
-   it in WHEN. The MVP documents don't say, and a new Thing doesn't have to state one.
-8. **What shape does a sense expect?** A sense only names a wave. Two Things could send
-   waves with the same name and different shapes, and a Thing sensing that name would
-   receive both. Each wave matches its sender's declaration, but it may not be what the
-   receiver expects. Suggested answer: a sense also states the shape it accepts, and
-   Cosmos doesn't deliver a wave of a different shape.
-
-### Housekeeping
-
-9. Both technical documents are marked "Draft for review". That stays correct until
-   the questions above are answered.
-10. The Phase 2 steps in [the plan](MVP-PLAN.md) aren't written yet.
+1. Should the first version be built and tested on Linux instead of Windows?
+2. How should the command channel control access? This is needed before deployment.
+3. Should the audio project use an existing engine? That belongs to the audio project.
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

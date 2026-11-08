@@ -41,7 +41,7 @@ nothing audio-specific lives in this repo.
 
 | Phase | Status | Summary |
 |-------|--------|---------|
-| **MVP re-scope** | 🔄 Active | MVP docs drafted; Phase 1 done (gate passes from a fresh clone). Phase 2's design questions answered. Next: the Phase 2 steps in the plan, then building Phase 2 |
+| **MVP re-scope** | 🔄 Active | MVP docs drafted; Phase 1 done (gate passes from a fresh clone). Phase 2's design questions answered. Planning documents complete. Next: build Phase 2 |
 | **Phase XF** | ⏸ Paused | Cosmos Encryption Spectrum — waiting on the MVP re-scope |
 | **Phase XE** | ⏸ Paused | Humane Offline Licensing — likely deferred for single-user use |
 
@@ -129,14 +129,12 @@ requirement's status are in
 The MVP docs (requirements, spec, matrix) were drafted on 2026-11-05, and the
 decisions known then were settled, including full AI parity (CLI and MCP) and the
 foreground daemon. A close read on 2026-11-08 found 16 questions they didn't answer. The 8 that Phase 2
-needs were decided the same day, and the 8 that Phase 3 needs are still open.
+needs were decided the same day, and the 8 that Phase 3 needs followed.
 The session log has the details.
 
-1. **Write the Phase 2 steps** in [MVP-PLAN.md](docs/implementation/MVP-PLAN.md).
-2. **Start Phase 2:** daemon, CLI and AI access (spec §3–§6, §4A).
-3. **Before Phase 3:** answer the 8 questions in
-   [Still undecided](docs/implementation/MVP-PLAIN-LANGUAGE.md#still-undecided).
-4. **Audio project:** decide whether to use an existing engine (Faust or the
+1. **Build Phase 2,** step by step from [MVP-PLAN.md](docs/implementation/MVP-PLAN.md).
+2. **Then build Phase 3** from the same plan.
+3. **Audio project:** decide whether to use an existing engine (Faust or the
    SuperCollider server) instead of writing a kernel from scratch (suggested
    2026-11-05). Then run LatencyMon and a WASAPI-exclusive sine test at the smallest
    stable buffer. Those numbers become the latency targets.
@@ -167,4 +165,4 @@ nimble buildRuntime    # Build release binary to bin/
 - 2026-11-05 (late): Finished Phase 1. `nimble compliance` now checks the MVP docs (one matrix row per requirement) instead of `.github` and archived files; added missing header and Flow comments to seven files; `nimble verify` passed from a fresh clone (46 pass, 4 known). Next: the phased plan, then Phase 2.
 - 2026-11-05 (late): Updated all docs to the MVP: rewrote the README, cheatsheet, docs index, getting-started guides, concept pages and glossary; added MVP status notes to the API and runtime pages; removed `.github` and archived-matrix references from the development guidelines; added a CHANGELOG entry. Renamed tempo to rhythm in the ontology (MVP-SCH-4; code rename later). Found that the daemon lowercases method names, so most CLI commands return "method not found". Measured the gate: about 3.5 min (111 s building, 90 s in coordinator_test). Next: decide on test fixes and speed-ups, then the phased plan.
 - 2026-11-05 (late): Made the test gate parallel: builds and runs up to one file per processor, daemon tests (imports of net, osproc or cosmos_main) take turns, results print as they finish, `-Jobs 1` restores one at a time. Full gate 96 s (was about 210 s); `checkFast` 22 s (was about 210 s), so MVP-GATE-4 is now Passing. `cosmos_main` added to the fast-check rule. Next: fix the known failures as the start of Phase 2.
-- 2026-11-08: Added a plain-language guide to the MVP requirements and spec; made the glossary the one word list. A close read found 15 open design questions, listed in the guide. Checked every current doc against the code and tests, and corrected what had gone stale. Decided the 8 questions Phase 2 needs: calls use one-time wires with ticket numbers and say when they're waiting; `cosmos history` and `cosmos logs`; every action gets a command; commands that need no daemon join the method table; `inspect` retired for `describe`. Started MVP-PLAN.md with a reference deployment (Linux and FreeBSD first; not built). Added the Home Assistant wrapper as a possible future project. Found the data firewall isn't connected, corrected the matrix (MVP-VAL-2 to 4) and wrote the design as spec §4D. Set the bullet-proof standard (MVP-VAL-6) after an audit found 14 defects. Added MVP-REASONING.md. Fixed all 14 prefilter defects with attack tests and a randomized test. Added the console design: scope and folder lines, entering scopes, `dir` and `call` (MVP-CON-1, 2, 8, 9; spec §5). Next: write the rest of the Phase 2 steps, then build Phase 2.
+- 2026-11-08: Added a plain-language guide to the MVP requirements and spec; made the glossary the one word list. A close read found 15 open design questions, listed in the guide. Checked every current doc against the code and tests, and corrected what had gone stale. Decided the 8 questions Phase 2 needs: calls use one-time wires with ticket numbers and say when they're waiting; `cosmos history` and `cosmos logs`; every action gets a command; commands that need no daemon join the method table; `inspect` retired for `describe`. Started MVP-PLAN.md with a reference deployment (Linux and FreeBSD first; not built). Added the Home Assistant wrapper as a possible future project. Found the data firewall isn't connected, corrected the matrix (MVP-VAL-2 to 4) and wrote the design as spec §4D. Set the bullet-proof standard (MVP-VAL-6) after an audit found 14 defects. Added MVP-REASONING.md. Fixed all 14 prefilter defects with attack tests and a randomized test. Added the console design: scope and folder lines, entering scopes, `dir` and `call` (MVP-CON-1, 2, 8, 9; spec §5). Decided the Phase 3 questions, including verified unique ids for Things and the Cosmos. Wrote the full plan for Phases 2 and 3. Reviewed and simplified the design: cuts preserved in FUTURE-UPDATES.md; added marked turns, restart behaviour, and SENSES as the one input declaration. Next: build Phase 2.

@@ -53,11 +53,17 @@ on 2026-11-05; Phase 2 fixes it.
 code, but the command line stopped routing to them in April 2026. Phase 2 reconnects
 them.
 
+### Removed in Phase 2
+
+`--mode`, `--loglevel`, `cosmos mode`, watch lists, `notify`, `scan`, `concept`,
+`capability`, `ipc`, and the console's `attach`, `detach`, `info`, `peek` and `world`.
+[FUTURE-UPDATES.md](../../implementation/FUTURE-UPDATES.md) has the reasons. The tables
+on this page describe today's behaviour until then.
+
 ### New in Phase 2
 
 | Command | What it does |
 |---|---|
-| `cosmos methods` | List every daemon operation, its inputs and whether it changes anything |
 | `cosmos describe <target>` | Describe any Thing, including the Cosmos itself |
 | `cosmos call <thing> <provide> [--args-json <json>]` | Invoke something a Thing PROVIDES |
 | `cosmos history [--last <N>] [--frame <N>] [--thing <name>]` | Show what happened |

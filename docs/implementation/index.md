@@ -15,6 +15,7 @@ documentation set. [README.md](README.md) gives the reading order.
 - [MVP-COMPLIANCE-MATRIX.md](MVP-COMPLIANCE-MATRIX.md): every MVP requirement with its
   proving test and current status.
 - [MVP-PLAN.md](MVP-PLAN.md): when each piece gets built, and the reference deployment.
+- [FUTURE-UPDATES.md](FUTURE-UPDATES.md): everything set aside from the MVP.
 
 ## Long-term reference
 

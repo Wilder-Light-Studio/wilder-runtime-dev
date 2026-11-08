@@ -1,6 +1,6 @@
 # Wilder Cosmos Runtime — MVP Requirements
 
-**Status:** Draft for review (started 2026-11-01, updated 2026-11-05).
+**Status:** Ready to build from (started 2026-11-01, updated 2026-11-08).
 **Full requirements:** [REQUIREMENTS.md](REQUIREMENTS.md) is kept unchanged as the
 long-term reference. This file is the subset that defines the MVP. When the two
 disagree, this file governs MVP work.
@@ -16,7 +16,8 @@ projects, use Cosmos through its public surface and add nothing to this repo.
 **The MVP is done when:**
 
 - A new Thing can be scaffolded, started and inspected in three commands or fewer.
-- Every requirement below is proven by a test that runs in the gate.
+- Every requirement below that a test can prove is proven by one in the gate. Process
+  rules are marked as such in the compliance matrix.
 - The gate passes from a fresh clone on Windows.
 - An AI client can discover, inspect and operate every Thing through the same surface
   people use (see [AI access](#13-ai-access)).
@@ -27,7 +28,8 @@ projects, use Cosmos through its public surface and add nothing to this repo.
   REQUIREMENTS.md.
 - **Must** means it's checked in the gate. There are no "should"s in this file.
 - Anything not listed here is **deferred**, not deleted. Existing code for deferred
-  features stays in place but isn't part of the MVP gate. See [Deferred](#deferred).
+  features stays in place but isn't part of the MVP gate. See
+  [FUTURE-UPDATES.md](FUTURE-UPDATES.md).
 
 ---
 
@@ -76,9 +78,8 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
   of the Cosmos, not Things.**
   - A wave is a message, and **waves are global.** A wave radiates from its source
     across the whole Cosmos, and every Thing with a matching sense perceives it. A
-    sense matches a wave's kind by exact name, with no patterns. A falloff model may
-    come later; the old projection radius
-    (`Occurrence.projectionRadius`) is its hook.
+    sense matches a wave's kind by exact name, with no patterns. It also states the
+    shape it accepts, and a wave of any other shape isn't delivered to that Thing.
   - **A wire is a constrained wave, with a set origin and destination.** It connects
     one Thing's output to the input of one or more other Things (MVP-INT-6). Waves on
     it go only to those destinations instead of radiating, and each destination
@@ -89,8 +90,8 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
     wired on its own. This keeps the original rule that wires are "designer-level
     containment over Wave propagation" (REQUIREMENTS Ontology). An intermediary
     between two Things is a Thing in the middle, with a wire on each side.
-  - **A wire is checked before any wave travels on it.** Each destination must be
-    able to handle what the wire carries. A mismatch is a structured error, like any
+  - **A wire is checked before any wave travels on it.** Each destination must
+    have a sense with the same wave name and a matching shape. A mismatch is a structured error, like any
     incompatible signature (MVP-INT-3), and the Concept that declares the wire is
     skipped with a warning (MVP-LIFE-3).
   - **An operator's call travels on a one-time wire** from the Cosmos to the Thing
@@ -144,6 +145,22 @@ bundle, bridge). The interrogatives stay uppercase: WHO, WHY, WANTS, PROVIDES.
     SPECIFICATION §4.1C–§4.1D, which are **retired**, not deferred. A reference no
     longer "inherits target context" (Reference Rules).
 
+- **MVP-ONT-12** **Every Thing has an internal unique id. Its readable name is only a
+  label.**
+  - Cosmos assigns the id when the Thing is created. It never changes and is never
+    reused. This includes Concepts, which are Things.
+  - Every id is verified unique before it is assigned. If that can't be verified, no id
+    is assigned and the Thing isn't created. The request gets a clear error, and the
+    rest of the Cosmos keeps running.
+  - The Cosmos itself receives a unique id on its first run. It is saved and stays the
+    same on every later run, so one Cosmos can always be told from another.
+  - Everything internal refers to the id: waves, wires and the history.
+  - The label defaults to the Concept's WHO. `--as <label>` gives a different one, so one
+    Concept can make many Things.
+  - A label can change without breaking anything, because nothing depends on it.
+  - Labels are unique among siblings, so an address always means one Thing. A label
+    already in use is a clear error. Commands accept an address or an id.
+
 ## 2. Lifecycle
 
 *Source: Runtime Lifecycle Requirements, Host Observability. Here "module" means a
@@ -162,7 +179,8 @@ Thing that extends the runtime (MVP-ONT-7).*
   `haltedAt`, `reason` and `recoveryGuidance`. Guidance never includes file paths,
   secrets or payload contents.
 - **MVP-LIFE-6** Shutdown flushes pending transactions, writes a final snapshot, stops
-  the scheduler, unloads modules and closes persistence, in that order.
+  the scheduler, stops Things' programs, unloads modules and closes persistence, in
+  that order.
 - **MVP-LIFE-7** Startup, reconciliation, migration, prefilter activation and shutdown
   emit structured host events with stable kinds. Logs never contain raw payloads,
   keys or secrets.
@@ -186,6 +204,9 @@ Thing that extends the runtime (MVP-ONT-7).*
 - **MVP-PER-5** Irreconcilable divergence halts startup (see MVP-LIFE-5).
 - **MVP-PER-6** Persistence keys are sanitized to `[a-zA-Z0-9_-]`, at most 128
   characters.
+- **MVP-PER-7** **Things persist.** On restart, Cosmos restores its Things with the same
+  ids, labels and state, and frames carry on counting. `--with` reuses a matching
+  existing Thing rather than making a new one.
 
 ## 4. Validation
 
@@ -225,14 +246,16 @@ Thing that extends the runtime (MVP-ONT-7).*
 
 *Source: Scheduler Requirements, Tempo Types.*
 
-- **MVP-SCH-1** The same state plus the same waves always produces the same frame
-  result (replayable).
-- **MVP-SCH-2** No Thing can use unbounded time in a frame. Things yield
-  cooperatively.
+- **MVP-SCH-1** The runtime's part of a frame is deterministic: the same state and the
+  same outputs from Things always produce the same result. A Thing's own code is outside
+  this guarantee.
+- **MVP-SCH-2** Each Thing has a time limit for its turn. Going over it counts as a
+  failure (MVP-SCH-3).
 - **MVP-SCH-3** A failing Thing is isolated from the others. A Thing that fails
   repeatedly is suspended with a structured error.
-- **MVP-SCH-4** Each Thing declares one **rhythm**: Event, Periodic, Continuous,
-  Manual or Sequence. It's validated at load.
+- **MVP-SCH-4** Each Thing declares one **rhythm**: Event, Periodic or
+  Continuous. It's declared in WHEN and validated at load. With none stated,
+  the rhythm is Event, and `describe` shows that the default applied.
   - **Departs** from the name "tempo type" (REQUIREMENTS Tempo Types), settled on
     2026-11-05. A rhythm is when a Thing acts. Tempo means speed, and the music
     tools use it in that sense. How fast the daemon runs frames is its frame rate.
@@ -249,6 +272,8 @@ implementing them is the developer's main activity.*
 
 - **MVP-INT-1** A `PROVIDES` contract is declared exactly once, by the provider.
   Consumers reference it as `Thing.provide` or `Thing` and never repeat its signature.
+  WANTS only state a dependency on a provider. What a Thing accepts as input is declared
+  in SENSES (MVP-INT-5).
 - **MVP-INT-2** Startup builds one deterministic capability graph before any module
   runs.
 - **MVP-INT-3** Missing providers, ambiguous providers and incompatible signatures
@@ -260,11 +285,12 @@ implementing them is the developer's main activity.*
     any language. This builds on the manual Concept file (REQUIREMENTS Concept
     System) and the existing `InterrogativeManifest`.
   - The manifest holds:
-    - **WHO**, the identity, which also serves as the id;
+    - **WHO**, the Concept's readable name, unique among loaded Concepts (MVP-ONT-12);
     - a **VERSION**;
     - the other interrogatives: WHAT, WHY, WHERE, WHEN, HOW, REQUIRES, WANTS,
       PROVIDES and WITH;
-    - **SENSES**, the kinds of wave the Thing perceives (MVP-ONT-8);
+    - **SENSES**, the Thing's inputs: each a wave name and the shape it accepts
+      (MVP-ONT-8);
     - either an **IMPLEMENTATION**, or **PARTS** and **WIRES** for a composite
       (MVP-INT-7).
   - The bundle manifest folds in: `id` becomes WHO, `dependencies` becomes REQUIRES,
@@ -277,21 +303,26 @@ implementing them is the developer's main activity.*
   - Waves arrive on input and leave on output, and errors go to error, one JSON
     message per line. There are no other channels: no sockets, shared files or shared
     memory.
+  - A turn has a clear end. Cosmos marks when a Thing has all its input for the frame,
+    and the code marks when it has finished.
   - Implementations in any language were already the goal: Nim, Python, Rust, Node or
     binaries (REQUIREMENTS Multi-Module Provides).
   - **Departs** from binding through an "ABI registration proc" or descriptor. The
     precedent is `wrapExternalProcessThing`, whose transport is stdin/stdout.
   - **In the MVP,** implementations are written in Nim, or in C where needed through
-    Nim's C interop. A Nim implementation may run inside the Cosmos for speed, but it
-    exchanges exactly the same messages.
+    Nim's C interop. Each implementation runs as a separate program that Cosmos
+    starts, so a crash in one can't stop the Cosmos.
   - **Later,** implementations in other languages will run as separate processes over
-    the same contract (see Deferred).
+    the same contract (see FUTURE-UPDATES.md).
 - **MVP-INT-7** **Concepts compose.**
   - A Concept can be made of other Concepts: its parts and the wires between them.
     Instantiating it creates a Thing whose World holds one Thing per part
     (SPECIFICATION §4.1), connected by its wires (MVP-ONT-8). Parts and wires are new.
-  - Only a Concept with no parts needs an implementation.
-  - A composite Concept declares its own WANTS and PROVIDES and wires them to its
+  - An implementation is optional for a Concept with no parts, so a Thing can exist
+    before it has code. A Concept with parts has none.
+  - Grouping Things into a composite never changes timing. A wave crossing its boundary
+    costs no extra frame.
+  - A composite Concept declares its own SENSES and PROVIDES and wires them to its
     parts. Other Things connect to it through that interface. Every connection is an
     explicit wire (MVP-ONT-11). Anyone can still inspect inside it (MVP-AI-2).
 
@@ -301,9 +332,9 @@ implementing them is the developer's main activity.*
 
 - **MVP-CFG-1** Config is optional. With no config, Cosmos starts on documented
   defaults.
-- **MVP-CFG-2** Config is a JSON file. Override precedence, lowest to highest: file,
-  then environment variables (`COSMOS_MODE`, `COSMOS_LOG_LEVEL`, `COSMOS_PORT`), then
-  CLI flags.
+- **MVP-CFG-2** Config is a JSON file with three settings: port, frame rate and home
+  folder. Override precedence, lowest to highest: file, then environment variables
+  (`COSMOS_PORT`, `COSMOS_FRAME_RATE`, `COSMOS_HOME`), then CLI flags.
 - **MVP-CFG-3** Every value, whatever its source, passes the same validation. Invalid
   config is rejected at load time with a structured error.
 - **MVP-CFG-4** Subsystems receive one loaded config object and never read config
@@ -316,19 +347,19 @@ daemon model).*
 
 - **MVP-CLI-1** `cosmos` with no command, `--help` and `-h` print help, exit 0, and
   start nothing.
-- **MVP-CLI-2** `cosmos start` starts the daemon. It accepts `--mode
-  <step|continuous|periodic>`, `--config <path>`, `--with <path>` (repeatable),
-  `--loglevel <trace|debug|info|warn|error>` and `--port <N>`. Invalid values fail fast with
-  usage text.
+- **MVP-CLI-2** `cosmos start` starts the daemon. It runs frames at the frame
+  rate, or waits for `step` if given `--paused`. It also accepts `--config <path>`,
+  `--with <path>` (repeatable) and `--port <N>`. Invalid values fail fast with usage
+  text.
 - **MVP-CLI-3** If a daemon is already running, `cosmos start` reports that and exits
   0 without starting another.
 - **MVP-CLI-4** `cosmos stop` shuts the daemon down cleanly (MVP-LIFE-6) and releases
   its port.
-- **MVP-CLI-5** The daemon commands `describe`, `list`, `step`, `mode`, `add` and
-  `remove` talk to the running daemon. With no daemon running, they say so clearly and
+- **MVP-CLI-5** The daemon commands `describe`, `list`, `step`, `pause`, `resume`,
+  `snapshot`, `add` and `remove` talk to the running daemon. With no daemon running, they say so clearly and
   exit non-zero, without hanging.
-- **MVP-CLI-6** The existing subcommands `startapp`, `capabilities`, `concept`,
-  `scan`, `ipc` and `notify` stay reachable from the CLI.
+- **MVP-CLI-6** The existing subcommands `startapp` and `capabilities` stay reachable
+  from the CLI.
 - **MVP-CLI-7** IPC is localhost-only, using JSON lines with versioned request and
   response envelopes. Request IDs are unique per invocation.
 - **MVP-CLI-8** Unknown commands, unknown flags and missing values exit non-zero with
@@ -345,19 +376,15 @@ daemon model).*
   prompt line. The scope line shows which Thing you are in. The folder line shows where
   you are inside that Thing's own folder. **Departs** from the path sharing the prompt
   line (REQUIREMENTS Three-Layer Layout), so typing always starts in the same place.
-- **MVP-CON-2** MVP commands: `ls`, `cd`, `pwd`, `dir`, `info`, `peek`, `state`, `world`,
-  `watch`, `history`, `call`, `attach`, `detach`, `help`, `clear` and `exit`.
-- **MVP-CON-3** `attach`, `help`, `clear` and `exit` work without an attached
-  instance. Every other command gives a clear error when detached.
-- **MVP-CON-4** `detach` cancels watches, clears session state and resets scope and
-  prompt.
+- **MVP-CON-2** MVP commands: `ls`, `cd`, `pwd`, `dir`, `state`, `watch`, `history`,
+  `call`, `help`, `clear` and `exit`.
 - **MVP-CON-5** `ls` output is one flat list, using the existing entry formats.
 - **MVP-CON-6** `watch` returns to the layout on `Ctrl+C`.
-- **MVP-CON-7** `cosmos console` is the only console entry point. It attaches to the
-  running daemon over IPC and accepts `--attach <identity>` and `--watch <path>`.
+- **MVP-CON-7** `cosmos console` is the only console entry point. It holds its own scope
+  and only uses the same methods as every other client, so it has no sessions.
   `console_main` is removed once its tests have moved to `cosmos console`.
 - **MVP-CON-8** **Scopes can be entered.** One `cd` moves through both Things and
-  folders. With no target, `info`, `state`, `dir`, `ls` and `history` act on the current
+  folders. With no target, `state`, `dir`, `ls` and `history` act on the current
   scope. **Departs** from introspection not depending on scope (REQUIREMENTS
   Introspection Rules). The console remains a navigator, not a language interpreter: it
   doesn't run arbitrary code.
@@ -426,12 +453,11 @@ no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) was conf
 - **MVP-AI-1** **Parity:** every action available through the CLI or console is
   available as an IPC method with a structured JSON result. The CLI and console are
   clients of IPC, so there's no human-only path. Actions that work without a running
-  daemon (`startapp`, `capabilities`, `concept`, `capability`, `scan`, `notify` and
-  `logs`) are in the same method table, marked as not needing one.
+  daemon (`startapp`, `capabilities` and `logs`) are in the same method table, marked as not needing one.
 - **MVP-AI-2** Every Thing is discoverable and describes itself over IPC: identity,
   scope path, manifest (WHO, WHY and any optional interrogatives), WANTS and PROVIDES
   with signatures, rhythm, status and children.
-- **MVP-AI-3** The IPC surface describes itself. `runtime.methods` lists every method
+- **MVP-AI-3** The IPC surface describes itself. `describe cosmos` lists every method
   with its parameters, its result and whether it changes state, so a client needs no
   separate documentation.
 - **MVP-AI-4** **Same gates:** AI requests pass the same validation as every other
@@ -452,7 +478,7 @@ no earlier REQUIREMENTS.md section. Scope (full parity, MCP in the MVP) was conf
     with the §4.4 codes. It needs no terminal interaction. The verbs come from the
     method table, so none can be left out.
   - **MCP:** `cosmos mcp` exposes every method as a tool over stdio, generated from
-    `runtime.methods`.
+    the method table.
   - **REST** is deferred. It would be one more thin client of the same table.
 - **MVP-AI-8** **The history can be read.** `runtime.history` and `cosmos history`
   return the most recent rows, one chosen frame, or only the changes involving one
@@ -469,70 +495,10 @@ These are removed from the design, not postponed.
 | Context Inheritance Rules, Override Rules (SPECIFICATION §4.1C–§4.1D) | MVP-ONT-11: nothing is inherited. A Thing gets information only through its senses and explicit wires. |
 | Programmatic Concept overriding a manual one (SPECIFICATION §19A.5, §19A.7) | MVP-INT-5: one manifest form for every Concept. |
 
-## Deferred
+## Future updates
 
-These requirements stay in [REQUIREMENTS.md](REQUIREMENTS.md). Existing code for them
-stays in place, but they're outside the MVP gate.
-
-| Area (REQUIREMENTS.md section) | Why deferred |
-|---|---|
-| Encryption Spectrum (Phase XF) and Encrypted record (Phase XD) | Single user, so there's no operator to protect against. Revisit with a vetted crypto library. |
-| Humane Offline Licensing (Phase XE) | Not needed for personal use. |
-| Installer, release matrix, promotion (Ch 19A, Phase X release) | One machine. Build from source. |
-| Dynamic Semantic Scanner (Phase XB) | Not needed to build Things. The `scan` command stays reachable. |
-| Protobuf transport and serializer switching | JSON only, so one less decision. |
-| Cue schema validation workflow | JSON config with in-code validation is enough. |
-| Implementations in other languages (Python, Rust, Node, binaries), run as separate processes | The contract is fixed now (MVP-INT-6). The MVP uses Nim, and C where needed. |
-| References (Phase XH) | Decide once real Things need them. A reference may turn out to be a wire. |
-| World Ledger claims | Graph references are enough for navigation. |
-| Delegation and specialists | Kept working, but not MVP-gated. |
-| Memory categories and caps | Kept working, but not MVP-gated. |
-| Console commands `specialists`, `delegations`, `claims`, `run`, `set` and `instances` | Not needed for the MVP workflow. |
-| Multiple instances and federation | One instance. |
-| Portability to BSD, macOS and Haiku, and 7–10-year-old toolchains | Built and tested on Windows first. Linux and BSD are the likely deployment targets (MVP-PLAN.md). |
-| Performance targets (startup under 2 s, frame rates) | Measure once the MVP is stable. |
-
-## Decisions
-
-Settled 2026-11-05.
-
-1. **Daemon port comes from config** (MVP-CLI-9). `config.nim` already resolves `port`
-   from file, `COSMOS_PORT` and overrides, with a default of 7700. The daemon and the
-   client commands ignored it and hard-coded `IpcDefaultPort`. Tests set `COSMOS_PORT`
-   to a free port. The rejected option, skipping tests when 7700 is busy, would let
-   tests skip silently and couldn't run them in parallel.
-2. **Fast check is a rule, not a list** (MVP-GATE-4). A test that imports `net`,
-   `osproc` or `cosmos_main` is skipped. As of 2026-11-05, 46 of the 50 test files
-   qualify. The 4 skipped are `coordinator_test`, `cosmos_main_ipc_id_test`,
-   `cosmos_main_path_safety_test` and `daemon_console_test`. (`cosmos_main` was added
-   to the rule on 2026-11-05, because `coordinator_test` starts the daemon through it.)
-3. **One console: `cosmos console`** (MVP-CON-7). It already talks to the daemon over
-   IPC. `console_main` predates the daemon. Keeping both meant two ways in and two
-   sets of flags, including the `--config` mismatch with REQUIREMENTS.md.
-
-Settled 2026-11-08.
-
-4. **A call travels on a one-time wire** (MVP-ONT-8, MVP-AI-5). This reuses the wire
-   and keeps waves free of addresses. The rejected options were a second way to
-   communicate, and addressed waves.
-5. **Calls have ticket numbers** (MVP-AI-5). The match between a request and its answer
-   is explicit (MVP-ONT-11), not assumed from the order they arrive in.
-6. **A paused call waits and says so** (MVP-AI-5). Refusing would force a resume, which
-   lets frames run on and loses the operator's place while stepping.
-7. **Every method has a verb, with no exceptions** (MVP-AI-6). The method table
-   generates them.
-8. **Commands that need no daemon join the method table** (MVP-AI-1).
-9. **`inspect` is retired for `describe`** (MVP-CLI-5, MVP-AI-2). The Cosmos is a Thing
-   like any other, so `describe cosmos` shows its running state. **Departs** from the
-   required `inspect` method (REQUIREMENTS Phase XC).
-10. **Logs go to the terminal and a file** (MVP-LIFE-8), in the `logs/` folder of the
-    existing home tree (REQUIREMENTS Runtime Home Tree). `--loglevel` takes the same
-    five levels as `config.nim`, which adds `trace` to MVP-CLI-2.
-11. **The data firewall is built from declarations** (MVP-VAL-2, MVP-VAL-5). It has one
-    table, filled from the method table and from manifests. The checker in
-    `validation.nim` was built and tested but never connected.
-12. **The prefilter must be bullet-proof** (MVP-VAL-6). An audit on 2026-11-08 found
-    defects that its tests had missed. MVP-PLAN.md lists them.
+Everything set aside from the MVP is in [FUTURE-UPDATES.md](FUTURE-UPDATES.md). The
+reason for each design choice is in [MVP-REASONING.md](MVP-REASONING.md).
 
 ---
 *&copy; 2026 Wilder. All rights reserved.*\

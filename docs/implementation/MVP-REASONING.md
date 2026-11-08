@@ -121,6 +121,19 @@ it back later.
   need connecting to things, and those connections would need explaining too.
 - **Cost:** A wire can't be inspected at an address of its own.
 
+### Every Thing has a unique id, and its name is only a label
+
+- **Choice:** Cosmos assigns a permanent id. People read and change the label.
+- **Why:** A name can then change, or repeat elsewhere in the tree, without breaking any
+  wire or history row. One Concept can also make many Things.
+- **Why a Thing's id isn't random:** the same run must replay the same way, so ids come
+  from a saved counter.
+- **The Cosmos's own id:** it is created once, on first run, and saved. One Cosmos can
+  then always be told from another, and replay isn't affected.
+- **Why ids are verified first:** a damaged or restored counter could otherwise hand out
+  an old id without any warning, and two Things would silently share one history.
+- **Cost:** Two identifiers exist, so history views must show labels beside ids.
+
 ### Standard words, unless the idea is truly Cosmos's own
 
 - **Choice:** Use standard terms where one fits: history, occurrence, change, frame.
@@ -157,6 +170,16 @@ it back later.
 
 - **Choice:** No patterns or wildcards.
 - **Why:** You can read a name and know what it matches. A pattern needs working out.
+
+### A sense states the shape it accepts
+
+- **Choice:** A sense gives a name and a shape. Other shapes aren't delivered. SENSES are
+  the one place a Thing declares its inputs, and wires are checked against them.
+- **Why:** Two unrelated Things can use the same wave name. Without this, a Thing could
+  receive data it never expected, which would break the data firewall.
+- **Cost:** A little more to write for each sense.
+- **Not chosen:** One shape per name across the Cosmos, where unrelated Concepts could
+  clash. Leaving it to the code.
 
 ### A wire is like a cable from an output jack
 
@@ -279,6 +302,31 @@ it back later.
   already had for outside programs.
 - **Cost:** It is slower than direct calls. Audio signals never travel this way.
 
+### Each Thing's code is a separate program
+
+- **Choice:** Cosmos starts it and talks over input and output.
+- **Why:** Nim is compiled ahead of time, and a crash stays with that Thing. Other
+  languages can follow without changing anything.
+- **Cost:** Each message takes longer than a direct call.
+- **Not chosen:** Loaded libraries, where a crash takes down Cosmos. Rebuilding Cosmos,
+  which stops Things being added while it runs.
+
+### Rhythm goes in WHEN and defaults to Event
+
+- **Choice:** No new field. With none stated, a Thing acts when it perceives something.
+- **Why:** WHEN already means this in the older documents. An idle Thing then costs
+  nothing and does nothing surprising.
+
+### Code is optional
+
+- **Choice:** A Thing can exist with no code.
+- **Why:** You can design first, and `startapp` works with no edits.
+
+### Grouping never changes timing
+
+- **Choice:** Wires meeting at a Concept's boundary are joined at load.
+- **Why:** You can reorganise Things into Concepts freely without changing behaviour.
+
 ### Concepts can be built from Concepts
 
 - **Choice:** A Concept can be made of parts and the wires between them.
@@ -288,6 +336,36 @@ it back later.
 ---
 
 ## Running Cosmos
+
+### The MVP was cut to the least that works
+
+- **Choice:** On 2026-11-08, overlapping features were set aside: frame modes, unused
+  settings, duplicate commands and two rhythms.
+- **Why:** Each did a job something else already did. Fewer things to learn and test.
+- **Nothing is lost:** each one is in [FUTURE-UPDATES.md](FUTURE-UPDATES.md).
+
+### Cosmos is either running or paused
+
+- **Choice:** No frame modes.
+- **Why:** Running at a frame rate and stepping while paused cover every use so far.
+
+### The console is an ordinary client
+
+- **Choice:** It holds its own scope, and only uses the shared actions.
+- **Why:** People and AI then match automatically, and sessions disappear.
+- **Cost:** The console's logic moves out of the running Cosmos.
+
+### Things persist across restarts
+
+- **Choice:** Things return with the same ids and state.
+- **Why:** Otherwise old history would point at Things that no longer exist.
+
+### A Thing's turn has a marked end
+
+- **Choice:** Cosmos says when input is complete, and the code says when it's done.
+- **Why:** Code runs as a separate program, so a frame can't otherwise know when a
+  Thing has finished.
+- **Cost:** A slow Thing delays the frame, up to its time limit.
 
 ### It runs in the foreground
 
@@ -519,11 +597,9 @@ These are real trade-offs, stated openly.
 
 | Tension | Where it stands |
 |---|---|
-| "Mode" means two things: the settings' mode and how frames run | Both kept for now |
 | Built on Windows, likely deployed on Linux and BSD | The tests haven't run there yet |
 | Checking every wave costs time | Audio signals don't travel this way, and speed gets measured later |
 | The command channel has no access control | Only deploy where you trust every account |
-| A sense names a wave but not its shape | [Question 8](MVP-PLAIN-LANGUAGE.md#still-undecided), for Phase 3 |
 | Whether to use an existing audio engine or write one | Not decided. It belongs to the audio project |
 
 ---

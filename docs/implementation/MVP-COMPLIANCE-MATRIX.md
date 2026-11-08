@@ -57,6 +57,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-ONT-9 | `scheduler_test` | Partial | Frames run in deterministic rounds with a digest, counted by `epoch`. Occurrences are emitted per event, not one per frame, and the history isn't a table of frame-to-changes rows. The console still shows `blip` and `morphos`. |
 | MVP-ONT-10 | — | Missing | Scope paths exist, but nothing limits what a Thing can act on to its natural scope, senses and wires. |
 | MVP-ONT-11 | — | Partial | The runtime applies no inheritance, but `resolveContext` and `applyOverrides` (`ontology.nim`) still merge ancestors' config down to children, called only by `ch4_ontology_test` and `resolveReference`. `Thing.overrideDeltas` is still stored. Spec §4C.7 removes them. |
+| MVP-ONT-12 | — | Missing | `Thing.id` exists, but Cosmos doesn't assign it from a persisted counter, and there are no separate labels. |
 
 ## 2. Lifecycle
 
@@ -81,6 +82,7 @@ prove stay Failing until Phase 2 fixes it.
 | MVP-PER-4 | `ch3_uat` | Verified | |
 | MVP-PER-5 | `ch3_uat` | Partial | A corrupt snapshot fails fast. No test covers startup halting on irreconcilable layers. |
 | MVP-PER-6 | — | Gap | `sanitizeKey` exists in `persistence.nim`. No test. |
+| MVP-PER-7 | — | Missing | Things aren't saved or restored across restarts. |
 
 ## 4. Validation
 
@@ -98,9 +100,9 @@ prove stay Failing until Phase 2 fixes it.
 | ID | Test | Status | Note |
 |---|---|---|---|
 | MVP-SCH-1 | `scheduler_test` | Verified | |
-| MVP-SCH-2 | `scheduler_test` | Verified | |
+| MVP-SCH-2 | `scheduler_test` | Partial | The scheduler's time budget is tested. The per-turn limit on a Thing's separate program isn't built. |
 | MVP-SCH-3 | `scheduler_test` | Verified | |
-| MVP-SCH-4 | `scheduler_test` | Partial | The five rhythms exist (still `TempoKind` in code). Validation at load isn't tested. |
+| MVP-SCH-4 | `scheduler_test` | Partial | The rhythms exist (still `TempoKind` in code). Reading them from WHEN and validation at load aren't built. |
 
 ## 6. Integration
 
@@ -119,7 +121,7 @@ prove stay Failing until Phase 2 fixes it.
 | ID | Test | Status | Note |
 |---|---|---|---|
 | MVP-CFG-1 | `lifecycle_test` | Verified | |
-| MVP-CFG-2 | `config_test` | Partial | The precedence logic passes, but the daemon never loads config (MVP-CLI-9). |
+| MVP-CFG-2 | `config_test` | Partial | The precedence logic passes, but the daemon never loads config (MVP-CLI-9), and the three settings aren't in place yet. |
 | MVP-CFG-3 | `config_test` | Verified | |
 | MVP-CFG-4 | `integration_test` | Verified | |
 
@@ -142,12 +144,10 @@ prove stay Failing until Phase 2 fixes it.
 | ID | Test | Status | Note |
 |---|---|---|---|
 | MVP-CON-1 | `console_status_test` | Partial | The layout order is tested. There is no folder line yet, and the prompt repeats the scope. |
-| MVP-CON-2 | `console_status_test` | Partial | `world`, `clear` and `exit` aren't tested. |
-| MVP-CON-3 | `console_status_test` | Verified | |
-| MVP-CON-4 | `console_status_test` | Partial | Session clearing is tested. Watch cancellation isn't. |
+| MVP-CON-2 | `console_status_test` | Partial | `clear` and `exit` aren't tested. `dir`, `history` and `call` don't exist yet. |
 | MVP-CON-5 | `console_status_test` | Verified | |
 | MVP-CON-6 | — | Gap | |
-| MVP-CON-7 | — | Missing | The console session is keyed by request id, so `cosmos console` never stays attached. `console_main` is still present. |
+| MVP-CON-7 | — | Missing | The console still runs inside the daemon with a session. `console_main` is still present. |
 | MVP-CON-8 | — | Missing | `cd` moves scope only, and `info` and `state` require a target. |
 | MVP-CON-9 | — | Missing | There is no `dir`, and the console has no working `call` through the prefilter. |
 

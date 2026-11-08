@@ -103,6 +103,7 @@ every command, what it does today and what Phase 2 changes.
 | [MVP-SPECIFICATION.md](docs/implementation/MVP-SPECIFICATION.md) | How it's built |
 | [MVP-COMPLIANCE-MATRIX.md](docs/implementation/MVP-COMPLIANCE-MATRIX.md) | Which requirements are proven, by which tests |
 | [MVP-PLAN.md](docs/implementation/MVP-PLAN.md) | When each piece gets built, and the reference deployment |
+| [FUTURE-UPDATES.md](docs/implementation/FUTURE-UPDATES.md) | Everything set aside from the MVP |
 | [docs/public/index.md](docs/public/index.md) | Guides, concepts and API reference |
 | [DEVELOPMENT-GUIDELINES.md](docs/implementation/DEVELOPMENT-GUIDELINES.md) | How to work in this repository |
 
